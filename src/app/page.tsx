@@ -1,0 +1,172 @@
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS } from "@/lib/constants";
+import { Shield, Sparkles, CheckCircle2, Lock, ArrowRight, Radio, Clock, Users } from "lucide-react";
+import { DevSwitcher } from "@/components/dev-switcher";
+
+export default async function HomePage() {
+  const currentUser = await getCurrentUser();
+
+  return (
+    <div className="min-h-screen bg-[#080808] flex flex-col justify-between selection:bg-[#E50914] selection:text-white">
+      {/* Top Banner */}
+      <header className="border-b border-[#202020] bg-[#0c0c0c]/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3 group">
+              <img
+                src="/logos/ophelia-logo.png"
+                alt="Ophelia Roleplay"
+                className="h-8 sm:h-9 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_12px_rgba(229,9,20,0.35)]"
+              />
+              <span className="text-xs text-[#FF1E2D] font-bold px-2 py-0.5 rounded-full bg-[#E50914]/15 border border-[#E50914]/30 hidden sm:inline-block">
+                PORTAL ABSENSI
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {currentUser && <DevSwitcher currentUser={currentUser} />}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Hero Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20 flex-1 flex flex-col justify-center">
+        <div className="grid lg:grid-cols-12 gap-12 items-center">
+          <div className="lg:col-span-7 space-y-6">
+            <div className="mb-2">
+              <img
+                src="/logos/ophelia-logo.png"
+                alt="Ophelia Roleplay"
+                className="h-14 sm:h-16 w-auto object-contain drop-shadow-[0_0_25px_rgba(229,9,20,0.45)]"
+              />
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#181818] border border-[#262626] text-xs font-semibold text-neutral-300">
+              <span className="h-2 w-2 rounded-full bg-[#FF1E2D] animate-ping" />
+              <span>Sistem Absensi & Duty Instansi Ophelia RP</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
+              DISCORD ROLEPLAY <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E50914] via-[#FF1E2D] to-orange-500">
+                DUTY ATTENDANCE
+              </span>
+            </h1>
+
+            <p className="text-base sm:text-lg text-neutral-400 max-w-xl leading-relaxed">
+              Platform pencatatan jam dinas real-time dengan sinkronisasi role Discord terintegrasi.
+              Dilengkapi validasi ganda, kalkulasi durasi server-side, pemantauan live on duty, serta audit log anti-manipulasi.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <Link
+                href="/select-institution"
+                className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-xl glow-red active:scale-95"
+              >
+                <span>Masuk Dashboard Duty</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+
+              <a
+                href="/api/auth/discord"
+                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm text-neutral-200 bg-[#161616] hover:bg-[#202020] border border-[#2a2a2a] transition hover:text-white"
+              >
+                <svg className="h-5 w-5 fill-[#5865F2]" viewBox="0 0 24 24">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                <span>Login via Discord OAuth2</span>
+              </a>
+            </div>
+
+            {/* Active user status pill */}
+            {currentUser && (
+              <div className="pt-2 flex items-center gap-3 text-xs text-neutral-400">
+                <span className="text-neutral-500">Masuk sebagai:</span>
+                <div className="flex items-center gap-2 bg-[#141414] border border-[#252525] px-3 py-1.5 rounded-lg">
+                  <img
+                    src={currentUser.discordAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"}
+                    alt={currentUser.displayName}
+                    className="h-5 w-5 rounded-full object-cover"
+                  />
+                  <span className="text-white font-medium">{currentUser.displayName}</span>
+                  <span className="text-[10px] text-[#FF1E2D] font-mono">
+                    ({currentUser.discordRoles.join(", ") || "Member"})
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Card Preview */}
+          <div className="lg:col-span-5">
+            <div className="rounded-2xl border border-[#262626] bg-[#111111] p-6 shadow-2xl relative overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[#202020] pb-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-red-600 inline-block" />
+                  <span className="h-3 w-3 rounded-full bg-amber-600 inline-block" />
+                  <span className="h-3 w-3 rounded-full bg-emerald-600 inline-block" />
+                  <span className="text-xs font-mono text-neutral-500 ml-2">ophelia-duty-v1.0</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-[#E50914]/20 text-[#FF1E2D] font-mono">
+                  LIVE ENGINE
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-[#080808] border border-[#222] p-4 rounded-xl">
+                  <div className="text-[11px] text-neutral-500 font-mono">CURRENT DUTY PREVIEW</div>
+                  <div className="text-xl font-bold text-white mt-1 flex items-center justify-between">
+                    <span>POLICE DEPARTMENT</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
+                      ACTIVE
+                    </span>
+                  </div>
+                  <div className="font-mono text-2xl font-black text-[#FF1E2D] mt-2">
+                    02 : 34 : 21
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-[#161616] border border-[#222]">
+                    <div className="text-neutral-500">TODAY DUTY</div>
+                    <div className="text-base font-bold text-white mt-0.5">04h 32m</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#161616] border border-[#222]">
+                    <div className="text-neutral-500">THIS MONTH</div>
+                    <div className="text-base font-bold text-[#FF1E2D] mt-0.5">86h 42m</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <div className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider">
+                    Fitur Keamanan Terintegrasi:
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-neutral-300">
+                    <CheckCircle2 className="h-4 w-4 text-[#FF1E2D]" />
+                    <span>Server-Side Timestamp Authority (Anti-Curang)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-neutral-300">
+                    <CheckCircle2 className="h-4 w-4 text-[#FF1E2D]" />
+                    <span>Discord Server Member Role Verification (403 Guard)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-neutral-300">
+                    <CheckCircle2 className="h-4 w-4 text-[#FF1E2D]" />
+                    <span>Multiple Sessions per Day dengan Histori Otomatis</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#1c1c1c] py-6 text-center text-xs text-neutral-400">
+        <p>© 2026 OPHELIA ROLEPLAY. Attendance & Duty Management System. Built for GTA V RP Community.</p>
+      </footer>
+    </div>
+  );
+}

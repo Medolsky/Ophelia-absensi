@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #080808;
+  --color-foreground: #ffffff;
+  
+  --color-ophelia-bg: #080808;
+  --color-ophelia-surface: #111111;
+  --color-ophelia-card: #161616;
+  --color-ophelia-card-hover: #1c1c1c;
+  --color-ophelia-border: #252525;
+  --color-ophelia-border-light: #333333;
+  --color-ophelia-red: #E50914;
+  --color-ophelia-red-glow: #FF1E2D;
+  --color-ophelia-red-dark: #8A060D;
+  --color-ophelia-text: #FFFFFF;
+  --color-ophelia-muted: #8A8A8A;
+  --color-ophelia-muted-dark: #555555;
+}
+
+:root {
+  --background: #080808;
+  --foreground: #ffffff;
+}
+
+body {
+  background-color: #080808;
+  color: #ffffff;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252525;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #E50914;
+}
+
+/* Glow effects */
+.glow-red {
+  box-shadow: 0 0 25px rgba(229, 9, 20, 0.35);
+}
+
+.glow-red-sm {
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.25);
+}
+
+.glow-red-lg {
+  box-shadow: 0 0 45px rgba(255, 30, 45, 0.45);
+}
+
+.text-glow {
+  text-shadow: 0 0 12px rgba(255, 30, 45, 0.6);
+}
+
+/* Glassmorphism surfaces */
+.glass-panel {
+  background: rgba(22, 22, 22, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid #252525;
+}
+
+/* Pulsing badge animation */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+.pulse-badge {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}

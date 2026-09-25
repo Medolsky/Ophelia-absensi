@@ -1,0 +1,162 @@
+// Prisma schema for OPHELIA ROLEPLAY INSTITUTION ATTENDANCE SYSTEM
+// Built for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Users
+model User {
+  id              String         @id @default(cuid())
+  discordId       String         @unique @map("discord_id")
+  discordUsername String         @map("discord_username")
+  displayName     String?        @map("display_name")
+  discordAvatar   String?        @map("discord_avatar")
+  discordRoles    String[]       @default([]) @map("discord_roles")
+  isSuperAdmin    Boolean        @default(false) @map("is_super_admin")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  memberships     Membership[]
+  dutySessions    DutySession[]
+  attendanceEdits AttendanceEdit[] @relation("EditedBy")
+  auditLogs       AuditLog[]       @relation("ActorAuditLogs")
+
+  @@map("users")
+}
+
+// 2. Institutions
+model Institution {
+  id                String        @id @default(cuid())
+  name              String
+  slug              String        @unique
+  description       String?
+  logo              String?
+  primaryColor      String        @default("#E50914") @map("primary_color")
+  currencySymbol    String        @default("Rp") @map("currency_symbol")
+  defaultHourlyRate Int           @default(50000) @map("default_hourly_rate")
+  status            String        @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  discordRoles DiscordRole[]
+  positions    Position[]
+  memberships  Membership[]
+  dutySessions DutySession[]
+
+  @@map("institutions")
+}
+
+// 3. Discord Role Mappings
+model DiscordRole {
+  id              String      @id @default(cuid())
+  discordRoleId   String      @map("discord_role_id")
+  name            String
+  institutionId   String      @map("institution_id")
+  permissionLevel String      @default("MEMBER") @map("permission_level") // MEMBER, LEADER, SUPER_ADMIN
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  institution     Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([discordRoleId, institutionId])
+  @@map("discord_roles")
+}
+
+// 4. Positions (Jajaran Jabatan / Pangkat dalam Instansi)
+model Position {
+  id              String       @id @default(cuid())
+  institutionId   String       @map("institution_id")
+  name            String
+  permissionLevel String       @default("MEMBER") @map("permission_level") // MEMBER, LEADER
+  sortOrder       Int          @default(0) @map("sort_order")
+  hourlyRate      Int          @default(50000) @map("hourly_rate")
+  minDutyHours    Int          @default(0) @map("min_duty_hours")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  institution     Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  memberships     Membership[]
+
+  @@map("positions")
+}
+
+// 5. Memberships (Keanggotaan User dalam Instansi)
+model Membership {
+  id            String       @id @default(cuid())
+  userId        String       @map("user_id")
+  institutionId String       @map("institution_id")
+  positionId    String?      @map("position_id")
+  status        String       @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  joinedAt      DateTime     @default(now()) @map("joined_at")
+  leftAt        DateTime?    @map("left_at")
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  position      Position?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, institutionId])
+  @@map("memberships")
+}
+
+// 6. Duty Sessions (Pencatatan Waktu Duty)
+model DutySession {
+  id              String           @id @default(cuid())
+  userId          String           @map("user_id")
+  institutionId   String           @map("institution_id")
+  startedAt       DateTime         @map("started_at")
+  endedAt         DateTime?        @map("ended_at")
+  durationSeconds Int              @default(0) @map("duration_seconds")
+  status          String           @default("ON_DUTY") // ON_DUTY, COMPLETED, CORRECTED, AUTO_CLOSED
+  notes           String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution     Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  edits           AttendanceEdit[]
+
+  @@index([userId, institutionId])
+  @@index([startedAt])
+  @@map("duty_sessions")
+}
+
+// 7. Attendance Edits (Koreksi Absensi oleh Leader/Admin)
+model AttendanceEdit {
+  id            String      @id @default(cuid())
+  dutySessionId String      @map("duty_session_id")
+  editedById    String      @map("edited_by")
+  oldStart      DateTime    @map("old_start")
+  oldEnd        DateTime?   @map("old_end")
+  newStart      DateTime    @map("new_start")
+  newEnd        DateTime?   @map("new_end")
+  reason        String
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  dutySession   DutySession @relation(fields: [dutySessionId], references: [id], onDelete: Cascade)
+  editedBy      User        @relation("EditedBy", fields: [editedById], references: [id], onDelete: Cascade)
+
+  @@map("attendance_edits")
+}
+
+// 8. Audit Logs (Log Aktivitas Sensitif)
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String   @map("actor_id")
+  action     String   // e.g. "START_DUTY", "END_DUTY", "EDIT_ATTENDANCE", "UPDATE_MEMBER", etc.
+  targetType String   @map("target_type") // e.g. "DUTY_SESSION", "MEMBER", "INSTITUTION"
+  targetId   String?  @map("target_id")
+  oldData    String?  @map("old_data") // JSON string
+  newData    String?  @map("new_data") // JSON string
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor      User     @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([action])
+  @@map("audit_logs")
+}

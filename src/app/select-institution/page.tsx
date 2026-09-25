@@ -1,0 +1,142 @@
+import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
+import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Shield, Lock, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
+import { DevSwitcher } from "@/components/dev-switcher";
+import { InstitutionLogo } from "@/components/institution-logo";
+
+export default async function SelectInstitutionPage() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect("/");
+  }
+
+  // Check access for each institution
+  const institutionsWithAccess = await Promise.all(
+    DEFAULT_INSTITUTIONS.map(async (inst) => {
+      const access = await verifyInstitutionAccess(currentUser, inst.slug);
+      return {
+        ...inst,
+        access,
+      };
+    })
+  );
+
+  return (
+    <div className="min-h-screen bg-[#080808] flex flex-col justify-between selection:bg-[#E50914] selection:text-white">
+      {/* Header */}
+      <header className="border-b border-[#202020] bg-[#0c0c0c]/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <img
+              src="/logos/ophelia-logo.png"
+              alt="Ophelia Roleplay"
+              className="h-8 sm:h-9 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_12px_rgba(229,9,20,0.35)]"
+            />
+            <span className="text-xs text-[#FF1E2D] font-bold px-2 py-0.5 rounded-full bg-[#E50914]/15 border border-[#E50914]/30 hidden sm:inline-block">
+              PILIH INSTANSI
+            </span>
+          </Link>
+
+          <DevSwitcher currentUser={currentUser} />
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 flex flex-col justify-center">
+        <div className="text-center max-w-xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181818] border border-[#262626] text-xs font-semibold text-neutral-300 mb-3">
+            <CheckCircle className="h-3.5 w-3.5 text-[#FF1E2D]" />
+            <span>Terverifikasi dengan Discord ID: {currentUser.discordId}</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+            PILIH INSTANSI DINAS
+          </h1>
+          <p className="text-sm text-neutral-400 mt-2">
+            Sistem memverifikasi role Discord Anda secara server-side. Anda hanya dapat masuk dan melakukan absensi pada instansi yang telah di-assign di Discord Whitelist.
+          </p>
+        </div>
+
+        {/* Institutions Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {institutionsWithAccess.map((inst) => {
+            const hasAccess = inst.access.allowed;
+            const permissionLevel = inst.access.permissionLevel;
+
+            return (
+              <div
+                key={inst.id}
+                className={`relative rounded-2xl border p-6 transition-all ${
+                  hasAccess
+                    ? "bg-[#111111] border-[#292929] hover:border-[#E50914] shadow-xl group hover:glow-red-sm"
+                    : "bg-[#0d0d0d] border-[#1f1f1f] opacity-60"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <InstitutionLogo
+                      logo={inst.logo}
+                      name={inst.name}
+                      size="lg"
+                      className="p-1.5 rounded-xl bg-[#181818] border border-[#262626]"
+                    />
+                    <div>
+                      <h2 className="text-lg font-bold text-white group-hover:text-[#FF1E2D] transition-colors">
+                        {inst.name}
+                      </h2>
+                      <p className="text-xs text-neutral-400 mt-0.5 line-clamp-2">
+                        {inst.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {hasAccess ? (
+                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30 shrink-0">
+                      {permissionLevel === "SUPER_ADMIN" ? "SUPER ADMIN" : permissionLevel}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-red-950/40 text-red-400 font-semibold border border-red-900/40 flex items-center gap-1 shrink-0">
+                      <Lock className="h-3 w-3" />
+                      <span>TERKUNCI</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-[#202020] flex items-center justify-between">
+                  <div className="text-[11px] text-neutral-400">
+                    Role yang dibutuhkan: <br />
+                    <span className="text-neutral-300 font-mono">
+                      {inst.discordRoleNames?.slice(0, 2).join(", ")}
+                    </span>
+                  </div>
+
+                  {hasAccess ? (
+                    <Link
+                      href={`/institution/${inst.slug}/duty`}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm group-hover:translate-x-0.5"
+                    >
+                      <span>Masuk Instansi</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  ) : (
+                    <div className="text-[11px] text-red-400/80 flex items-center gap-1 font-medium">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      <span>Role Discord Tidak Ada</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#1c1c1c] py-6 text-center text-xs text-neutral-400">
+        <p>© 2026 OPHELIA ROLEPLAY. Attendance & Duty Management System.</p>
+      </footer>
+    </div>
+  );
+}
