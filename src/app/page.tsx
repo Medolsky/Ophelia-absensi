@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS } from "@/lib/constants";
-import { Shield, Sparkles, CheckCircle2, Lock, ArrowRight, Radio, Clock, Users } from "lucide-react";
+import { Shield, Sparkles, CheckCircle2, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
 import { DevSwitcher } from "@/components/dev-switcher";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ discord_notice?: string; error?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const { discord_notice, error } = params;
   const currentUser = await getCurrentUser();
 
   return (
@@ -30,6 +36,52 @@ export default async function HomePage() {
           </div>
         </div>
       </header>
+
+      {/* Discord Notice / Error Alert */}
+      {(discord_notice || error) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 w-full">
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#1b1212] border border-[#E50914]/50 shadow-2xl flex flex-col sm:flex-row items-start gap-4">
+            <AlertTriangle className="h-6 w-6 text-[#FF1E2D] shrink-0 mt-0.5" />
+            <div className="space-y-1.5 flex-1">
+              <div className="font-bold text-sm text-white flex items-center gap-2">
+                <span>
+                  {discord_notice === "missing_credentials"
+                    ? "Kredensial Discord Belum Lengkap di Vercel Dashboard"
+                    : error === "missing_client_secret"
+                    ? "DISCORD_CLIENT_SECRET Belum Diatur di Vercel"
+                    : error === "token_exchange_failed"
+                    ? "Gagal Pertukaran Kode Discord (Cek Redirect URI & Client Secret)"
+                    : `Notice Discord: ${error || discord_notice}`}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-red-950 text-red-400 font-mono">
+                  ACTION REQUIRED
+                </span>
+              </div>
+              <p className="text-xs text-neutral-300 leading-relaxed">
+                {error === "token_exchange_failed"
+                  ? "Discord menolak autentikasi. Pastikan Anda sudah menambahkan Redirect URI 'https://ophelia-absensi.vercel.app/api/auth/discord/callback' di Discord Developer Portal."
+                  : "Buka Vercel Dashboard → Settings → Environment Variables, pastikan semua variabel Discord sudah dimasukkan lalu lakukan Redeploy."}
+              </p>
+              <div className="pt-2 flex flex-wrap gap-2 text-xs">
+                <Link
+                  href="/select-institution"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#E50914] text-white font-bold hover:bg-[#FF1E2D] transition shadow-md"
+                >
+                  Gunakan Mode Demo Langsung →
+                </Link>
+                <a
+                  href="https://discord.com/developers/applications"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#202020] text-neutral-300 hover:text-white border border-[#303030] transition"
+                >
+                  Buka Discord Developer Portal ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20 flex-1 flex flex-col justify-center">

@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/?error=missing_code", baseUrl));
   }
 
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+  const clientId = process.env.DISCORD_CLIENT_ID || "1552883862726639686";
+  const clientSecret = process.env.DISCORD_CLIENT_SECRET || "OL4UJBmYj3TTZPK7A0FnvMMFZn3uU9bs";
   const botToken = process.env.DISCORD_BOT_TOKEN;
-  const guildId = process.env.DISCORD_GUILD_ID;
+  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
   const redirectUri = process.env.DISCORD_REDIRECT_URI || `${baseUrl}/api/auth/discord/callback`;
 
   if (!clientId || !clientSecret) {

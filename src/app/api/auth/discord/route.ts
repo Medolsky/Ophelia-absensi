@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const clientId = process.env.DISCORD_CLIENT_ID;
+  const clientId = process.env.DISCORD_CLIENT_ID || "1552883862726639686";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
   const redirectUri =
     process.env.DISCORD_REDIRECT_URI || `${appUrl}/api/auth/discord/callback`;
 
   if (!clientId) {
-    // If not configured, redirect back to landing page with helper notice
     return NextResponse.redirect(new URL("/?discord_notice=missing_credentials", appUrl));
   }
 
