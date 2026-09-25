@@ -4,7 +4,7 @@ import { SessionUser } from "@/types";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
 
   if (!code) {
     return NextResponse.redirect(new URL("/?error=missing_code", baseUrl));

@@ -1,12 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const clientId = process.env.DISCORD_CLIENT_ID;
-  const redirectUri = process.env.DISCORD_REDIRECT_URI || "http://localhost:3000/api/auth/discord/callback";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const redirectUri =
+    process.env.DISCORD_REDIRECT_URI || `${appUrl}/api/auth/discord/callback`;
 
   if (!clientId) {
     // If not configured, redirect back to landing page with helper notice
-    return NextResponse.redirect(new URL("/?discord_notice=missing_credentials", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+    return NextResponse.redirect(new URL("/?discord_notice=missing_credentials", appUrl));
   }
 
   const scope = encodeURIComponent("identify guilds guilds.members.read");
@@ -16,3 +18,4 @@ export async function GET() {
 
   return NextResponse.redirect(discordAuthUrl);
 }
+
