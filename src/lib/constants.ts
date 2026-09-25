@@ -11,7 +11,17 @@ export const DEFAULT_INSTITUTIONS: InstitutionData[] = [
     currencySymbol: "Rp",
     defaultHourlyRate: 50000,
     status: "ACTIVE",
-    discordRoleNames: ["Police", "Police Chief", "Police Commander", "Police Officer"],
+    discordRoleNames: [
+      "👮 • OFFICER",
+      "👮 • CHIEF OF POLICE",
+      "👮 • SWAT",
+      "👮 • HIGHWAY PATROL",
+      "Police",
+      "Police Officer",
+      "Chief of Police",
+      "Officer",
+      "Cadet",
+    ],
   },
   {
     id: "inst-medical",
@@ -23,7 +33,15 @@ export const DEFAULT_INSTITUTIONS: InstitutionData[] = [
     currencySymbol: "Rp",
     defaultHourlyRate: 50000,
     status: "ACTIVE",
-    discordRoleNames: ["EMS", "EMS Director", "Supervisor", "Paramedic"],
+    discordRoleNames: [
+      "MEDIS",
+      "PETINGGI MEDIS",
+      "EMS",
+      "EMS Director",
+      "Supervisor",
+      "Paramedic",
+      "Doctor",
+    ],
   },
   {
     id: "inst-mechanic",
@@ -35,7 +53,15 @@ export const DEFAULT_INSTITUTIONS: InstitutionData[] = [
     currencySymbol: "Rp",
     defaultHourlyRate: 55000,
     status: "ACTIVE",
-    discordRoleNames: ["Mechanic", "Mechanic Owner", "Senior Mechanic", "Apprentice"],
+    discordRoleNames: [
+      "🔧 • BENGKEL",
+      "🔧 • PETINGGI BENGKEL",
+      "Mechanic",
+      "Bengkel",
+      "Mechanic Owner",
+      "Senior Mechanic",
+      "Apprentice",
+    ],
   },
   {
     id: "inst-restaurant",
@@ -47,9 +73,34 @@ export const DEFAULT_INSTITUTIONS: InstitutionData[] = [
     currencySymbol: "Rp",
     defaultHourlyRate: 45000,
     status: "ACTIVE",
-    discordRoleNames: ["Restaurant", "Restaurant Manager", "Supervisor", "Employee"],
+    discordRoleNames: [
+      "🍷 SERVERS RESTO",
+      "🍷 PETINGGI RESTO",
+      "Restaurant",
+      "Resto",
+      "Restaurant Manager",
+      "Supervisor",
+      "Employee",
+    ],
   },
 ];
+
+export const KNOWN_DISCORD_ROLE_IDS: Record<string, string> = {
+  "1482622396954312809": "ADMIN",
+  "1482622396954312808": "PIMPINAN",
+  "1482622396954312807": "👮 • CHIEF OF POLICE",
+  "1508742513874440303": "👮 • SWAT",
+  "1508742898194186330": "👮 • HIGHWAY PATROL",
+  "1522915139072950312": "👮 • OFFICER",
+  "1482622396946055227": "MEDIS",
+  "1482622396954312805": "PETINGGI MEDIS",
+  "1482622396946055223": "🔧 • BENGKEL",
+  "1482622396946055224": "🔧 • PETINGGI BENGKEL",
+  "1482622396946055225": "🍷 SERVERS RESTO",
+  "1482622396946055226": "🍷 PETINGGI RESTO",
+  "1482622396946055221": "🏦 • PEMERINTAH",
+  "1482622396946055222": "🏦 • PETINGGI PEMERINTAH",
+};
 
 export const DEFAULT_POSITION_SALARIES: Record<
   string,

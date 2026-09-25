@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setCurrentUser } from "@/lib/auth";
 import { SessionUser } from "@/types";
+import { KNOWN_DISCORD_ROLE_IDS } from "@/lib/constants";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -48,8 +49,55 @@ export async function GET(req: NextRequest) {
     });
     const discordUser = await userRes.json();
 
-    // 3. Fetch Guild Roles (if Bot Token and Guild ID are configured)
+    // 3. Multi-Layer Guild Roles & Administrator Permission Fetch
     let userRoles: string[] = [];
+    let isUserSuperAdmin = false;
+
+    // 3a. Check user's guilds to detect Server Owner or Administrator permissions (0x8)
+    try {
+      const guildsRes = await fetch("https://discord.com/api/users/@me/guilds", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (guildsRes.ok) {
+        const userGuilds: { id: string; owner: boolean; permissions: string }[] = await guildsRes.json();
+        const targetGuild = userGuilds.find((g) => g.id === guildId);
+        if (targetGuild) {
+          const permBigInt = BigInt(targetGuild.permissions || "0");
+          const hasAdminPerm = (permBigInt & BigInt(8)) === BigInt(8);
+          if (targetGuild.owner || hasAdminPerm) {
+            isUserSuperAdmin = true;
+            userRoles.push("ADMIN", "PIMPINAN");
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to check user guild permissions:", e);
+    }
+
+    // 3b. Fetch user member roles using User OAuth2 Token (guilds.members.read scope)
+    try {
+      const userMemberRes = await fetch(
+        `https://discord.com/api/users/@me/guilds/${guildId}/member`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+      if (userMemberRes.ok) {
+        const userMemberData: { roles?: string[]; nick?: string } = await userMemberRes.json();
+        if (Array.isArray(userMemberData.roles)) {
+          for (const roleId of userMemberData.roles) {
+            const mappedName = KNOWN_DISCORD_ROLE_IDS[roleId];
+            if (mappedName && !userRoles.includes(mappedName)) {
+              userRoles.push(mappedName);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch user member with OAuth token:", e);
+    }
+
+    // 3c. Fetch via Bot Token if available (for dynamic role resolution)
     if (botToken && guildId) {
       try {
         const memberRes = await fetch(
@@ -60,21 +108,26 @@ export async function GET(req: NextRequest) {
         );
         if (memberRes.ok) {
           const memberData = await memberRes.json();
-          // memberData.roles is array of role IDs
-          // Fetch guild roles to resolve role names
           const rolesRes = await fetch(`https://discord.com/api/guilds/${guildId}/roles`, {
             headers: { Authorization: `Bot ${botToken}` },
           });
           if (rolesRes.ok) {
             const allRoles: { id: string; name: string }[] = await rolesRes.json();
-            userRoles = allRoles
-              .filter((r) => memberData.roles.includes(r.id))
-              .map((r) => r.name);
+            for (const r of allRoles) {
+              if (memberData.roles?.includes(r.id) && !userRoles.includes(r.name)) {
+                userRoles.push(r.name);
+              }
+            }
           }
         }
       } catch (err) {
-        console.warn("Failed to fetch guild roles:", err);
+        console.warn("Failed to fetch guild roles via bot:", err);
       }
+    }
+
+    // 3d. Check if user has ADMIN, PIMPINAN, or server admin roles
+    if (userRoles.some((r) => /admin|pimpinan|owner|founder/i.test(r))) {
+      isUserSuperAdmin = true;
     }
 
     // 4. Construct user object
@@ -87,7 +140,7 @@ export async function GET(req: NextRequest) {
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
         : null,
       discordRoles: userRoles,
-      isSuperAdmin: false,
+      isSuperAdmin: isUserSuperAdmin,
     };
 
     await setCurrentUser(sessionUser);

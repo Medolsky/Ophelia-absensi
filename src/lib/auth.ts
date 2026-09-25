@@ -50,7 +50,26 @@ export async function verifyInstitutionAccess(
     return { allowed: true, permissionLevel: "SUPER_ADMIN" };
   }
 
-  // 2. Check Demo Persona mappings
+  const userRoles = user.discordRoles || [];
+
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // 2. Check if user has server-wide Admin / Pimpinan Discord roles
+  const hasAdminRole = userRoles.some((r) => {
+    const norm = normalize(r);
+    return norm === "admin" || norm === "pimpinan" || norm.includes("admin") || norm.includes("owner");
+  });
+
+  if (hasAdminRole) {
+    return { allowed: true, permissionLevel: "SUPER_ADMIN" };
+  }
+
+  // 3. Check Demo Persona mappings
   const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
   if (demoPersona) {
     const hasRole = demoPersona.institutionSlugs.includes(institutionSlug);
@@ -67,18 +86,25 @@ export async function verifyInstitutionAccess(
     };
   }
 
-  // 3. Check Discord roles against institution mapped roles
+  // 4. Check Discord roles against institution mapped roles
   const institution = DEFAULT_INSTITUTIONS.find((i) => i.slug === institutionSlug);
   if (!institution) {
     return { allowed: false, permissionLevel: "MEMBER", reason: "Instansi tidak valid." };
   }
 
-  const userRoles = user.discordRoles || [];
   const requiredRoles = institution.discordRoleNames || [institution.name];
 
-  const matched = userRoles.some((role) =>
-    requiredRoles.some((req) => req.toLowerCase() === role.toLowerCase())
-  );
+  const matched = userRoles.some((role) => {
+    const normRole = normalize(role);
+    return requiredRoles.some((req) => {
+      const normReq = normalize(req);
+      return (
+        normRole === normReq ||
+        normRole.includes(normReq) ||
+        normReq.includes(normRole)
+      );
+    });
+  });
 
   if (!matched) {
     return {
@@ -88,14 +114,20 @@ export async function verifyInstitutionAccess(
     };
   }
 
-  // Determine Leader role
-  const isLeader = userRoles.some((role) =>
-    role.toLowerCase().includes("chief") ||
-    role.toLowerCase().includes("director") ||
-    role.toLowerCase().includes("owner") ||
-    role.toLowerCase().includes("manager") ||
-    role.toLowerCase().includes("lead")
-  );
+  // 5. Determine Leader role
+  const isLeader = userRoles.some((role) => {
+    const norm = normalize(role);
+    return (
+      norm.includes("petinggi") ||
+      norm.includes("chief") ||
+      norm.includes("director") ||
+      norm.includes("pimpinan") ||
+      norm.includes("admin") ||
+      norm.includes("owner") ||
+      norm.includes("manager") ||
+      norm.includes("lead")
+    );
+  });
 
   return {
     allowed: true,
