@@ -10,6 +10,7 @@ interface AttendanceEditModalProps {
   institutionSlug: string;
   isOpen: boolean;
   onClose: () => void;
+  onSessionUpdated?: (updatedSession: DutySessionData) => void;
 }
 
 export function AttendanceEditModal({
@@ -17,6 +18,7 @@ export function AttendanceEditModal({
   institutionSlug,
   isOpen,
   onClose,
+  onSessionUpdated,
 }: AttendanceEditModalProps) {
   // Format dates for input datetime-local
   const formatForInput = (isoString?: string | null) => {
@@ -61,10 +63,12 @@ export function AttendanceEditModal({
 
       if (res.success) {
         setSuccess(true);
+        if (res.session && onSessionUpdated) {
+          onSessionUpdated(res.session as DutySessionData);
+        }
         setTimeout(() => {
           onClose();
-          window.location.reload();
-        }, 1000);
+        }, 400);
       } else {
         setError(res.error || "Gagal menyimpan perubahan.");
       }

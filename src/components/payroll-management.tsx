@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PayrollRecord } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { updatePositionSalaryAction, togglePayrollStatusAction } from "@/app/actions/payroll-actions";
@@ -34,6 +35,7 @@ export function PayrollManagement({
   initialRecords,
   initialConfigs,
 }: PayrollManagementProps) {
+  const router = useRouter();
   const [records, setRecords] = useState<PayrollRecord[]>(initialRecords);
   const [configs, setConfigs] = useState(initialConfigs);
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,6 +118,7 @@ export function PayrollManagement({
         );
 
         setShowConfigModal(false);
+        router.refresh();
       }
     } finally {
       setConfigLoading(false);
@@ -126,6 +129,14 @@ export function PayrollManagement({
     const newStatus = record.status === "PAID" ? "PENDING" : "PAID";
     setTogglingId(record.membershipId);
 
+    // Instant optimistic UI update in 0ms!
+    const previousRecords = [...records];
+    setRecords((prev) =>
+      prev.map((r) =>
+        r.membershipId === record.membershipId ? { ...r, status: newStatus } : r
+      )
+    );
+
     try {
       const res = await togglePayrollStatusAction({
         institutionSlug,
@@ -133,13 +144,14 @@ export function PayrollManagement({
         newStatus,
       });
 
-      if (res.success) {
-        setRecords(
-          records.map((r) =>
-            r.membershipId === record.membershipId ? { ...r, status: newStatus } : r
-          )
-        );
+      if (!res.success) {
+        // Rollback on server error
+        setRecords(previousRecords);
+      } else {
+        router.refresh();
       }
+    } catch {
+      setRecords(previousRecords);
     } finally {
       setTogglingId(null);
     }

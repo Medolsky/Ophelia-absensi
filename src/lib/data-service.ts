@@ -12,6 +12,7 @@ import {
   PermissionLevel,
   PayrollRecord,
   SessionUser,
+  DiscordRoleMappingData,
 } from "@/types";
 
 // In-Memory Seed State for Development/Fallback
@@ -23,6 +24,7 @@ interface StoreState {
   attendanceEdits: AttendanceEditData[];
   salaryConfigs: Record<string, Record<string, { hourlyRate: number; minDutyHours: number }>>;
   payrollStatuses: Record<string, { status: "PENDING" | "PAID"; paidAt?: string; paidByName?: string }>;
+  roleMappings: DiscordRoleMappingData[];
 }
 
 const initialSessions: DutySessionData[] = [];
@@ -549,6 +551,121 @@ const initialMemberships: MembershipData[] = [
   },
 ];
 
+export const DEFAULT_ROLE_MAPPINGS: DiscordRoleMappingData[] = [
+  {
+    id: "role-map-01",
+    discordRole: "ADMIN",
+    roleId: "1482622396954312809",
+    institution: "SEMUA INSTANSI (GLOBAL)",
+    permission: "SUPER_ADMIN",
+    description: "Akses Super Administrator server-wide dan seluruh instansi",
+  },
+  {
+    id: "role-map-02",
+    discordRole: "PIMPINAN",
+    roleId: "1482622396954312808",
+    institution: "SEMUA INSTANSI (GLOBAL)",
+    permission: "SUPER_ADMIN",
+    description: "Pimpinan server dengan hak akses manajemen penuh",
+  },
+  {
+    id: "role-map-03",
+    discordRole: "CHIEF OF POLICE",
+    roleId: "1482622396954312807",
+    institution: "Ophelia Police Department",
+    permission: "LEADER",
+    description: "Kepala Kepolisian (Manajemen anggota, buku absensi, live monitoring)",
+  },
+  {
+    id: "role-map-04",
+    discordRole: "SWAT",
+    roleId: "1508742513874440303",
+    institution: "Ophelia Police Department",
+    permission: "MEMBER",
+    description: "Unit taktis kepolisian SWAT",
+  },
+  {
+    id: "role-map-05",
+    discordRole: "HIGHWAY PATROL",
+    roleId: "1508742898194186330",
+    institution: "Ophelia Police Department",
+    permission: "MEMBER",
+    description: "Patroli jalan raya kepolisian",
+  },
+  {
+    id: "role-map-06",
+    discordRole: "OFFICER",
+    roleId: "1522915139072950312",
+    institution: "Ophelia Police Department",
+    permission: "MEMBER",
+    description: "Petugas kepolisian aktif",
+  },
+  {
+    id: "role-map-07",
+    discordRole: "PETINGGI MEDIS",
+    roleId: "1482622396954312805",
+    institution: "Ophelia Medical Center",
+    permission: "LEADER",
+    description: "Petinggi dan Direktur Medis Rumah Sakit",
+  },
+  {
+    id: "role-map-08",
+    discordRole: "MEDIS",
+    roleId: "1482622396946055227",
+    institution: "Ophelia Medical Center",
+    permission: "MEMBER",
+    description: "Dokter dan paramedis medis rumah sakit",
+  },
+  {
+    id: "role-map-09",
+    discordRole: "PETINGGI BENGKEL",
+    roleId: "1482622396946055224",
+    institution: "Ophelia Custom Garage",
+    permission: "LEADER",
+    description: "Kepala Mekanik dan Pemilik Bengkel",
+  },
+  {
+    id: "role-map-10",
+    discordRole: "BENGKEL",
+    roleId: "1482622396946055223",
+    institution: "Ophelia Custom Garage",
+    permission: "MEMBER",
+    description: "Mekanik dan teknisi modifikasi kendaraan",
+  },
+  {
+    id: "role-map-11",
+    discordRole: "PETINGGI RESTO",
+    roleId: "1482622396946055226",
+    institution: "Ophelia Restaurant & Lounge",
+    permission: "LEADER",
+    description: "Manajer dan Supervisor Restoran & Lounge",
+  },
+  {
+    id: "role-map-12",
+    discordRole: "SERVERS RESTO",
+    roleId: "1482622396946055225",
+    institution: "Ophelia Restaurant & Lounge",
+    permission: "MEMBER",
+    description: "Staff dan pramusaji restoran",
+  },
+  {
+    id: "role-map-13",
+    discordRole: "PETINGGI PEMERINTAH",
+    roleId: "1482622396946055222",
+    institution: "Pemerintah Kota Ophelia",
+    permission: "LEADER",
+    description: "Pejabat dan Petinggi Administrasi Pemerintahan",
+  },
+  {
+    id: "role-map-14",
+    discordRole: "PEMERINTAH",
+    roleId: "1482622396946055221",
+    institution: "Pemerintah Kota Ophelia",
+    permission: "MEMBER",
+    description: "Staff operasional pelayanan sipil pemerintah",
+  },
+];
+
 // Global Memory Store instance
 const globalMemoryStore = globalThis as unknown as {
   __ophelia_store?: StoreState;
@@ -563,15 +680,33 @@ if (!globalMemoryStore.__ophelia_store) {
     attendanceEdits: [],
     salaryConfigs: { ...DEFAULT_POSITION_SALARIES },
     payrollStatuses: {},
+    roleMappings: [...DEFAULT_ROLE_MAPPINGS],
   };
 } else {
-  globalMemoryStore.__ophelia_store.institutions = [...DEFAULT_INSTITUTIONS];
-  globalMemoryStore.__ophelia_store.dutySessions = [];
-  globalMemoryStore.__ophelia_store.auditLogs = [];
-  globalMemoryStore.__ophelia_store.attendanceEdits = [];
-  globalMemoryStore.__ophelia_store.payrollStatuses = {};
+  // Preserve state across hot-reloads and requests!
+  if (!globalMemoryStore.__ophelia_store.institutions || globalMemoryStore.__ophelia_store.institutions.length === 0) {
+    globalMemoryStore.__ophelia_store.institutions = [...DEFAULT_INSTITUTIONS];
+  }
+  if (!globalMemoryStore.__ophelia_store.memberships) {
+    globalMemoryStore.__ophelia_store.memberships = [...initialMemberships];
+  }
+  if (!globalMemoryStore.__ophelia_store.dutySessions) {
+    globalMemoryStore.__ophelia_store.dutySessions = [];
+  }
+  if (!globalMemoryStore.__ophelia_store.auditLogs) {
+    globalMemoryStore.__ophelia_store.auditLogs = [];
+  }
+  if (!globalMemoryStore.__ophelia_store.attendanceEdits) {
+    globalMemoryStore.__ophelia_store.attendanceEdits = [];
+  }
   if (!globalMemoryStore.__ophelia_store.salaryConfigs) {
     globalMemoryStore.__ophelia_store.salaryConfigs = { ...DEFAULT_POSITION_SALARIES };
+  }
+  if (!globalMemoryStore.__ophelia_store.payrollStatuses) {
+    globalMemoryStore.__ophelia_store.payrollStatuses = {};
+  }
+  if (!globalMemoryStore.__ophelia_store.roleMappings) {
+    globalMemoryStore.__ophelia_store.roleMappings = [...DEFAULT_ROLE_MAPPINGS];
   }
 }
 
@@ -622,6 +757,107 @@ export class DataService {
   static async getInstitutionBySlug(slug: string): Promise<InstitutionData | null> {
     const institutions = await this.getInstitutions();
     return institutions.find((i) => i.slug === slug) || null;
+  }
+
+  static async createInstitution(data: {
+    name: string;
+    slug: string;
+    description?: string;
+    logo?: string;
+    primaryColor?: string;
+    status?: "ACTIVE" | "INACTIVE";
+    discordRoleNames?: string[];
+  }): Promise<InstitutionData> {
+    const cleanSlug = data.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, "");
+    const id = `inst-${cleanSlug}-${Date.now().toString().slice(-4)}`;
+    const newInst: InstitutionData = {
+      id,
+      name: data.name.trim(),
+      slug: cleanSlug,
+      description: data.description?.trim() || "",
+      logo: data.logo?.trim() || "/logos/ophelia-logo.png",
+      primaryColor: data.primaryColor || "#E50914",
+      status: data.status || "ACTIVE",
+      discordRoleNames: data.discordRoleNames || [],
+    };
+
+    const isDb = await this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        const created = await prisma.institution.create({
+          data: {
+            id: newInst.id,
+            name: newInst.name,
+            slug: newInst.slug,
+            description: newInst.description,
+            logo: newInst.logo,
+            primaryColor: newInst.primaryColor,
+            status: newInst.status,
+          },
+        });
+        newInst.id = created.id;
+      } catch (err) {
+        console.warn("DB create institution failed, using memory:", err);
+      }
+    }
+
+    const existingIdx = memoryStore.institutions.findIndex((i) => i.slug === newInst.slug);
+    if (existingIdx >= 0) {
+      memoryStore.institutions[existingIdx] = newInst;
+    } else {
+      memoryStore.institutions.push(newInst);
+    }
+    return newInst;
+  }
+
+  static async updateInstitution(
+    id: string,
+    updates: Partial<InstitutionData>
+  ): Promise<InstitutionData | null> {
+    const isDb = await this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        await prisma.institution.update({
+          where: { id },
+          data: {
+            name: updates.name,
+            description: updates.description,
+            logo: updates.logo,
+            primaryColor: updates.primaryColor,
+            status: updates.status,
+          },
+        });
+      } catch (err) {
+        console.warn("DB update institution failed, using memory:", err);
+      }
+    }
+
+    const idx = memoryStore.institutions.findIndex((i) => i.id === id || i.slug === id);
+    if (idx === -1) return null;
+
+    memoryStore.institutions[idx] = {
+      ...memoryStore.institutions[idx],
+      ...updates,
+    };
+    return memoryStore.institutions[idx];
+  }
+
+  static async deleteInstitution(id: string): Promise<boolean> {
+    const isDb = await this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        await prisma.institution.delete({ where: { id } });
+      } catch (err) {
+        console.warn("DB delete institution failed, using memory:", err);
+      }
+    }
+
+    const idx = memoryStore.institutions.findIndex((i) => i.id === id || i.slug === id);
+    if (idx !== -1) {
+      memoryStore.institutions.splice(idx, 1);
+      return true;
+    }
+    return false;
   }
 
   // --- DUTY SESSIONS ---
@@ -1160,6 +1396,23 @@ export class DataService {
     return memoryStore.memberships[idx];
   }
 
+  static async deleteMembership(id: string): Promise<boolean> {
+    const isDb = await this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        await prisma.membership.delete({ where: { id } });
+      } catch (err) {
+        console.warn("DB delete membership failed, using memory:", err);
+      }
+    }
+    const idx = memoryStore.memberships.findIndex((m) => m.id === id);
+    if (idx !== -1) {
+      memoryStore.memberships.splice(idx, 1);
+      return true;
+    }
+    return false;
+  }
+
   static async getUserPermission(
     userId: string,
     institutionSlug: string
@@ -1188,7 +1441,7 @@ export class DataService {
     newStart: string;
     newEnd: string;
     reason: string;
-  }): Promise<{ success: boolean; error?: string }> {
+  }): Promise<{ success: boolean; session?: DutySessionData; error?: string }> {
     const targetSession = memoryStore.dutySessions.find((s) => s.id === params.dutySessionId);
     if (!targetSession) {
       return { success: false, error: "Sesi absensi tidak ditemukan." };
@@ -1233,7 +1486,7 @@ export class DataService {
       createdAt: new Date().toISOString(),
     });
 
-    return { success: true };
+    return { success: true, session: targetSession };
   }
 
   // --- SALARY & PAYROLL SYSTEM ---
@@ -1408,5 +1661,58 @@ export class DataService {
 
   static async getAuditLogs(): Promise<AuditLogData[]> {
     return memoryStore.auditLogs;
+  }
+
+  // --- DISCORD ROLE MAPPINGS ---
+
+  static async getDiscordRoleMappings(): Promise<DiscordRoleMappingData[]> {
+    return memoryStore.roleMappings || DEFAULT_ROLE_MAPPINGS;
+  }
+
+  static async createDiscordRoleMapping(
+    data: Omit<DiscordRoleMappingData, "id">
+  ): Promise<DiscordRoleMappingData> {
+    if (!memoryStore.roleMappings) {
+      memoryStore.roleMappings = [...DEFAULT_ROLE_MAPPINGS];
+    }
+    const id = `role-map-${Date.now()}`;
+    const newMapping: DiscordRoleMappingData = {
+      ...data,
+      id,
+      discordRole: data.discordRole.trim(),
+      roleId: data.roleId.trim(),
+      description: data.description.trim(),
+    };
+    memoryStore.roleMappings.unshift(newMapping);
+    return newMapping;
+  }
+
+  static async updateDiscordRoleMapping(
+    id: string,
+    updates: Partial<DiscordRoleMappingData>
+  ): Promise<DiscordRoleMappingData | null> {
+    if (!memoryStore.roleMappings) {
+      memoryStore.roleMappings = [...DEFAULT_ROLE_MAPPINGS];
+    }
+    const idx = memoryStore.roleMappings.findIndex((m) => m.id === id);
+    if (idx === -1) return null;
+
+    memoryStore.roleMappings[idx] = {
+      ...memoryStore.roleMappings[idx],
+      ...updates,
+    };
+    return memoryStore.roleMappings[idx];
+  }
+
+  static async deleteDiscordRoleMapping(id: string): Promise<boolean> {
+    if (!memoryStore.roleMappings) {
+      memoryStore.roleMappings = [...DEFAULT_ROLE_MAPPINGS];
+    }
+    const idx = memoryStore.roleMappings.findIndex((m) => m.id === id);
+    if (idx !== -1) {
+      memoryStore.roleMappings.splice(idx, 1);
+      return true;
+    }
+    return false;
   }
 }

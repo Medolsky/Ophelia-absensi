@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MembershipData } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import {
@@ -11,8 +12,10 @@ import {
   Check,
   X,
   Edit2,
+  Trash2,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 interface MemberManagementProps {
@@ -24,10 +27,13 @@ export function MemberManagementTable({
   initialMemberships,
   institutionSlug,
 }: MemberManagementProps) {
+  const router = useRouter();
   const [members, setMembers] = useState<MembershipData[]>(initialMemberships);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<MembershipData | null>(null);
+  const [confirmDeleteMember, setConfirmDeleteMember] = useState<MembershipData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -115,6 +121,7 @@ export function MemberManagementTable({
       const data = await res.json();
       if (data.success && Array.isArray(data.members)) {
         setMembers(data.members);
+        router.refresh();
         setFeedback({
           type: "success",
           message: `Berhasil menyinkronkan ${data.count} anggota dari server Discord.`,
@@ -125,14 +132,14 @@ export function MemberManagementTable({
           message: data.error || "Gagal menyinkronkan data dari Discord.",
         });
       }
-    } catch (err) {
+    } catch {
       setFeedback({
         type: "error",
         message: "Terjadi kesalahan koneksi saat menyinkronkan Discord.",
       });
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setFeedback(null), 6000);
+      setTimeout(() => setFeedback(null), 5000);
     }
   };
 
@@ -153,18 +160,25 @@ export function MemberManagementTable({
       });
       const data = await res.json();
       if (data.success && data.member) {
-        setMembers([data.member, ...members.filter((m) => m.id !== data.member.id)]);
+        setMembers((prev) => [data.member, ...prev.filter((m) => m.id !== data.member.id)]);
         setShowAddModal(false);
         setNewDiscordId("");
+        router.refresh();
         setFeedback({
           type: "success",
-          message: `Anggota dengan Discord ID ${data.member.user?.discordId} berhasil ditambahkan.`,
+          message: `Anggota ${data.member.user?.displayName || data.member.user?.discordUsername || data.member.user?.discordId} berhasil ditambahkan.`,
         });
       } else {
-        alert(data.error || "Gagal menambah anggota.");
+        setFeedback({
+          type: "error",
+          message: data.error || "Gagal menambah anggota.",
+        });
       }
     } catch {
-      alert("Terjadi kesalahan jaringan.");
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat menambah anggota.",
+      });
     } finally {
       setIsSubmitting(false);
       setTimeout(() => setFeedback(null), 5000);
@@ -176,35 +190,88 @@ export function MemberManagementTable({
     if (!editingMember) return;
 
     setIsSubmitting(true);
+    const targetMember = editingMember;
     try {
       const res = await fetch(
-        `/api/institution/${institutionSlug}/members/${editingMember.id}`,
+        `/api/institution/${institutionSlug}/members/${targetMember.id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            positionName: editingMember.positionName,
-            status: editingMember.status,
+            positionName: targetMember.positionName,
+            status: targetMember.status,
           }),
         }
       );
       const data = await res.json();
       if (data.success && data.member) {
-        setMembers(
-          members.map((m) => (m.id === data.member.id ? data.member : m))
+        setMembers((prev) =>
+          prev.map((m) => (m.id === data.member.id ? data.member : m))
         );
         setEditingMember(null);
+        router.refresh();
         setFeedback({
           type: "success",
           message: `Data anggota ${data.member.user?.displayName} berhasil diperbarui.`,
         });
       } else {
-        alert(data.error || "Gagal memperbarui anggota.");
+        setFeedback({
+          type: "error",
+          message: data.error || "Gagal memperbarui anggota.",
+        });
       }
     } catch {
-      alert("Terjadi kesalahan jaringan.");
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan jaringan saat memperbarui anggota.",
+      });
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => setFeedback(null), 5000);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!confirmDeleteMember) return;
+
+    const memberToDelete = confirmDeleteMember;
+    setIsDeleting(true);
+
+    // Optimistic UI removal - instant in 0ms!
+    const previousMembers = [...members];
+    setMembers((prev) => prev.filter((m) => m.id !== memberToDelete.id));
+    setConfirmDeleteMember(null);
+    setFeedback({
+      type: "success",
+      message: `Anggota ${memberToDelete.user?.displayName || memberToDelete.user?.discordUsername} berhasil dikeluarkan dari instansi.`,
+    });
+
+    try {
+      const res = await fetch(
+        `/api/institution/${institutionSlug}/members/${memberToDelete.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      const data = await res.json();
+      if (!data.success) {
+        // Rollback if server failed
+        setMembers(previousMembers);
+        setFeedback({
+          type: "error",
+          message: data.error || "Gagal mengeluarkan anggota dari server.",
+        });
+      } else {
+        router.refresh();
+      }
+    } catch {
+      setMembers(previousMembers);
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan koneksi saat menghapus anggota.",
+      });
+    } finally {
+      setIsDeleting(false);
       setTimeout(() => setFeedback(null), 5000);
     }
   };
@@ -364,13 +431,24 @@ export function MemberManagementTable({
                         })}
                       </td>
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => setEditingMember(mem)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
-                        >
-                          <Edit2 className="h-3 w-3 text-[#FF1E2D]" />
-                          <span>Edit</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingMember(mem)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
+                            title="Edit Jabatan atau Status"
+                          >
+                            <Edit2 className="h-3 w-3 text-amber-400" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteMember(mem)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-400 hover:text-white bg-red-950/20 hover:bg-red-900/40 border border-red-800/30 transition"
+                            title="Keluarkan anggota dari instansi"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -553,6 +631,60 @@ export function MemberManagementTable({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Member Confirmation Modal */}
+      {confirmDeleteMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-red-900/50 shadow-2xl p-6 relative">
+            <button
+              onClick={() => setConfirmDeleteMember(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-red-950/60 border border-red-800/80 text-red-500 shrink-0">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Keluarkan Anggota</h3>
+                <p className="text-xs text-neutral-400">
+                  Konfirmasi pengeluaran dari instansi ini
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-neutral-300 leading-relaxed bg-[#0c0c0c] border border-[#222] p-3 rounded-xl mb-4">
+              Apakah Anda yakin ingin mengeluarkan{" "}
+              <b className="text-white">
+                {confirmDeleteMember.user?.displayName || confirmDeleteMember.user?.discordUsername}
+              </b>{" "}
+              (ID: <span className="font-mono text-neutral-400">{confirmDeleteMember.user?.discordId}</span>) dari daftar keanggotaan instansi?
+            </p>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteMember(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteMember}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-950/50 transition disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>{isDeleting ? "Mengeluarkan..." : "Ya, Keluarkan Anggota"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -59,3 +59,48 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string; id: string }> }
+) {
+  try {
+    const { slug, id } = await params;
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, error: "Sesi tidak valid." },
+        { status: 401 }
+      );
+    }
+
+    const access = await verifyInstitutionAccess(currentUser, slug);
+    const isLeader =
+      access.permissionLevel === "LEADER" || access.permissionLevel === "SUPER_ADMIN";
+
+    if (!isLeader) {
+      return NextResponse.json(
+        { success: false, error: "Akses ditolak: Hanya Petinggi yang dapat mengeluarkan anggota." },
+        { status: 403 }
+      );
+    }
+
+    const deleted = await DataService.deleteMembership(id);
+
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: "Anggota tidak ditemukan atau sudah dihapus." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: "Anggota berhasil dihapus." });
+  } catch (error) {
+    console.error("Delete member API error:", error);
+    return NextResponse.json(
+      { success: false, error: "Gagal menghapus data anggota." },
+      { status: 500 }
+    );
+  }
+}

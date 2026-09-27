@@ -165,3 +165,12 @@ export interface CityStatusEntry {
   avatar?: string | null;
   positionName?: string;
 }
+
+export interface DiscordRoleMappingData {
+  id: string;
+  discordRole: string;
+  roleId: string;
+  institution: string;
+  permission: PermissionLevel;
+  description: string;
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DutySessionData, PermissionLevel } from "@/types";
 import { AttendanceEditModal } from "./attendance-edit-modal";
 import { Search, Filter, Calendar, Edit2, Clock, CheckCircle2 } from "lucide-react";
@@ -16,16 +17,23 @@ export function AttendanceTable({
   institutionSlug,
   userPermission,
 }: AttendanceTableProps) {
+  const router = useRouter();
+  const [sessionsList, setSessionsList] = useState<DutySessionData[]>(sessions);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
 
+  // Sync if parent updates
+  useEffect(() => {
+    setSessionsList(sessions);
+  }, [sessions]);
+
   const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN";
 
   const filteredSessions = useMemo(() => {
-    return sessions.filter((s) => {
+    return sessionsList.filter((s) => {
       // Search by notes or date
       if (searchTerm) {
         const matchesNote = s.notes?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -45,7 +53,7 @@ export function AttendanceTable({
 
       return true;
     });
-  }, [sessions, searchTerm, statusFilter, startDate, endDate]);
+  }, [sessionsList, searchTerm, statusFilter, startDate, endDate]);
 
   const totalFilteredSeconds = useMemo(() => {
     return filteredSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
@@ -235,6 +243,12 @@ export function AttendanceTable({
           institutionSlug={institutionSlug}
           isOpen={!!selectedSessionToEdit}
           onClose={() => setSelectedSessionToEdit(null)}
+          onSessionUpdated={(updated) => {
+            setSessionsList((prev) =>
+              prev.map((s) => (s.id === updated.id ? updated : s))
+            );
+            router.refresh();
+          }}
         />
       )}
     </div>
