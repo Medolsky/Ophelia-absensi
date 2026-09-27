@@ -20,3 +20,27 @@ export async function logoutAction() {
   revalidatePath("/", "layout");
   return { success: true };
 }
+
+export async function syncDiscordRolesAction() {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { DataService } = await import("@/lib/data-service");
+
+  const user = await getCurrentUser();
+  if (!user || !user.discordId || user.discordId.startsWith("demo-")) {
+    return { success: false, error: "Bukan akun Discord resmi atau belum login." };
+  }
+
+  const syncedUser = await DataService.syncDiscordUser(user.discordId, true);
+  if (!syncedUser) {
+    return { success: false, error: "Gagal menyinkronkan data dari Discord." };
+  }
+
+  await setCurrentUser(syncedUser);
+  revalidatePath("/", "layout");
+  return {
+    success: true,
+    user: syncedUser,
+    roles: syncedUser.discordRoles,
+    isSuperAdmin: syncedUser.isSuperAdmin,
+  };
+}

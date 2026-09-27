@@ -224,6 +224,104 @@ export function mapDiscordRolesToInstitutions(
   return results;
 }
 
+// In-memory cache for Discord Guild Roles to minimize Discord API rate-limiting
+let cachedGuildRoles: { roles: Record<string, string>; fetchedAt: number } | null = null;
+
+/**
+ * Fetch and cache guild roles map (id -> clean name) with a 5-minute TTL
+ */
+export async function getGuildRoleMap(): Promise<Record<string, string>> {
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
+  const now = Date.now();
+
+  if (cachedGuildRoles && now - cachedGuildRoles.fetchedAt < 5 * 60 * 1000) {
+    return cachedGuildRoles.roles;
+  }
+
+  const roleMap: Record<string, string> = { ...KNOWN_DISCORD_ROLE_IDS };
+  if (!botToken || !guildId) return roleMap;
+
+  try {
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${botToken}` },
+      cache: "no-store",
+    });
+    if (rolesRes.ok) {
+      const roles: { id: string; name: string }[] = await rolesRes.json();
+      roles.forEach((r) => {
+        roleMap[r.id] = cleanRoleName(r.name);
+      });
+      cachedGuildRoles = { roles: roleMap, fetchedAt: now };
+    }
+  } catch (err) {
+    console.warn("getGuildRoleMap error:", err);
+  }
+
+  return roleMap;
+}
+
+/**
+ * Fetch a single member live from Discord API using the Bot token.
+ * Returns null if member is not found or credentials are not configured.
+ */
+export async function fetchDiscordMemberLive(discordId: string): Promise<DiscordMemberInfo | null> {
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
+
+  if (!botToken || !guildId || !discordId) {
+    return null;
+  }
+
+  const cleanDiscordId = discordId.replace("discord-", "");
+
+  try {
+    const roleMap = await getGuildRoleMap();
+
+    const memberRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${cleanDiscordId}`,
+      {
+        headers: { Authorization: `Bot ${botToken}` },
+        cache: "no-store",
+      }
+    );
+
+    if (!memberRes.ok) {
+      console.warn(`Discord member fetch for ${cleanDiscordId} returned status ${memberRes.status}`);
+      return null;
+    }
+
+    const m = await memberRes.json();
+    const roleIds: string[] = m.roles || [];
+    const roleNames: string[] = roleIds.map((rId) => roleMap[rId] || KNOWN_DISCORD_ROLE_IDS[rId] || rId);
+
+    const avatarUrl = m.avatar
+      ? `https://cdn.discordapp.com/guilds/${guildId}/users/${m.user?.id || cleanDiscordId}/avatars/${m.avatar}.png`
+      : m.user?.avatar
+      ? `https://cdn.discordapp.com/avatars/${m.user?.id || cleanDiscordId}/${m.user.avatar}.png`
+      : getDiscordAvatarUrl(cleanDiscordId, null);
+
+    const rawDisplayName = m.nick || m.user?.global_name || m.user?.username || cleanDiscordId;
+    const cleanDisplayName =
+      rawDisplayName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "").trim() ||
+      m.user?.username ||
+      cleanDiscordId;
+
+    return {
+      id: `discord-${cleanDiscordId}`,
+      discordId: cleanDiscordId,
+      username: m.user?.username || cleanDiscordId,
+      displayName: cleanDisplayName,
+      avatarUrl,
+      roles: roleNames,
+      roleIds,
+    };
+  } catch (error) {
+    console.error(`fetchDiscordMemberLive error for ${discordId}:`, error);
+    return null;
+  }
+}
+
 /**
  * Fetch all guild members from Discord API using Bot token search
  */
@@ -238,18 +336,7 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
 
   try {
     // 1. Fetch guild roles map
-    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
-      headers: { Authorization: `Bot ${botToken}` },
-      cache: "no-store",
-    });
-
-    let roleMap: Record<string, string> = { ...KNOWN_DISCORD_ROLE_IDS };
-    if (rolesRes.ok) {
-      const roles: { id: string; name: string }[] = await rolesRes.json();
-      roles.forEach((r) => {
-        roleMap[r.id] = cleanRoleName(r.name);
-      });
-    }
+    const roleMap = await getGuildRoleMap();
 
     // 2. Discover members via search
     const allFound = new Map<string, any>();

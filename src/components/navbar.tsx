@@ -8,6 +8,7 @@ import { logoutAction } from "@/app/actions/auth-actions";
 import { endDutyAction } from "@/app/actions/duty-actions";
 import { clearClientDutyState } from "@/lib/duty-client";
 import { InstitutionLogo } from "./institution-logo";
+import { SyncDiscordRolesButton } from "./sync-discord-roles-button";
 import { Shield, Radio, LogOut, ChevronDown, Building2, Square, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
@@ -196,8 +197,9 @@ export function Navbar({
               </div>
             )}
 
-            {/* User Profile & Logout */}
-            <div className="flex items-center gap-2 pl-2 border-l border-[#252525]">
+            {/* User Profile, Sync Roles & Logout */}
+            <div className="flex items-center gap-1.5 pl-2 border-l border-[#252525]">
+              <SyncDiscordRolesButton discordId={currentUser.discordId} variant="navbar" />
               <img
                 src={getDiscordAvatarUrl(currentUser.discordId, currentUser.discordAvatar)}
                 alt={currentUser.displayName}

@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
+import { SyncDiscordRolesButton } from "@/components/sync-discord-roles-button";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -44,13 +45,14 @@ export default async function InstitutionLayout({
             {access.reason || "Akun Discord Anda tidak memiliki role yang diizinkan untuk mengakses instansi ini."}
           </p>
 
-          <div className="mt-6 pt-4 border-t border-[#222]">
+          <div className="mt-6 pt-4 border-t border-[#222] flex flex-col sm:flex-row items-center justify-center gap-3">
+            <SyncDiscordRolesButton discordId={currentUser.discordId} variant="full" />
             <Link
               href="/select-institution"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition shadow-md"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Kembali ke Pilihan Instansi</span>
+              <span>Kembali</span>
             </Link>
           </div>
         </div>

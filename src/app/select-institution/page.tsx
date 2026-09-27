@@ -5,6 +5,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shield, Lock, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
 import { InstitutionLogo } from "@/components/institution-logo";
+import { SyncDiscordRolesButton } from "@/components/sync-discord-roles-button";
 
 export default async function SelectInstitutionPage() {
   const currentUser = await getCurrentUser();
@@ -54,15 +55,27 @@ export default async function SelectInstitutionPage() {
               PILIH INSTANSI
             </span>
           </Link>
+
+          <div className="flex items-center gap-3">
+            <SyncDiscordRolesButton discordId={currentUser.discordId} variant="compact" />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 flex flex-col justify-center">
         <div className="text-center max-w-xl mx-auto mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181818] border border-[#262626] text-xs font-semibold text-neutral-300 mb-3">
-            <CheckCircle className="h-3.5 w-3.5 text-[#FF1E2D]" />
-            <span>@{currentUser.discordUsername}</span>
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181818] border border-[#262626] text-xs font-semibold text-neutral-300">
+              <CheckCircle className="h-3.5 w-3.5 text-[#FF1E2D]" />
+              <span>{currentUser.displayName || currentUser.discordUsername}</span>
+            </div>
+            {currentUser.discordRoles && currentUser.discordRoles.length > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-[11px] font-semibold text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{currentUser.discordRoles.slice(0, 3).join(", ")}{currentUser.discordRoles.length > 3 ? "..." : ""}</span>
+              </div>
+            )}
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "./prisma";
 import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS, DEFAULT_POSITION_SALARIES } from "./constants";
-import { fetchDiscordGuildMembers, mapDiscordRolesToInstitutions, getDiscordAvatarUrl } from "./discord-sync";
+import { fetchDiscordGuildMembers, mapDiscordRolesToInstitutions, getDiscordAvatarUrl, fetchDiscordMemberLive } from "./discord-sync";
 import {
   DutySessionData,
   InstitutionData,
@@ -812,6 +812,8 @@ export class DataService {
   private static institutionSessionsCache = new Map<string, { data: DutySessionData[]; timestamp: number }>();
   private static liveSessionsCache = new Map<string, { data: DutySessionData[]; timestamp: number }>();
   private static activeSessionsCache = new Map<string, { data: DutySessionData | null; timestamp: number }>();
+  private static userLastSyncMap = new Map<string, number>();
+  private static userSyncInFlightMap = new Map<string, Promise<SessionUser | null>>();
 
   // --- CACHE INVALIDATION HELPERS ---
   static invalidateDutySessionsCache(institutionSlug?: string) {
@@ -1905,14 +1907,76 @@ export class DataService {
   }
 
   /**
-   * Sync a single user when they log in via Discord OAuth
+   * Sync a user live from Discord API, persist to DB, and update memberships.
+   * Debounced per user to prevent redundant Discord API traffic.
+   */
+  static async syncDiscordUser(discordId: string, force = false): Promise<SessionUser | null> {
+    const cleanDiscordId = discordId.replace("discord-", "");
+    if (!cleanDiscordId || cleanDiscordId.startsWith("demo-")) return null;
+
+    const now = Date.now();
+    const lastSync = this.userLastSyncMap.get(cleanDiscordId) || 0;
+
+    // Debounce to 15s unless force requested
+    if (!force && now - lastSync < 15000) {
+      return null;
+    }
+
+    // Deduplicate in-flight requests
+    const inFlight = this.userSyncInFlightMap.get(cleanDiscordId);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const syncPromise = (async (): Promise<SessionUser | null> => {
+      try {
+        const liveMember = await fetchDiscordMemberLive(cleanDiscordId);
+        if (!liveMember) {
+          return null;
+        }
+
+        const isSuperAdmin = liveMember.roles.some((r) =>
+          /admin|pimpinan|owner|founder|management/i.test(r)
+        );
+
+        const sessionUser: SessionUser = {
+          id: `discord-${cleanDiscordId}`,
+          discordId: cleanDiscordId,
+          discordUsername: liveMember.username,
+          displayName: liveMember.displayName || liveMember.username,
+          discordAvatar: liveMember.avatarUrl,
+          discordRoles: liveMember.roles,
+          isSuperAdmin,
+        };
+
+        // Sync memberships and DB User record
+        await this.syncUserFromDiscordRoles(sessionUser);
+
+        this.userLastSyncMap.set(cleanDiscordId, Date.now());
+        this.invalidateMembershipsCache();
+
+        return sessionUser;
+      } catch (err) {
+        console.error(`DataService.syncDiscordUser error for ${cleanDiscordId}:`, err);
+        return null;
+      } finally {
+        this.userSyncInFlightMap.delete(cleanDiscordId);
+      }
+    })();
+
+    this.userSyncInFlightMap.set(cleanDiscordId, syncPromise);
+    return syncPromise;
+  }
+
+  /**
+   * Sync a single user when they log in via Discord OAuth or refresh roles
    */
   static async syncUserFromDiscordRoles(sessionUser: SessionUser): Promise<void> {
     try {
       const institutions = await this.getInstitutions();
       const mappedRoles = mapDiscordRolesToInstitutions(sessionUser.discordRoles || []);
 
-      const isDb = await this.isDatabaseAvailable();
+      const isDb = this.isDatabaseAvailable();
       if (isDb) {
         try {
           const dbUser = await prisma.user.upsert({
@@ -1939,6 +2003,31 @@ export class DataService {
             const targetInst = institutions.find((i) => i.slug === mr.institutionSlug);
             if (!targetInst) continue;
 
+            // Link positionId if available
+            let positionId: string | null = null;
+            try {
+              const pos = await prisma.position.findFirst({
+                where: {
+                  institutionId: targetInst.id,
+                  name: { equals: mr.positionName, mode: "insensitive" },
+                },
+              });
+              if (pos) {
+                positionId = pos.id;
+              } else {
+                const createdPos = await prisma.position.create({
+                  data: {
+                    institutionId: targetInst.id,
+                    name: mr.positionName,
+                    permissionLevel: mr.permissionLevel,
+                  },
+                });
+                positionId = createdPos.id;
+              }
+            } catch (posErr) {
+              console.warn("Position link error:", posErr);
+            }
+
             await prisma.membership.upsert({
               where: {
                 userId_institutionId: {
@@ -1948,11 +2037,13 @@ export class DataService {
               },
               update: {
                 status: "ACTIVE",
+                positionId: positionId || undefined,
               },
               create: {
                 userId: dbUser.id,
                 institutionId: targetInst.id,
                 status: "ACTIVE",
+                positionId: positionId || undefined,
               },
             });
           }
@@ -1994,12 +2085,16 @@ export class DataService {
             ...memoryStore.memberships[existingIdx],
             positionName: mr.positionName,
             permissionLevel: mr.permissionLevel,
+            status: "ACTIVE",
             user: newMem.user,
           };
         } else {
           memoryStore.memberships.push(newMem);
         }
       }
+
+      this.invalidateMembershipsCache();
+      persistStore();
     } catch (err) {
       console.warn("syncUserFromDiscordRoles error:", err);
     }

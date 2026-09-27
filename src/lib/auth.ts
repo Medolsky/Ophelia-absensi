@@ -18,7 +18,21 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
   }
 
   try {
-    const parsed = JSON.parse(sessionCookie.value) as SessionUser;
+    let parsed = JSON.parse(sessionCookie.value) as SessionUser;
+
+    // Auto-sync Discord user roles if missing or periodically
+    if (parsed.discordId && !parsed.discordId.startsWith("demo-")) {
+      const isMissingRoles = !parsed.discordRoles || parsed.discordRoles.length === 0;
+      try {
+        const freshUser = await DataService.syncDiscordUser(parsed.discordId, isMissingRoles);
+        if (freshUser) {
+          parsed = freshUser;
+        }
+      } catch (err) {
+        console.warn("Background Discord role sync error:", err);
+      }
+    }
+
     return parsed;
   } catch {
     if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "false") {
