@@ -20,26 +20,6 @@ export default async function LiveDutyPage({
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
 
-  // PRD Section 3: Permission check
-  const isLeader = access.permissionLevel === "LEADER" || access.permissionLevel === "SUPER_ADMIN";
-  if (!isLeader) {
-    return (
-      <div className="rounded-2xl bg-[#111111] border border-red-900/30 p-8 text-center">
-        <ShieldAlert className="h-10 w-10 text-red-500 mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-white">Akses Terbatas: Hanya Petinggi / Leader</h2>
-        <p className="text-xs text-neutral-400 mt-1 max-w-md mx-auto">
-          Fitur pemantauan Live On Duty hanya dapat diakses oleh Chief, Commander, Director, atau level Petinggi instansi.
-        </p>
-        <Link
-          href={`/institution/${slug}/duty`}
-          className="inline-block mt-4 text-xs font-bold text-[#FF1E2D] hover:underline"
-        >
-          ← Kembali ke Dashboard Dinas
-        </Link>
-      </div>
-    );
-  }
-
   // Fetch live duty sessions
   const liveSessions = await DataService.getLiveOnDuty(slug);
 
@@ -55,7 +35,7 @@ export default async function LiveDutyPage({
         </h1>
       </div>
 
-      <LiveDutyList initialSessions={liveSessions} />
+      <LiveDutyList initialSessions={liveSessions} institutionSlug={slug} />
     </div>
   );
 }

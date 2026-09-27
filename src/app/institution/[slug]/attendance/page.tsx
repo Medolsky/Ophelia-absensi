@@ -19,8 +19,8 @@ export default async function AttendancePage({
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
 
-  // Retrieve user's sessions for this institution
-  const sessions = await DataService.getUserDutySessions(currentUser.id, slug);
+  // Retrieve all sessions for this institution
+  const allSessions = await DataService.getInstitutionDutySessions(slug);
 
   return (
     <div className="space-y-6">
@@ -35,9 +35,10 @@ export default async function AttendancePage({
       </div>
 
       <AttendanceTable
-        sessions={sessions}
+        sessions={allSessions}
         institutionSlug={slug}
         userPermission={access.permissionLevel}
+        currentUserId={currentUser.id}
       />
     </div>
   );

@@ -180,29 +180,48 @@ export class FiveMBridge {
       membershipsByDiscordId.set(did, arr);
     }
 
-    // Index duty sessions by looking up the user's discordId through memberships
+    // Index duty sessions by looking up the user's discordId through memberships or direct ID
     for (const session of onDutySessions) {
-      // Find the discordId for this userId
-      const membership = allMemberships.find((m) => m.userId === session.userId);
-      const discordId = membership?.user?.discordId;
-      if (discordId) {
-        dutyByDiscordId.set(discordId, {
-          institutionName: session.institutionName || "",
-          institutionSlug: session.institutionSlug || "",
-          startedAt: session.startedAt,
-          positionName: session.positionName,
-          userName: session.userName,
-          userAvatar: session.userAvatar,
-        });
-      }
+      const cleanDid = session.userId.replace("discord-", "");
+      const membership = allMemberships.find(
+        (m) =>
+          m.userId === session.userId ||
+          m.userId === cleanDid ||
+          m.userId === `discord-${cleanDid}` ||
+          m.user?.discordId === cleanDid
+      );
+      const discordId = membership?.user?.discordId || cleanDid;
+      dutyByDiscordId.set(discordId, {
+        institutionName: session.institutionName || "",
+        institutionSlug: session.institutionSlug || "",
+        startedAt: session.startedAt,
+        positionName: session.positionName,
+        userName: session.userName,
+        userAvatar: session.userAvatar,
+      });
+      dutyByDiscordId.set(cleanDid, {
+        institutionName: session.institutionName || "",
+        institutionSlug: session.institutionSlug || "",
+        startedAt: session.startedAt,
+        positionName: session.positionName,
+        userName: session.userName,
+        userAvatar: session.userAvatar,
+      });
     }
 
-    const entries: CityStatusEntry[] = onlinePlayers.map((player) => {
-      const duty = dutyByDiscordId.get(player.discordId);
-      const memberships = membershipsByDiscordId.get(player.discordId) || [];
+    const entriesMap = new Map<string, CityStatusEntry>();
+
+    // 1. Add all online FiveM players
+    for (const player of onlinePlayers) {
+      const cleanDid = player.discordId.replace("discord-", "");
+      const duty = dutyByDiscordId.get(cleanDid) || dutyByDiscordId.get(player.discordId);
+      const memberships =
+        membershipsByDiscordId.get(cleanDid) ||
+        membershipsByDiscordId.get(player.discordId) ||
+        [];
       const memberUser = memberships[0]?.user;
 
-      return {
+      entriesMap.set(cleanDid, {
         discordId: player.discordId,
         playerName: player.playerName,
         serverId: player.serverId,
@@ -218,20 +237,91 @@ export class FiveMBridge {
             const prefix = `inst-${s.substring(0, 4)}`;
             return m.institutionId.includes(s) || m.institutionId.startsWith(prefix);
           });
-          return inst || m.institutionId;
+          return inst || m.institutionId.replace("inst-", "");
         }),
         displayName: memberUser?.displayName || duty?.userName || player.playerName,
         avatar: memberUser?.discordAvatar || duty?.userAvatar || null,
         positionName: duty?.positionName || memberships[0]?.positionName,
-      };
-    });
+      });
+    }
+
+    // 2. ALWAYS include anyone currently ON DUTY (from onDutySessions), ensuring they are visible in City Status
+    for (const session of onDutySessions) {
+      const cleanDid = session.userId.replace("discord-", "");
+      const existing = entriesMap.get(cleanDid);
+      const memberships = membershipsByDiscordId.get(cleanDid) || [];
+      const memberUser = memberships[0]?.user;
+
+      if (existing) {
+        existing.isOnDuty = true;
+        existing.dutyInstitutionName = session.institutionName;
+        existing.dutyInstitutionSlug = session.institutionSlug;
+        existing.dutyStartedAt = session.startedAt;
+        if (session.positionName) existing.positionName = session.positionName;
+        if (session.userName) existing.displayName = session.userName;
+        if (session.userAvatar) existing.avatar = session.userAvatar;
+        if (session.institutionSlug && !existing.memberInstitutions.includes(session.institutionSlug)) {
+          existing.memberInstitutions.push(session.institutionSlug);
+        }
+      } else {
+        entriesMap.set(cleanDid, {
+          discordId: cleanDid,
+          playerName: session.userName || "Officer",
+          serverId: 0,
+          isOnline: true,
+          joinedAt: session.startedAt,
+          lastSeenAt: new Date().toISOString(),
+          isOnDuty: true,
+          dutyInstitutionName: session.institutionName,
+          dutyInstitutionSlug: session.institutionSlug,
+          dutyStartedAt: session.startedAt,
+          memberInstitutions: session.institutionSlug ? [session.institutionSlug] : [],
+          displayName: session.userName || memberUser?.displayName,
+          avatar: session.userAvatar || memberUser?.discordAvatar || null,
+          positionName: session.positionName || memberships[0]?.positionName || "Petugas",
+        });
+      }
+    }
+
+    // 3. Include registered members so the Off Duty list has real staff
+    for (const m of allMemberships) {
+      const did = m.user?.discordId || m.userId;
+      if (!did) continue;
+      const cleanDid = did.replace("discord-", "");
+      const instSlug = m.institutionId.replace("inst-", "").toLowerCase();
+      if (!entriesMap.has(cleanDid)) {
+        entriesMap.set(cleanDid, {
+          discordId: cleanDid,
+          playerName: m.user?.displayName || m.user?.discordUsername || "Member",
+          serverId: 0,
+          isOnline: false,
+          joinedAt: m.joinedAt,
+          lastSeenAt: m.joinedAt,
+          isOnDuty: false,
+          memberInstitutions: [instSlug],
+          displayName: m.user?.displayName || m.user?.discordUsername,
+          avatar: m.user?.discordAvatar || null,
+          positionName: m.positionName || "Anggota",
+        });
+      } else {
+        const existing = entriesMap.get(cleanDid)!;
+        if (!existing.memberInstitutions.includes(instSlug)) {
+          existing.memberInstitutions.push(instSlug);
+        }
+      }
+    }
+
+    const entries = Array.from(entriesMap.values());
 
     // Filter by institution if requested
     if (institutionSlug && institutionSlug !== "all") {
+      const cleanTarget = institutionSlug.replace("inst-", "").toLowerCase();
       return entries.filter(
         (e) =>
-          e.dutyInstitutionSlug === institutionSlug ||
-          e.memberInstitutions.includes(institutionSlug)
+          e.dutyInstitutionSlug?.replace("inst-", "").toLowerCase() === cleanTarget ||
+          e.memberInstitutions.some(
+            (m) => m.replace("inst-", "").toLowerCase() === cleanTarget
+          )
       );
     }
 

@@ -2,6 +2,15 @@ import { NextRequest } from "next/server";
 import { DataService } from "@/lib/data-service";
 import { FiveMBridge } from "@/lib/fivem-bridge";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 /**
  * GET /api/integrations/status
  *
@@ -25,24 +34,24 @@ export async function GET(request: NextRequest) {
               members: await DataService.getMemberships(s),
             }))
           );
-          return Response.json({ view, data: allMembers });
+          return Response.json({ view, data: allMembers }, { headers: NO_CACHE_HEADERS });
         }
         const members = await DataService.getMemberships(institution);
-        return Response.json({ view, institution, data: members });
+        return Response.json({ view, institution, data: members }, { headers: NO_CACHE_HEADERS });
       }
 
       case "onduty": {
         const sessions = await DataService.getLiveOnDuty(
           institution === "all" ? undefined : institution
         );
-        return Response.json({ view, institution, data: sessions });
+        return Response.json({ view, institution, data: sessions }, { headers: NO_CACHE_HEADERS });
       }
 
       case "incity": {
         const cityStatus = await FiveMBridge.getCityStatus(
           institution === "all" ? undefined : institution
         );
-        return Response.json({ view, institution, data: cityStatus });
+        return Response.json({ view, institution, data: cityStatus }, { headers: NO_CACHE_HEADERS });
       }
 
       case "offduty": {
@@ -52,7 +61,7 @@ export async function GET(request: NextRequest) {
         const offDuty = cityStatus.filter(
           (e) => !e.isOnDuty && e.memberInstitutions.length > 0
         );
-        return Response.json({ view, institution, data: offDuty });
+        return Response.json({ view, institution, data: offDuty }, { headers: NO_CACHE_HEADERS });
       }
 
       case "overview":
@@ -84,15 +93,18 @@ export async function GET(request: NextRequest) {
         );
 
         const allCityStatus = await FiveMBridge.getCityStatus();
-        return Response.json({
-          view: "overview",
-          totalOnlinePlayers: allCityStatus.length,
-          institutions: overview,
-        });
+        return Response.json(
+          {
+            view: "overview",
+            totalOnlinePlayers: allCityStatus.length,
+            institutions: overview,
+          },
+          { headers: NO_CACHE_HEADERS }
+        );
       }
     }
   } catch (err) {
     console.error("Integration status error:", err);
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

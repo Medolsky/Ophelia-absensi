@@ -7,12 +7,35 @@ import { Radio, Clock, Shield, Search } from "lucide-react";
 
 interface LiveDutyListProps {
   initialSessions: DutySessionData[];
+  institutionSlug?: string;
 }
 
-export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
+export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListProps) {
   const [sessions, setSessions] = useState(initialSessions);
   const [search, setSearch] = useState("");
   const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Sync with prop updates
+  useEffect(() => {
+    setSessions(initialSessions);
+  }, [initialSessions]);
+
+  // Periodic polling so changes appear live
+  useEffect(() => {
+    if (!institutionSlug) return;
+    const fetchLive = async () => {
+      try {
+        const res = await fetch(`/api/integrations/status?view=onduty&institution=${institutionSlug}`);
+        const data = await res.json();
+        if (Array.isArray(data.data)) {
+          setSessions(data.data);
+        }
+      } catch {}
+    };
+
+    const pollInterval = setInterval(fetchLive, 6000);
+    return () => clearInterval(pollInterval);
+  }, [institutionSlug]);
 
   // Realtime tick every second
   useEffect(() => {

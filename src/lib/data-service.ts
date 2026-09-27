@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { prisma } from "./prisma";
 import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS, DEFAULT_POSITION_SALARIES } from "./constants";
 import { fetchDiscordGuildMembers, mapDiscordRolesToInstitutions, getDiscordAvatarUrl } from "./discord-sync";
@@ -666,51 +668,132 @@ export const DEFAULT_ROLE_MAPPINGS: DiscordRoleMappingData[] = [
   },
 ];
 
-// Global Memory Store instance
+// Global Memory Store instance with File-backed Persistence
 const globalMemoryStore = globalThis as unknown as {
   __ophelia_store?: StoreState;
 };
 
+function getPersistFilePath(): string {
+  return path.join(process.cwd(), "data", "ophelia-db.json");
+}
+
+function persistStore(): void {
+  try {
+    if (!globalMemoryStore.__ophelia_store) return;
+    const filePath = getPersistFilePath();
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(globalMemoryStore.__ophelia_store, null, 2), "utf-8");
+  } catch {
+    try {
+      if (!globalMemoryStore.__ophelia_store) return;
+      const tmpPath = path.join("/tmp", "ophelia-db.json");
+      fs.writeFileSync(tmpPath, JSON.stringify(globalMemoryStore.__ophelia_store, null, 2), "utf-8");
+    } catch {}
+  }
+}
+
+function loadPersistedStore(): Partial<StoreState> | null {
+  try {
+    const filePath = getPersistFilePath();
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, "utf-8");
+      return JSON.parse(raw);
+    }
+    const tmpPath = path.join("/tmp", "ophelia-db.json");
+    if (fs.existsSync(tmpPath)) {
+      const raw = fs.readFileSync(tmpPath, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return null;
+}
+
+const savedData = loadPersistedStore();
+
 if (!globalMemoryStore.__ophelia_store) {
   globalMemoryStore.__ophelia_store = {
-    institutions: [...DEFAULT_INSTITUTIONS],
-    memberships: [...initialMemberships],
-    dutySessions: [],
-    auditLogs: [],
-    attendanceEdits: [],
-    salaryConfigs: { ...DEFAULT_POSITION_SALARIES },
-    payrollStatuses: {},
-    roleMappings: [...DEFAULT_ROLE_MAPPINGS],
+    institutions: savedData?.institutions?.length ? savedData.institutions : [...DEFAULT_INSTITUTIONS],
+    memberships: savedData?.memberships?.length ? savedData.memberships : [...initialMemberships],
+    dutySessions: savedData?.dutySessions || [],
+    auditLogs: savedData?.auditLogs || [],
+    attendanceEdits: savedData?.attendanceEdits || [],
+    salaryConfigs: savedData?.salaryConfigs || { ...DEFAULT_POSITION_SALARIES },
+    payrollStatuses: savedData?.payrollStatuses || {},
+    roleMappings: savedData?.roleMappings?.length ? savedData.roleMappings : [...DEFAULT_ROLE_MAPPINGS],
   };
 } else {
   // Preserve state across hot-reloads and requests!
   if (!globalMemoryStore.__ophelia_store.institutions || globalMemoryStore.__ophelia_store.institutions.length === 0) {
-    globalMemoryStore.__ophelia_store.institutions = [...DEFAULT_INSTITUTIONS];
+    globalMemoryStore.__ophelia_store.institutions = savedData?.institutions?.length ? savedData.institutions : [...DEFAULT_INSTITUTIONS];
   }
-  if (!globalMemoryStore.__ophelia_store.memberships) {
-    globalMemoryStore.__ophelia_store.memberships = [...initialMemberships];
+  if (!globalMemoryStore.__ophelia_store.memberships || globalMemoryStore.__ophelia_store.memberships.length === 0) {
+    globalMemoryStore.__ophelia_store.memberships = savedData?.memberships?.length ? savedData.memberships : [...initialMemberships];
   }
-  if (!globalMemoryStore.__ophelia_store.dutySessions) {
-    globalMemoryStore.__ophelia_store.dutySessions = [];
+  if (!globalMemoryStore.__ophelia_store.dutySessions || globalMemoryStore.__ophelia_store.dutySessions.length === 0) {
+    globalMemoryStore.__ophelia_store.dutySessions = savedData?.dutySessions || [];
   }
   if (!globalMemoryStore.__ophelia_store.auditLogs) {
-    globalMemoryStore.__ophelia_store.auditLogs = [];
+    globalMemoryStore.__ophelia_store.auditLogs = savedData?.auditLogs || [];
   }
   if (!globalMemoryStore.__ophelia_store.attendanceEdits) {
-    globalMemoryStore.__ophelia_store.attendanceEdits = [];
+    globalMemoryStore.__ophelia_store.attendanceEdits = savedData?.attendanceEdits || [];
   }
   if (!globalMemoryStore.__ophelia_store.salaryConfigs) {
-    globalMemoryStore.__ophelia_store.salaryConfigs = { ...DEFAULT_POSITION_SALARIES };
+    globalMemoryStore.__ophelia_store.salaryConfigs = savedData?.salaryConfigs || { ...DEFAULT_POSITION_SALARIES };
   }
   if (!globalMemoryStore.__ophelia_store.payrollStatuses) {
-    globalMemoryStore.__ophelia_store.payrollStatuses = {};
+    globalMemoryStore.__ophelia_store.payrollStatuses = savedData?.payrollStatuses || {};
   }
   if (!globalMemoryStore.__ophelia_store.roleMappings) {
-    globalMemoryStore.__ophelia_store.roleMappings = [...DEFAULT_ROLE_MAPPINGS];
+    globalMemoryStore.__ophelia_store.roleMappings = savedData?.roleMappings?.length ? savedData.roleMappings : [...DEFAULT_ROLE_MAPPINGS];
   }
 }
 
 const memoryStore = globalMemoryStore.__ophelia_store;
+
+function reloadPersistedSessions(): void {
+  try {
+    const current = loadPersistedStore();
+    if (current?.dutySessions && Array.isArray(current.dutySessions)) {
+      const diskSessions = current.dutySessions;
+      if (diskSessions.length > 0) {
+        const existingMap = new Map(memoryStore.dutySessions.map((s) => [s.id, s]));
+        for (const ds of diskSessions) {
+          existingMap.set(ds.id, ds);
+        }
+        memoryStore.dutySessions = Array.from(existingMap.values());
+      }
+    }
+    if (current?.memberships && Array.isArray(current.memberships)) {
+      const existingIds = new Set(memoryStore.memberships.map((m) => m.id));
+      for (const dm of current.memberships) {
+        if (!existingIds.has(dm.id)) {
+          memoryStore.memberships.push(dm);
+          existingIds.add(dm.id);
+        }
+      }
+    }
+  } catch {}
+}
+
+function normalizeInstSlug(slugOrId?: string): string {
+  if (!slugOrId) return "";
+  return slugOrId.replace(/^inst-/, "").toLowerCase().trim();
+}
+
+function matchesInstitution(
+  session: { institutionSlug?: string; institutionId?: string },
+  targetSlugOrId?: string
+): boolean {
+  if (!targetSlugOrId || targetSlugOrId === "all") return true;
+  const target = normalizeInstSlug(targetSlugOrId);
+  const sessionSlug = normalizeInstSlug(session.institutionSlug);
+  const sessionId = normalizeInstSlug(session.institutionId);
+  return sessionSlug === target || sessionId === target;
+}
 
 export class DataService {
   /**
@@ -907,6 +990,7 @@ export class DataService {
       }
     }
 
+    reloadPersistedSessions();
     const session = memoryStore.dutySessions.find(
       (s) =>
         (s.userId === userId ||
@@ -929,6 +1013,8 @@ export class DataService {
     institutionSlug: string;
     notes?: string;
   }): Promise<{ success: boolean; session?: DutySessionData; error?: string }> {
+    reloadPersistedSessions();
+
     // 1. Anti-Abuse: Check if already ON DUTY in ANY institution
     const existingActive = await this.getActiveDutySession(params.userId);
     if (existingActive) {
@@ -945,9 +1031,9 @@ export class DataService {
 
     // Resolve user's actual position if not provided
     let positionName = params.positionName;
+    const cleanId = params.userId.replace("discord-", "");
     if (!positionName) {
       const memberships = await this.getMemberships(institution.slug);
-      const cleanId = params.userId.replace("discord-", "");
       const userMem = memberships.find(
         (m) =>
           m.userId === params.userId ||
@@ -958,6 +1044,44 @@ export class DataService {
       if (userMem?.positionName) {
         positionName = userMem.positionName;
       }
+    }
+
+    // Ensure user is recorded in institution memberships
+    const existingMembership = memoryStore.memberships.find(
+      (m) =>
+        matchesInstitution({ institutionSlug: m.institutionId }, institution.slug) &&
+        (m.userId === params.userId ||
+          m.userId === cleanId ||
+          m.userId === `discord-${cleanId}` ||
+          m.user?.discordId === cleanId)
+    );
+
+    if (!existingMembership) {
+      const defaultRoleName =
+        institution.slug === "police"
+          ? "Kadet Polisi"
+          : institution.slug === "medical"
+          ? "Medis Pemula"
+          : institution.slug === "mechanic"
+          ? "Mekanik Magang"
+          : "Staff";
+      memoryStore.memberships.push({
+        id: `mem-${institution.slug}-${cleanId}`,
+        userId: params.userId,
+        institutionId: institution.id,
+        positionName: positionName || defaultRoleName,
+        permissionLevel: "MEMBER",
+        status: "ACTIVE",
+        joinedAt: new Date().toISOString(),
+        user: {
+          id: params.userId,
+          discordId: cleanId,
+          discordUsername: params.userName,
+          displayName: params.userName,
+          discordAvatar: params.userAvatar || null,
+        },
+      });
+      persistStore();
     }
 
     const now = new Date();
@@ -1005,6 +1129,7 @@ export class DataService {
 
         // Also add to memoryStore to keep synchronized
         memoryStore.dutySessions.unshift(sessionResult);
+        persistStore();
 
         return {
           success: true,
@@ -1043,6 +1168,8 @@ export class DataService {
       newData: JSON.stringify({ institution: institution.name, startedAt: now }),
       createdAt: now.toISOString(),
     });
+
+    persistStore();
 
     return { success: true, session };
   }
@@ -1116,6 +1243,9 @@ export class DataService {
       }
     });
 
+    // Always persist changes to disk
+    persistStore();
+
     if (completedSession) {
       memoryStore.auditLogs.unshift({
         id: `audit-${Date.now()}`,
@@ -1127,6 +1257,7 @@ export class DataService {
         newData: JSON.stringify({ endedAt: now, durationSeconds: completedSession.durationSeconds }),
         createdAt: now.toISOString(),
       });
+      persistStore();
       return { success: true, session: completedSession };
     }
 
@@ -1146,6 +1277,54 @@ export class DataService {
 
     // If no active session was found, user is already off duty
     return { success: true };
+  }
+
+  /**
+   * Get all duty sessions for an institution (all officers/members)
+   */
+  static async getInstitutionDutySessions(institutionSlug: string): Promise<DutySessionData[]> {
+    const isDb = await this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        const rows = await prisma.dutySession.findMany({
+          where: {
+            institution: {
+              OR: [
+                { slug: institutionSlug },
+                { id: institutionSlug },
+              ],
+            },
+          },
+          include: { institution: true, user: true },
+          orderBy: { startedAt: "desc" },
+        });
+
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            userId: r.userId,
+            userName: r.user.displayName || r.user.discordUsername,
+            userAvatar: r.user.discordAvatar,
+            institutionId: r.institutionId,
+            institutionSlug: r.institution.slug,
+            institutionName: r.institution.name,
+            startedAt: r.startedAt.toISOString(),
+            endedAt: r.endedAt ? r.endedAt.toISOString() : null,
+            durationSeconds: r.durationSeconds,
+            status: r.status as DutySessionData["status"],
+            notes: r.notes,
+            createdAt: r.createdAt.toISOString(),
+          }));
+        }
+      } catch (err) {
+        console.warn("DB getInstitutionDutySessions error:", err);
+      }
+    }
+
+    reloadPersistedSessions();
+    return memoryStore.dutySessions
+      .filter((s) => matchesInstitution(s, institutionSlug))
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   }
 
   /**
@@ -1198,16 +1377,14 @@ export class DataService {
       }
     }
 
+    reloadPersistedSessions();
     return memoryStore.dutySessions
       .filter((s) => {
         const userMatch =
           s.userId === userId ||
           s.userId === cleanId ||
           s.userId === `discord-${cleanId}`;
-        const instMatch =
-          s.institutionSlug === institutionSlug ||
-          s.institutionId === institutionSlug ||
-          `inst-${s.institutionSlug}` === institutionSlug;
+        const instMatch = matchesInstitution(s, institutionSlug);
         return userMatch && instMatch;
       })
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
@@ -1224,36 +1401,48 @@ export class DataService {
           where: {
             endedAt: null,
             status: "ON_DUTY",
-            ...(institutionSlug ? { institution: { slug: institutionSlug } } : {}),
+            ...(institutionSlug
+              ? {
+                  institution: {
+                    OR: [
+                      { slug: institutionSlug },
+                      { id: institutionSlug },
+                    ],
+                  },
+                }
+              : {}),
           },
           include: { institution: true, user: true },
           orderBy: { startedAt: "asc" },
         });
 
-        return rows.map((r) => ({
-          id: r.id,
-          userId: r.userId,
-          userName: r.user.displayName || r.user.discordUsername,
-          userAvatar: r.user.discordAvatar,
-          institutionId: r.institutionId,
-          institutionSlug: r.institution.slug,
-          institutionName: r.institution.name,
-          startedAt: r.startedAt.toISOString(),
-          endedAt: null,
-          durationSeconds: 0,
-          status: "ON_DUTY",
-          notes: r.notes,
-          createdAt: r.createdAt.toISOString(),
-        }));
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            userId: r.userId,
+            userName: r.user.displayName || r.user.discordUsername,
+            userAvatar: r.user.discordAvatar,
+            institutionId: r.institutionId,
+            institutionSlug: r.institution.slug,
+            institutionName: r.institution.name,
+            startedAt: r.startedAt.toISOString(),
+            endedAt: null,
+            durationSeconds: 0,
+            status: "ON_DUTY",
+            notes: r.notes,
+            createdAt: r.createdAt.toISOString(),
+          }));
+        }
       } catch (err) {
         console.warn("DB getLiveOnDuty error:", err);
       }
     }
 
+    reloadPersistedSessions();
     return memoryStore.dutySessions.filter((s) => {
       const isLive = !s.endedAt && s.status === "ON_DUTY";
-      if (!institutionSlug || institutionSlug === "all") return isLive;
-      return isLive && s.institutionSlug === institutionSlug;
+      if (!isLive) return false;
+      return matchesInstitution(s, institutionSlug);
     });
   }
 

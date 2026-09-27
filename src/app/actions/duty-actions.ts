@@ -31,7 +31,10 @@ export async function startDutyAction(institutionSlug: string, notes?: string) {
     revalidatePath(`/institution/${institutionSlug}`);
     revalidatePath(`/institution/${institutionSlug}/duty`);
     revalidatePath(`/institution/${institutionSlug}/attendance`);
+    revalidatePath(`/institution/${institutionSlug}/history`);
     revalidatePath(`/institution/${institutionSlug}/live`);
+    revalidatePath(`/institution/${institutionSlug}/city`);
+    revalidatePath(`/institution/${institutionSlug}/statistics`);
     revalidatePath("/", "layout");
   }
 
@@ -54,8 +57,10 @@ export async function endDutyAction(institutionSlug?: string) {
       revalidatePath(`/institution/${institutionSlug}`);
       revalidatePath(`/institution/${institutionSlug}/duty`);
       revalidatePath(`/institution/${institutionSlug}/attendance`);
+      revalidatePath(`/institution/${institutionSlug}/history`);
       revalidatePath(`/institution/${institutionSlug}/statistics`);
       revalidatePath(`/institution/${institutionSlug}/live`);
+      revalidatePath(`/institution/${institutionSlug}/city`);
     }
     revalidatePath("/", "layout");
   }

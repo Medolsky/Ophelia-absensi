@@ -4,21 +4,25 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DutySessionData, PermissionLevel } from "@/types";
 import { AttendanceEditModal } from "./attendance-edit-modal";
-import { Search, Filter, Calendar, Edit2, Clock, CheckCircle2 } from "lucide-react";
+import { Search, Filter, Calendar, Edit2, Clock, CheckCircle2, User, Users } from "lucide-react";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 
 interface AttendanceTableProps {
   sessions: DutySessionData[];
   institutionSlug: string;
   userPermission: PermissionLevel;
+  currentUserId?: string;
 }
 
 export function AttendanceTable({
   sessions,
   institutionSlug,
   userPermission,
+  currentUserId,
 }: AttendanceTableProps) {
   const router = useRouter();
   const [sessionsList, setSessionsList] = useState<DutySessionData[]>(sessions);
+  const [viewMode, setViewMode] = useState<"ALL" | "MINE">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [startDate, setStartDate] = useState<string>("");
@@ -33,12 +37,25 @@ export function AttendanceTable({
   const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN";
 
   const filteredSessions = useMemo(() => {
+    const cleanId = currentUserId ? currentUserId.replace("discord-", "") : "";
     return sessionsList.filter((s) => {
-      // Search by notes or date
+      // Filter by My Attendance vs All
+      if (viewMode === "MINE" && currentUserId) {
+        const matchesUser =
+          s.userId === currentUserId ||
+          s.userId === cleanId ||
+          s.userId === `discord-${cleanId}`;
+        if (!matchesUser) return false;
+      }
+
+      // Search by notes, date, officer name, or position
       if (searchTerm) {
-        const matchesNote = s.notes?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesDate = s.startedAt.includes(searchTerm);
-        if (!matchesNote && !matchesDate) return false;
+        const term = searchTerm.toLowerCase();
+        const matchesNote = s.notes?.toLowerCase().includes(term);
+        const matchesDate = s.startedAt.includes(term);
+        const matchesName = s.userName?.toLowerCase().includes(term);
+        const matchesPos = s.positionName?.toLowerCase().includes(term);
+        if (!matchesNote && !matchesDate && !matchesName && !matchesPos) return false;
       }
 
       // Status filter
@@ -53,20 +70,54 @@ export function AttendanceTable({
 
       return true;
     });
-  }, [sessionsList, searchTerm, statusFilter, startDate, endDate]);
+  }, [sessionsList, viewMode, currentUserId, searchTerm, statusFilter, startDate, endDate]);
 
   const totalFilteredSeconds = useMemo(() => {
     return filteredSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
   }, [filteredSessions]);
 
   const formatHoursMinutes = (secs: number) => {
+    if (!secs || secs <= 0) return "0s";
     const hours = Math.floor(secs / 3600);
     const minutes = Math.floor((secs % 3600) / 60);
-    return `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`;
+    const seconds = secs % 60;
+    if (hours > 0) {
+      return `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m\u00A0${seconds.toString().padStart(2, "0")}s`;
+    }
+    return `${seconds}s`;
   };
 
   return (
     <div className="space-y-4">
+      {/* View Mode Tabs */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setViewMode("ALL")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            viewMode === "ALL"
+              ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
+              : "bg-[#141414] hover:bg-[#1f1f1f] text-neutral-400 hover:text-white border border-[#252525]"
+          }`}
+        >
+          <Users className="h-3.5 w-3.5" />
+          <span>Semua Anggota</span>
+        </button>
+        <button
+          onClick={() => setViewMode("MINE")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            viewMode === "MINE"
+              ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
+              : "bg-[#141414] hover:bg-[#1f1f1f] text-neutral-400 hover:text-white border border-[#252525]"
+          }`}
+        >
+          <User className="h-3.5 w-3.5" />
+          <span>Absensi Saya</span>
+        </button>
+      </div>
+
       {/* Filter Toolbar */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
@@ -75,7 +126,7 @@ export function AttendanceTable({
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
             <input
               type="text"
-              placeholder="Cari catatan tugas / tanggal..."
+              placeholder="Cari nama petugas, pangkat, catatan tugas, atau tanggal..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white pl-9 pr-3 py-2.5 rounded-xl outline-none"
@@ -123,7 +174,7 @@ export function AttendanceTable({
         {/* Filter Summary Stats */}
         <div className="mt-3 pt-3 border-t border-[#1c1c1c] flex flex-wrap items-center justify-between text-xs text-neutral-400">
           <div>
-            Menampilkan <span className="text-white font-bold">{filteredSessions.length}</span> sesi
+            Menampilkan <span className="text-white font-bold">{filteredSessions.length}</span> sesi {viewMode === "MINE" ? "(Absensi Saya)" : "(Semua Anggota)"}
           </div>
           <div>
             Total Durasi Filter:{" "}
@@ -140,6 +191,7 @@ export function AttendanceTable({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
+                <th className="py-3.5 px-4 whitespace-nowrap">Petugas</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Tanggal</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Mulai (Start)</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Selesai (End)</th>
@@ -152,7 +204,7 @@ export function AttendanceTable({
             <tbody className="divide-y divide-[#1e1e1e]">
               {filteredSessions.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit ? 7 : 6} className="py-12 text-center text-neutral-500">
+                  <td colSpan={canEdit ? 8 : 7} className="py-12 text-center text-neutral-500">
                     <Clock className="h-8 w-8 mx-auto text-neutral-600 mb-2" />
                     <div>Tidak ada catatan absensi yang sesuai dengan filter.</div>
                   </td>
@@ -167,6 +219,29 @@ export function AttendanceTable({
                       key={session.id}
                       className="hover:bg-[#161616] transition-colors group"
                     >
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={getDiscordAvatarUrl(
+                              session.userId?.replace("discord-", ""),
+                              session.userAvatar
+                            )}
+                            alt={session.userName || "Petugas"}
+                            className="h-8 w-8 rounded-lg object-cover border border-[#333] shrink-0"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              const fallback = getDiscordAvatarUrl(session.userId?.replace("discord-", ""), null);
+                              if (target.src !== fallback) {
+                                target.src = fallback;
+                              }
+                            }}
+                          />
+                          <div>
+                            <div className="font-bold text-white text-xs">{session.userName || "Petugas"}</div>
+                            <div className="text-[10px] text-neutral-400 font-medium">{session.positionName || "Anggota"}</div>
+                          </div>
+                        </div>
+                      </td>
                       <td className="py-3.5 px-4 whitespace-nowrap font-medium text-white">
                         {startDateObj.toLocaleDateString("id-ID", {
                           day: "numeric",
@@ -213,16 +288,16 @@ export function AttendanceTable({
                         )}
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap text-neutral-400 max-w-[200px] truncate">
-                        {session.notes || "—"}
+                        {session.notes || "-"}
                       </td>
                       {canEdit && (
                         <td className="py-3.5 px-4 whitespace-nowrap text-right">
                           <button
+                            type="button"
                             onClick={() => setSelectedSessionToEdit(session)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
-                            title="Koreksi Waktu Absensi"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#2c2c2c] transition"
                           >
-                            <Edit2 className="h-3 w-3 text-[#FF1E2D]" />
+                            <Edit2 className="h-3 w-3" />
                             <span>Koreksi</span>
                           </button>
                         </td>
