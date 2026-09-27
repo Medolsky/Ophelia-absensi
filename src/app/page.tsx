@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { Shield, Sparkles, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
-import { DevSwitcher } from "@/components/dev-switcher";
 
 export default async function HomePage({
   searchParams,
@@ -33,7 +32,6 @@ export default async function HomePage({
           </div>
 
           <div className="flex items-center gap-3">
-            {currentUser && <DevSwitcher currentUser={currentUser} />}
           </div>
         </div>
       </header>

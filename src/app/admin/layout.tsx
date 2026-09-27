@@ -2,7 +2,6 @@ import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shield, ShieldAlert, ArrowLeft, Sliders, Building, History } from "lucide-react";
-import { DevSwitcher } from "@/components/dev-switcher";
 
 export default async function AdminLayout({
   children,
@@ -22,7 +21,6 @@ export default async function AdminLayout({
           <h2 className="text-xl font-bold text-white">403: Akses Super Admin Diperlukan</h2>
           <p className="text-xs text-neutral-400 mt-2 leading-relaxed">
             Hanya akun dengan hak akses Super Admin / Server Owner yang dapat mengakses panel konfigurasi sistem ini.
-            Gunakan <b>Role Switcher</b> di kanan atas dan pilih <b>Marcus Vance (Super Admin)</b> untuk menguji panel ini.
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
@@ -64,7 +62,6 @@ export default async function AdminLayout({
             >
               ← Keluar ke Portal
             </Link>
-            <DevSwitcher currentUser={currentUser} />
           </div>
         </div>
       </header>

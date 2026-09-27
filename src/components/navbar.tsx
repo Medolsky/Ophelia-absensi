@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SessionUser, InstitutionData, DutySessionData } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
-import { DevSwitcher } from "./dev-switcher";
 import { logoutAction } from "@/app/actions/auth-actions";
 import { endDutyAction } from "@/app/actions/duty-actions";
 import { InstitutionLogo } from "./institution-logo";
@@ -151,9 +150,6 @@ export function Navbar({
                 <span>OFF DUTY</span>
               </div>
             )}
-
-            {/* Dev Role Switcher */}
-            <DevSwitcher currentUser={currentUser} />
 
             {/* User Profile & Logout */}
             <div className="flex items-center gap-2 pl-2 border-l border-[#252525]">

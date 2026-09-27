@@ -3,7 +3,6 @@ import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shield, Lock, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
-import { DevSwitcher } from "@/components/dev-switcher";
 import { InstitutionLogo } from "@/components/institution-logo";
 
 export default async function SelectInstitutionPage() {
@@ -38,8 +37,6 @@ export default async function SelectInstitutionPage() {
               PILIH INSTANSI
             </span>
           </Link>
-
-          <DevSwitcher currentUser={currentUser} />
         </div>
       </header>
 
