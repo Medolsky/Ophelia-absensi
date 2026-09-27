@@ -187,7 +187,7 @@ export function PayrollManagement({
             </span>
             <Banknote className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 truncate">
+          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 truncate whitespace-nowrap">
             {formatMoney(totalPayrollBudget)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">Akumulasi periode berjalan</div>
@@ -200,7 +200,7 @@ export function PayrollManagement({
             </span>
             <Clock className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {totalAccumulatedHours.toFixed(1)} <span className="text-sm font-sans font-medium text-neutral-400">Jam</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">Dari {records.length} anggota instansi</div>
@@ -213,7 +213,7 @@ export function PayrollManagement({
             </span>
             <CheckCircle2 className="h-4 w-4 text-blue-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {paidCount} <span className="text-sm font-sans font-medium text-neutral-400">/ {records.length} Petugas</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">{pendingCount} menunggu pembayaran</div>
@@ -226,7 +226,7 @@ export function PayrollManagement({
             </span>
             <Coins className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {Object.keys(configs).length} <span className="text-sm font-sans font-medium text-neutral-400">Pangkat</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">Rate gaji per jabatan</div>

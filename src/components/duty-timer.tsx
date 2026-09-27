@@ -57,9 +57,10 @@ export function DutyTimer({
     const hours = Math.floor(totalSecs / 3600);
     const minutes = Math.floor((totalSecs % 3600) / 60);
     const seconds = totalSecs % 60;
-    return `${hours.toString().padStart(2, "0")} : ${minutes
-      .toString()
-      .padStart(2, "0")} : ${seconds.toString().padStart(2, "0")}`;
+    const hh = hours.toString().padStart(2, "0");
+    const mm = minutes.toString().padStart(2, "0");
+    const ss = seconds.toString().padStart(2, "0");
+    return `${hh}\u00A0:\u00A0${mm}\u00A0:\u00A0${ss}`;
   };
 
   const handleStartDuty = async () => {
@@ -162,14 +163,14 @@ export function DutyTimer({
           </div>
 
           {/* Realtime Digital Clock Display */}
-          <div className="flex flex-col items-center md:items-end justify-center">
-            <div className="bg-[#080808] border border-[#252525] rounded-xl px-6 py-4 shadow-inner">
-              <span className="text-xs text-neutral-500 font-medium uppercase tracking-wider block text-center md:text-right mb-1">
+          <div className="shrink-0 flex flex-col items-center md:items-end justify-center">
+            <div className="bg-[#080808] border border-[#252525] rounded-xl px-5 sm:px-6 py-3.5 sm:py-4 shadow-inner min-w-[240px] sm:min-w-[270px] whitespace-nowrap">
+              <span className="text-xs text-neutral-500 font-medium uppercase tracking-wider block text-center md:text-right mb-1 whitespace-nowrap">
                 {isOnDuty ? "DURASI REALTIME" : "STANDBY TIME"}
               </span>
-              <div className="font-mono text-3xl lg:text-4xl font-black tracking-wider text-white flex items-center gap-2">
-                <Clock className={`h-6 w-6 ${isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"}`} />
-                <span className={isOnDuty ? "text-white text-glow" : "text-neutral-400"}>
+              <div className="font-mono text-2xl sm:text-3xl lg:text-4xl font-black tracking-normal sm:tracking-wider text-white flex items-center justify-center md:justify-end gap-2 sm:gap-2.5 whitespace-nowrap select-none">
+                <Clock className={`h-5 w-5 sm:h-6 sm:w-6 shrink-0 ${isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"}`} />
+                <span className={`whitespace-nowrap tabular-nums font-mono ${isOnDuty ? "text-white text-glow" : "text-neutral-400"}`}>
                   {formatTimer(elapsedSeconds)}
                 </span>
               </div>
@@ -270,7 +271,7 @@ export function DutyTimer({
               </div>
               <div className="flex justify-between text-neutral-400">
                 <span>Durasi Berjalan:</span>
-                <span className="font-mono font-bold text-[#FF1E2D]">{formatTimer(elapsedSeconds)}</span>
+                <span className="font-mono font-bold text-[#FF1E2D] whitespace-nowrap">{formatTimer(elapsedSeconds)}</span>
               </div>
             </div>
 

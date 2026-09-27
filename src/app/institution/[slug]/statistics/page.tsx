@@ -41,7 +41,7 @@ export default async function StatisticsPage({
     return {
       day: dayName,
       hours,
-      label: daySeconds > 0 ? `${h}h ${m.toString().padStart(2, "0")}m` : "OFF",
+      label: daySeconds > 0 ? `${h}h\u00A0${m.toString().padStart(2, "0")}m` : "OFF",
     };
   });
 
@@ -61,7 +61,7 @@ export default async function StatisticsPage({
   const formatHoursMinutes = (secs: number) => {
     const hours = Math.floor(secs / 3600);
     const minutes = Math.floor((secs % 3600) / 60);
-    return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
+    return `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`;
   };
 
   const maxWeeklyHours = Math.max(...weekData.map((d) => d.hours), 12);
@@ -88,7 +88,7 @@ export default async function StatisticsPage({
             <span>TOTAL DUTY BULAN INI</span>
             <Award className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(totalMonthSeconds)}
           </div>
           <div className="text-[11px] text-neutral-400 mt-1 flex items-center gap-1 truncate">
@@ -102,7 +102,7 @@ export default async function StatisticsPage({
             <span>RATA-RATA / HARI</span>
             <Zap className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(averagePerDaySeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -115,7 +115,7 @@ export default async function StatisticsPage({
             <span>SESI TERPANJANG</span>
             <Flame className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(longestSessionSeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -128,7 +128,7 @@ export default async function StatisticsPage({
             <span>JUMLAH HARI DINAS</span>
             <Calendar className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {activeDays} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -153,7 +153,7 @@ export default async function StatisticsPage({
             <span className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">
               TOTAL MINGGU INI
             </span>
-            <div className="text-2xl font-mono font-black text-[#FF1E2D]">
+            <div className="text-2xl font-mono font-black text-[#FF1E2D] whitespace-nowrap">
               {formatHoursMinutes(weekTotalSeconds)}
             </div>
           </div>
@@ -168,7 +168,7 @@ export default async function StatisticsPage({
 
             return (
               <div key={d.day} className="flex flex-col items-center h-full justify-end group">
-                <span className="text-[11px] font-mono text-neutral-400 mb-2 opacity-80 group-hover:opacity-100 group-hover:text-white transition">
+                <span className="text-[11px] font-mono text-neutral-400 mb-2 opacity-80 group-hover:opacity-100 group-hover:text-white transition whitespace-nowrap">
                   {d.label}
                 </span>
                 <div className="w-full max-w-[48px] bg-[#1a1a1a] rounded-t-xl overflow-hidden flex items-end justify-center h-full">

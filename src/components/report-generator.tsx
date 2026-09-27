@@ -36,7 +36,7 @@ export function ReportGenerator({
       position: m.positionName || "Officer",
       sessions: totalSeconds > 0 ? 1 : 0,
       activeDays: totalSeconds > 0 ? 1 : 0,
-      totalHoursStr: `${hours}h ${minutes.toString().padStart(2, "0")}m`,
+      totalHoursStr: `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`,
       totalHoursNum: pRecord?.totalDutyHours || 0,
     };
   });

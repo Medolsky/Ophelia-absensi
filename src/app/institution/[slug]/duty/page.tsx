@@ -48,7 +48,7 @@ export default async function DutyDashboardPage({
   const formatHoursMinutes = (secs: number) => {
     const hours = Math.floor(secs / 3600);
     const minutes = Math.floor((secs % 3600) / 60);
-    return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
+    return `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`;
   };
 
   return (
@@ -108,7 +108,7 @@ export default async function DutyDashboardPage({
             </span>
             <Clock className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(todayTotalSeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -123,7 +123,7 @@ export default async function DutyDashboardPage({
             </span>
             <Calendar className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(monthTotalSeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -138,7 +138,7 @@ export default async function DutyDashboardPage({
             </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {activeDaysSet.size} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -153,7 +153,7 @@ export default async function DutyDashboardPage({
             </span>
             <Layers className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {monthSessions.length} <span className="text-sm font-sans font-medium text-neutral-400">Sesi</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
@@ -168,7 +168,7 @@ export default async function DutyDashboardPage({
             </span>
             <Banknote className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 truncate">
+          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 truncate whitespace-nowrap">
             {userSalary.currencySymbol} {userSalary.estimatedSalary.toLocaleString("id-ID")}
           </div>
           <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between gap-1">
@@ -260,7 +260,7 @@ export default async function DutyDashboardPage({
                     <div className="text-[10px] text-neutral-500 uppercase tracking-wider font-semibold">
                       DURASI
                     </div>
-                    <div className="text-base font-mono font-bold text-white">
+                    <div className="text-base font-mono font-bold text-white whitespace-nowrap">
                       {isSessionActive
                         ? "Realtime..."
                         : formatHoursMinutes(session.durationSeconds)}

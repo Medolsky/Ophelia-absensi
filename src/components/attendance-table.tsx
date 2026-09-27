@@ -54,7 +54,7 @@ export function AttendanceTable({
   const formatHoursMinutes = (secs: number) => {
     const hours = Math.floor(secs / 3600);
     const minutes = Math.floor((secs % 3600) / 60);
-    return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
+    return `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`;
   };
 
   return (
@@ -119,7 +119,7 @@ export function AttendanceTable({
           </div>
           <div>
             Total Durasi Filter:{" "}
-            <span className="text-[#FF1E2D] font-mono font-bold">
+            <span className="text-[#FF1E2D] font-mono font-bold whitespace-nowrap">
               {formatHoursMinutes(totalFilteredSeconds)}
             </span>
           </div>

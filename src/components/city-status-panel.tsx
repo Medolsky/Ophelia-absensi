@@ -76,9 +76,10 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
     const s = elapsed % 60;
-    return `${h.toString().padStart(2, "0")}h ${m
-      .toString()
-      .padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
+    const hh = h.toString().padStart(2, "0");
+    const mm = m.toString().padStart(2, "0");
+    const ss = s.toString().padStart(2, "0");
+    return `${hh}h\u00A0${mm}m\u00A0${ss}s`;
   };
 
   const filtered = players.filter((p) => {
@@ -281,7 +282,7 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                   <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
                     DI KOTA
                   </div>
-                  <div className="font-mono text-neutral-300 mt-0.5 truncate">
+                  <div className="font-mono text-neutral-300 mt-0.5 truncate whitespace-nowrap">
                     {formatElapsed(entry.joinedAt)}
                   </div>
                 </div>
@@ -292,7 +293,7 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                       DURASI DUTY
                     </div>
                     <div
-                      className="font-mono font-bold mt-0.5 text-sm truncate"
+                      className="font-mono font-bold mt-0.5 text-sm truncate whitespace-nowrap"
                       style={{ color: accentColor }}
                     >
                       {formatElapsed(entry.dutyStartedAt)}

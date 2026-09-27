@@ -27,9 +27,10 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
     const hours = Math.floor(elapsedSecs / 3600);
     const minutes = Math.floor((elapsedSecs % 3600) / 60);
     const seconds = elapsedSecs % 60;
-    return `${hours.toString().padStart(2, "0")}h ${minutes
-      .toString()
-      .padStart(2, "0")}m ${seconds.toString().padStart(2, "0")}s`;
+    const hh = hours.toString().padStart(2, "0");
+    const mm = minutes.toString().padStart(2, "0");
+    const ss = seconds.toString().padStart(2, "0");
+    return `${hh}h\u00A0${mm}m\u00A0${ss}s`;
   };
 
   const filtered = sessions.filter(
@@ -104,7 +105,7 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
                   <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
                     MULAI TUGAS
                   </div>
-                  <div className="font-mono text-neutral-300 mt-0.5">
+                  <div className="font-mono text-neutral-300 mt-0.5 whitespace-nowrap">
                     {new Date(session.startedAt).toLocaleTimeString("id-ID", {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -116,7 +117,7 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
                   <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
                     DURASI AKTIF
                   </div>
-                  <div className="font-mono font-bold text-[#FF1E2D] mt-0.5 text-sm">
+                  <div className="font-mono font-bold text-[#FF1E2D] mt-0.5 text-sm whitespace-nowrap">
                     {formatElapsed(session.startedAt)}
                   </div>
                 </div>

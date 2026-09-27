@@ -172,19 +172,19 @@ export default async function HomePage({
                       ACTIVE
                     </span>
                   </div>
-                  <div className="font-mono text-2xl font-black text-[#FF1E2D] mt-2">
-                    02 : 34 : 21
+                  <div className="font-mono text-2xl font-black text-[#FF1E2D] mt-2 whitespace-nowrap">
+                    00&nbsp;:&nbsp;00&nbsp;:&nbsp;00
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 rounded-xl bg-[#161616] border border-[#222]">
                     <div className="text-neutral-500">TODAY DUTY</div>
-                    <div className="text-base font-bold text-white mt-0.5">00h 00m</div>
+                    <div className="text-base font-bold text-white mt-0.5 whitespace-nowrap">00h 00m</div>
                   </div>
                   <div className="p-3 rounded-xl bg-[#161616] border border-[#222]">
                     <div className="text-neutral-500">THIS MONTH</div>
-                    <div className="text-base font-bold text-[#FF1E2D] mt-0.5">00h 00m</div>
+                    <div className="text-base font-bold text-[#FF1E2D] mt-0.5 whitespace-nowrap">00h 00m</div>
                   </div>
                 </div>
 

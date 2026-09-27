@@ -49,7 +49,7 @@ export default async function HistoryPage({
     return {
       monthKey: mKey,
       monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-      totalHours: `${hours}h ${String(mins).padStart(2, "0")}m`,
+      totalHours: `${hours}h\u00A0${String(mins).padStart(2, "0")}m`,
       activeDays: activeDaysSet.size,
       sessions: mSessions.length,
       status: mKey === currentMonthKey ? "CURRENT" : "COMPLETED",
@@ -105,7 +105,7 @@ export default async function HistoryPage({
                 <div className="text-[10px] text-neutral-500 font-semibold uppercase tracking-wider">
                   TOTAL JAM DINAS
                 </div>
-                <div className="text-2xl font-mono font-black text-white group-hover:text-[#FF1E2D] transition-colors">
+                <div className="text-2xl font-mono font-black text-white group-hover:text-[#FF1E2D] transition-colors whitespace-nowrap">
                   {archive.totalHours}
                 </div>
               </div>
