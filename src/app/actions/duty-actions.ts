@@ -32,12 +32,13 @@ export async function startDutyAction(institutionSlug: string, notes?: string) {
     revalidatePath(`/institution/${institutionSlug}/duty`);
     revalidatePath(`/institution/${institutionSlug}/attendance`);
     revalidatePath(`/institution/${institutionSlug}/live`);
+    revalidatePath("/", "layout");
   }
 
   return result;
 }
 
-export async function endDutyAction(institutionSlug: string) {
+export async function endDutyAction(institutionSlug?: string) {
   const user = await getCurrentUser();
   if (!user) {
     return { success: false, error: "Harap login terlebih dahulu." };
@@ -49,11 +50,14 @@ export async function endDutyAction(institutionSlug: string) {
   });
 
   if (result.success) {
-    revalidatePath(`/institution/${institutionSlug}`);
-    revalidatePath(`/institution/${institutionSlug}/duty`);
-    revalidatePath(`/institution/${institutionSlug}/attendance`);
-    revalidatePath(`/institution/${institutionSlug}/statistics`);
-    revalidatePath(`/institution/${institutionSlug}/live`);
+    if (institutionSlug) {
+      revalidatePath(`/institution/${institutionSlug}`);
+      revalidatePath(`/institution/${institutionSlug}/duty`);
+      revalidatePath(`/institution/${institutionSlug}/attendance`);
+      revalidatePath(`/institution/${institutionSlug}/statistics`);
+      revalidatePath(`/institution/${institutionSlug}/live`);
+    }
+    revalidatePath("/", "layout");
   }
 
   return result;

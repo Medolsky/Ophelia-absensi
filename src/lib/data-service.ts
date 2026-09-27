@@ -866,12 +866,18 @@ export class DataService {
    * Get currently active session for a specific user across all institutions
    */
   static async getActiveDutySession(userId: string): Promise<DutySessionData | null> {
+    const cleanId = userId.replace("discord-", "");
     const isDb = await this.isDatabaseAvailable();
     if (isDb) {
       try {
         const active = await prisma.dutySession.findFirst({
           where: {
-            userId,
+            OR: [
+              { userId },
+              { userId: cleanId },
+              { userId: `discord-${cleanId}` },
+              { user: { discordId: cleanId } },
+            ],
             endedAt: null,
             status: "ON_DUTY",
           },
@@ -896,14 +902,18 @@ export class DataService {
             createdAt: active.createdAt.toISOString(),
           };
         }
-        return null;
       } catch (err) {
         console.warn("DB getActiveDutySession fallback:", err);
       }
     }
 
     const session = memoryStore.dutySessions.find(
-      (s) => s.userId === userId && !s.endedAt && s.status === "ON_DUTY"
+      (s) =>
+        (s.userId === userId ||
+          s.userId === cleanId ||
+          s.userId === `discord-${cleanId}`) &&
+        !s.endedAt &&
+        s.status === "ON_DUTY"
     );
     return session || null;
   }
@@ -933,6 +943,23 @@ export class DataService {
       return { success: false, error: "Instansi tidak ditemukan." };
     }
 
+    // Resolve user's actual position if not provided
+    let positionName = params.positionName;
+    if (!positionName) {
+      const memberships = await this.getMemberships(institution.slug);
+      const cleanId = params.userId.replace("discord-", "");
+      const userMem = memberships.find(
+        (m) =>
+          m.userId === params.userId ||
+          m.userId === cleanId ||
+          m.userId === `discord-${cleanId}` ||
+          m.user?.discordId === cleanId
+      );
+      if (userMem?.positionName) {
+        positionName = userMem.positionName;
+      }
+    }
+
     const now = new Date();
     const isDb = await this.isDatabaseAvailable();
 
@@ -959,22 +986,29 @@ export class DataService {
           },
         });
 
+        const sessionResult: DutySessionData = {
+          id: newSession.id,
+          userId: params.userId,
+          userName: params.userName,
+          userAvatar: params.userAvatar,
+          positionName,
+          institutionId: institution.id,
+          institutionSlug: institution.slug,
+          institutionName: institution.name,
+          startedAt: newSession.startedAt.toISOString(),
+          endedAt: null,
+          durationSeconds: 0,
+          status: "ON_DUTY",
+          notes: newSession.notes,
+          createdAt: newSession.createdAt.toISOString(),
+        };
+
+        // Also add to memoryStore to keep synchronized
+        memoryStore.dutySessions.unshift(sessionResult);
+
         return {
           success: true,
-          session: {
-            id: newSession.id,
-            userId: params.userId,
-            userName: params.userName,
-            institutionId: institution.id,
-            institutionSlug: institution.slug,
-            institutionName: institution.name,
-            startedAt: newSession.startedAt.toISOString(),
-            endedAt: null,
-            durationSeconds: 0,
-            status: "ON_DUTY",
-            notes: newSession.notes,
-            createdAt: newSession.createdAt.toISOString(),
-          },
+          session: sessionResult,
         };
       } catch (err) {
         console.warn("DB startDuty error, fallback to memory:", err);
@@ -986,7 +1020,7 @@ export class DataService {
       userId: params.userId,
       userName: params.userName,
       userAvatar: params.userAvatar,
-      positionName: params.positionName,
+      positionName,
       institutionId: institution.id,
       institutionSlug: institution.slug,
       institutionName: institution.name,
@@ -1018,88 +1052,100 @@ export class DataService {
    */
   static async endDuty(params: {
     userId: string;
-    institutionSlug: string;
+    institutionSlug?: string;
   }): Promise<{ success: boolean; session?: DutySessionData; error?: string }> {
     const active = await this.getActiveDutySession(params.userId);
-    if (!active) {
-      return { success: false, error: "Tidak ada sesi duty aktif yang sedang berjalan." };
-    }
-
-    if (active.institutionSlug !== params.institutionSlug) {
-      return {
-        success: false,
-        error: `Sesi duty aktif Anda berada di ${active.institutionName}, bukan di instansi ini.`,
-      };
-    }
-
+    const cleanId = params.userId.replace("discord-", "");
     const now = new Date();
-    const startTime = new Date(active.startedAt);
-    const durationSeconds = Math.max(0, Math.round((now.getTime() - startTime.getTime()) / 1000));
 
-    const isDb = await this.isDatabaseAvailable();
-    if (isDb) {
-      try {
-        const updated = await prisma.dutySession.update({
-          where: { id: active.id },
-          data: {
-            endedAt: now,
-            durationSeconds,
-            status: "COMPLETED",
-          },
-        });
+    if (active) {
+      const startTime = new Date(active.startedAt);
+      const durationSeconds = Math.max(0, Math.round((now.getTime() - startTime.getTime()) / 1000));
 
-        // Audit Log
-        await prisma.auditLog.create({
-          data: {
-            actorId: params.userId,
-            action: "END_DUTY",
-            targetType: "DUTY_SESSION",
-            targetId: active.id,
-            newData: JSON.stringify({
+      const isDb = await this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          await prisma.dutySession.update({
+            where: { id: active.id },
+            data: {
               endedAt: now,
               durationSeconds,
-            }),
-          },
-        });
+              status: "COMPLETED",
+            },
+          });
 
-        return {
-          success: true,
-          session: {
-            ...active,
-            endedAt: now.toISOString(),
-            durationSeconds,
-            status: "COMPLETED",
-          },
-        };
-      } catch (err) {
-        console.warn("DB endDuty error, fallback to memory:", err);
+          // Audit Log
+          try {
+            await prisma.auditLog.create({
+              data: {
+                actorId: params.userId,
+                action: "END_DUTY",
+                targetType: "DUTY_SESSION",
+                targetId: active.id,
+                newData: JSON.stringify({
+                  endedAt: now,
+                  durationSeconds,
+                }),
+              },
+            });
+          } catch {}
+        } catch (err) {
+          console.warn("DB endDuty error, fallback to memory:", err);
+        }
       }
     }
 
-    const index = memoryStore.dutySessions.findIndex((s) => s.id === active.id);
-    if (index !== -1) {
-      memoryStore.dutySessions[index] = {
-        ...memoryStore.dutySessions[index],
-        endedAt: now.toISOString(),
-        durationSeconds,
-        status: "COMPLETED",
-      };
+    // Comprehensive memory cleanup: mark all matching open sessions for this user as completed
+    let completedSession: DutySessionData | undefined;
+    memoryStore.dutySessions.forEach((s) => {
+      const isUserMatch =
+        s.userId === params.userId ||
+        s.userId === cleanId ||
+        s.userId === `discord-${cleanId}` ||
+        (active && s.id === active.id);
 
+      if (isUserMatch && !s.endedAt && s.status === "ON_DUTY") {
+        const start = new Date(s.startedAt);
+        const duration = Math.max(0, Math.round((now.getTime() - start.getTime()) / 1000));
+        s.endedAt = now.toISOString();
+        s.durationSeconds = duration;
+        s.status = "COMPLETED";
+        if (!completedSession) {
+          completedSession = { ...s };
+        }
+      }
+    });
+
+    if (completedSession) {
       memoryStore.auditLogs.unshift({
         id: `audit-${Date.now()}`,
         actorId: params.userId,
-        actorName: active.userName || "User",
+        actorName: completedSession.userName || "User",
         action: "END_DUTY",
         targetType: "DUTY_SESSION",
-        targetId: active.id,
-        newData: JSON.stringify({ endedAt: now, durationSeconds }),
+        targetId: completedSession.id,
+        newData: JSON.stringify({ endedAt: now, durationSeconds: completedSession.durationSeconds }),
         createdAt: now.toISOString(),
       });
-
-      return { success: true, session: memoryStore.dutySessions[index] };
+      return { success: true, session: completedSession };
     }
 
-    return { success: false, error: "Gagal mengakhiri sesi duty." };
+    if (active) {
+      const start = new Date(active.startedAt);
+      const duration = Math.max(0, Math.round((now.getTime() - start.getTime()) / 1000));
+      return {
+        success: true,
+        session: {
+          ...active,
+          endedAt: now.toISOString(),
+          durationSeconds: duration,
+          status: "COMPLETED",
+        },
+      };
+    }
+
+    // If no active session was found, user is already off duty
+    return { success: true };
   }
 
   /**
@@ -1109,39 +1155,61 @@ export class DataService {
     userId: string,
     institutionSlug: string
   ): Promise<DutySessionData[]> {
+    const cleanId = userId.replace("discord-", "");
     const isDb = await this.isDatabaseAvailable();
     if (isDb) {
       try {
         const rows = await prisma.dutySession.findMany({
           where: {
-            userId,
-            institution: { slug: institutionSlug },
+            OR: [
+              { userId },
+              { userId: cleanId },
+              { userId: `discord-${cleanId}` },
+            ],
+            institution: {
+              OR: [
+                { slug: institutionSlug },
+                { id: institutionSlug },
+              ],
+            },
           },
           include: { institution: true, user: true },
           orderBy: { startedAt: "desc" },
         });
 
-        return rows.map((r) => ({
-          id: r.id,
-          userId: r.userId,
-          userName: r.user.displayName || r.user.discordUsername,
-          institutionId: r.institutionId,
-          institutionSlug: r.institution.slug,
-          institutionName: r.institution.name,
-          startedAt: r.startedAt.toISOString(),
-          endedAt: r.endedAt?.toISOString() || null,
-          durationSeconds: r.durationSeconds,
-          status: r.status as DutySessionData["status"],
-          notes: r.notes,
-          createdAt: r.createdAt.toISOString(),
-        }));
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            userId: r.userId,
+            userName: r.user.displayName || r.user.discordUsername,
+            institutionId: r.institutionId,
+            institutionSlug: r.institution.slug,
+            institutionName: r.institution.name,
+            startedAt: r.startedAt.toISOString(),
+            endedAt: r.endedAt?.toISOString() || null,
+            durationSeconds: r.durationSeconds,
+            status: r.status as DutySessionData["status"],
+            notes: r.notes,
+            createdAt: r.createdAt.toISOString(),
+          }));
+        }
       } catch (err) {
         console.warn("DB getUserDutySessions error:", err);
       }
     }
 
     return memoryStore.dutySessions
-      .filter((s) => s.userId === userId && s.institutionSlug === institutionSlug)
+      .filter((s) => {
+        const userMatch =
+          s.userId === userId ||
+          s.userId === cleanId ||
+          s.userId === `discord-${cleanId}`;
+        const instMatch =
+          s.institutionSlug === institutionSlug ||
+          s.institutionId === institutionSlug ||
+          `inst-${s.institutionSlug}` === institutionSlug;
+        return userMatch && instMatch;
+      })
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   }
 

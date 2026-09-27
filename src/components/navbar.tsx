@@ -8,7 +8,7 @@ import { logoutAction } from "@/app/actions/auth-actions";
 import { endDutyAction } from "@/app/actions/duty-actions";
 import { InstitutionLogo } from "./institution-logo";
 import { Shield, Radio, LogOut, ChevronDown, Building2, Square, Check, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface NavbarProps {
   currentUser: SessionUser;
@@ -20,13 +20,51 @@ interface NavbarProps {
 export function Navbar({
   currentUser,
   currentInstitution,
-  activeSession,
+  activeSession: initialActiveSession,
   allowedInstitutions,
 }: NavbarProps) {
   const router = useRouter();
+  const [activeSession, setActiveSession] = useState<DutySessionData | null>(initialActiveSession || null);
+  const endedSessionIdRef = useRef<string | null>(null);
   const [instMenuOpen, setInstMenuOpen] = useState(false);
   const [quickEndLoading, setQuickEndLoading] = useState(false);
   const [showNavbarEndModal, setShowNavbarEndModal] = useState(false);
+
+  // Sync with prop when server updates, guarding against reviving ended sessions
+  useEffect(() => {
+    if (initialActiveSession) {
+      if (endedSessionIdRef.current && initialActiveSession.id === endedSessionIdRef.current) {
+        return;
+      }
+      setActiveSession(initialActiveSession);
+    } else {
+      endedSessionIdRef.current = null;
+      setActiveSession(null);
+    }
+  }, [initialActiveSession]);
+
+  // Synchronize state across other components (e.g. DutyTimer)
+  useEffect(() => {
+    const handleDutyChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        status: string;
+        session?: DutySessionData;
+        institutionSlug?: string;
+      }>;
+      if (customEvent.detail?.status === "OFF_DUTY") {
+        if (activeSession?.id) {
+          endedSessionIdRef.current = activeSession.id;
+        }
+        setActiveSession(null);
+      } else if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
+        endedSessionIdRef.current = null;
+        setActiveSession(customEvent.detail.session);
+      }
+    };
+
+    window.addEventListener("ophelia_duty_changed", handleDutyChange);
+    return () => window.removeEventListener("ophelia_duty_changed", handleDutyChange);
+  }, [activeSession]);
 
   const handleLogout = async () => {
     await logoutAction();
@@ -34,17 +72,30 @@ export function Navbar({
   };
 
   const handleQuickEndDuty = async () => {
-    if (!activeSession?.institutionSlug) return;
+    const targetSlug = activeSession?.institutionSlug || currentInstitution?.slug || "";
+    if (activeSession?.id) {
+      endedSessionIdRef.current = activeSession.id;
+    }
+
+    // Immediate optimistic update
+    setActiveSession(null);
+    setShowNavbarEndModal(false);
     setQuickEndLoading(true);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ophelia_duty_changed", {
+          detail: { status: "OFF_DUTY", institutionSlug: targetSlug },
+        })
+      );
+    }
+
     try {
-      const res = await endDutyAction(activeSession.institutionSlug);
-      if (res.success) {
-        setShowNavbarEndModal(false);
-        router.refresh();
-        window.location.reload();
-      }
+      await endDutyAction(targetSlug);
+      router.refresh();
     } catch (err) {
       console.error(err);
+      router.refresh();
     } finally {
       setQuickEndLoading(false);
     }

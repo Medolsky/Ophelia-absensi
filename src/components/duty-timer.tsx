@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { startDutyAction, endDutyAction } from "@/app/actions/duty-actions";
 import { Play, Square, Clock, AlertCircle, X, Check } from "lucide-react";
@@ -27,11 +27,46 @@ export function DutyTimer({
   const [showNotesInput, setShowNotesInput] = useState(false);
   const [notes, setNotes] = useState("");
   const [showEndConfirmModal, setShowEndConfirmModal] = useState(false);
+  const endedSessionIdRef = useRef<string | null>(null);
 
-  // Update active session when prop changes
+  // Update active session when prop changes, avoiding reviving an ended session from stale cache
   useEffect(() => {
-    setActiveSession(initialActiveSession);
+    if (initialActiveSession) {
+      if (endedSessionIdRef.current && initialActiveSession.id === endedSessionIdRef.current) {
+        return;
+      }
+      setActiveSession(initialActiveSession);
+    } else {
+      endedSessionIdRef.current = null;
+      setActiveSession(null);
+    }
   }, [initialActiveSession]);
+
+  // Synchronize state across other components (e.g. Navbar)
+  useEffect(() => {
+    const handleDutyChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        status: string;
+        session?: DutySessionData;
+        institutionSlug?: string;
+      }>;
+      if (customEvent.detail?.status === "OFF_DUTY") {
+        if (activeSession?.id) {
+          endedSessionIdRef.current = activeSession.id;
+        }
+        setActiveSession(null);
+        setElapsedSeconds(0);
+      } else if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
+        if (customEvent.detail.session.institutionSlug === institutionSlug) {
+          endedSessionIdRef.current = null;
+          setActiveSession(customEvent.detail.session);
+        }
+      }
+    };
+
+    window.addEventListener("ophelia_duty_changed", handleDutyChange);
+    return () => window.removeEventListener("ophelia_duty_changed", handleDutyChange);
+  }, [activeSession, institutionSlug]);
 
   // Realtime Timer based on Server Timestamp
   useEffect(() => {
@@ -69,9 +104,17 @@ export function DutyTimer({
     try {
       const res = await startDutyAction(institutionSlug, notes);
       if (res.success && res.session) {
+        endedSessionIdRef.current = null;
         setActiveSession(res.session);
         setShowNotesInput(false);
         setNotes("");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("ophelia_duty_changed", {
+              detail: { status: "ON_DUTY", session: res.session },
+            })
+          );
+        }
         router.refresh();
       } else {
         setError(res.error || "Gagal memulai duty.");
@@ -86,17 +129,36 @@ export function DutyTimer({
   const handleConfirmEndDuty = async () => {
     setLoading(true);
     setError(null);
+    if (activeSession?.id) {
+      endedSessionIdRef.current = activeSession.id;
+    }
+
+    // Immediate optimistic update
+    setActiveSession(null);
+    setElapsedSeconds(0);
+    setShowEndConfirmModal(false);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ophelia_duty_changed", {
+          detail: { status: "OFF_DUTY", institutionSlug },
+        })
+      );
+    }
+
     try {
       const res = await endDutyAction(institutionSlug);
       if (res.success) {
-        setActiveSession(null);
-        setShowEndConfirmModal(false);
         router.refresh();
       } else {
-        setError(res.error || "Gagal mengakhiri duty.");
+        if (!res.error?.includes("Tidak ada sesi duty")) {
+          setError(res.error || "Gagal mengakhiri duty.");
+        }
+        router.refresh();
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan saat mengakhiri duty.");
+      console.error("End duty error:", err);
+      router.refresh();
     } finally {
       setLoading(false);
     }
@@ -252,12 +314,13 @@ export function DutyTimer({
               <div className="flex justify-between text-neutral-400">
                 <span>Waktu Mulai:</span>
                 <span className="font-mono text-white">
-                  {activeSession &&
-                    new Date(activeSession.startedAt).toLocaleTimeString("id-ID", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
+                  {activeSession?.startedAt
+                    ? new Date(activeSession.startedAt).toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                      })
+                    : "-"}
                 </span>
               </div>
               <div className="flex justify-between text-neutral-400">

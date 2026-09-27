@@ -5,6 +5,9 @@ import { InstitutionLogo } from "@/components/institution-logo";
 import { Clock, Calendar, CheckCircle2, Award, Zap, Layers, Banknote } from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function DutyDashboardPage({
   params,
 }: {

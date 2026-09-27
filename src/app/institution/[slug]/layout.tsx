@@ -7,6 +7,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function InstitutionLayout({
   children,
   params,

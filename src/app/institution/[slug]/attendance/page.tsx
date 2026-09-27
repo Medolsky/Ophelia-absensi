@@ -3,6 +3,9 @@ import { DataService } from "@/lib/data-service";
 import { AttendanceTable } from "@/components/attendance-table";
 import { CalendarCheck, ShieldAlert } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AttendancePage({
   params,
 }: {
