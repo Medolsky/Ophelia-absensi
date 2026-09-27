@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
