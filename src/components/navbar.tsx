@@ -6,6 +6,7 @@ import { SessionUser, InstitutionData, DutySessionData } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { logoutAction } from "@/app/actions/auth-actions";
 import { endDutyAction } from "@/app/actions/duty-actions";
+import { clearClientDutyState } from "@/lib/duty-client";
 import { InstitutionLogo } from "./institution-logo";
 import { Shield, Radio, LogOut, ChevronDown, Building2, Square, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -77,18 +78,11 @@ export function Navbar({
       endedSessionIdRef.current = activeSession.id;
     }
 
-    // Immediate optimistic update
+    // Immediate optimistic update and storage cleanup
+    clearClientDutyState(targetSlug);
     setActiveSession(null);
     setShowNavbarEndModal(false);
     setQuickEndLoading(true);
-
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("ophelia_duty_changed", {
-          detail: { status: "OFF_DUTY", institutionSlug: targetSlug },
-        })
-      );
-    }
 
     try {
       await endDutyAction(targetSlug);

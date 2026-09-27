@@ -68,25 +68,36 @@ export async function endDutyAction(institutionSlug?: string) {
     institutionSlug,
   });
 
-  if (result.success) {
-    // Delete active duty cookie on end duty
-    const cookieStore = await cookies();
-    cookieStore.delete("ophelia_active_duty");
-    if (institutionSlug) {
-      cookieStore.delete(`ophelia_active_duty_${institutionSlug}`);
-    }
+  // Always delete all active duty cookies on end duty
+  const cookieStore = await cookies();
+  cookieStore.delete("ophelia_active_duty");
+  cookieStore.delete("ophelia_current_active_duty");
 
-    if (institutionSlug) {
-      revalidatePath(`/institution/${institutionSlug}`);
-      revalidatePath(`/institution/${institutionSlug}/duty`);
-      revalidatePath(`/institution/${institutionSlug}/attendance`);
-      revalidatePath(`/institution/${institutionSlug}/history`);
-      revalidatePath(`/institution/${institutionSlug}/statistics`);
-      revalidatePath(`/institution/${institutionSlug}/live`);
-      revalidatePath(`/institution/${institutionSlug}/city`);
-    }
-    revalidatePath("/", "layout");
+  const allSlugs = [
+    institutionSlug,
+    institutionSlug ? institutionSlug.replace("inst-", "") : "",
+    "police",
+    "medical",
+    "mechanic",
+    "restaurant",
+    "pemerintah",
+  ].filter(Boolean) as string[];
+
+  allSlugs.forEach((s) => {
+    cookieStore.delete(`ophelia_active_duty_${s}`);
+    cookieStore.delete(`ophelia_active_duty_inst-${s}`);
+  });
+
+  if (institutionSlug) {
+    revalidatePath(`/institution/${institutionSlug}`);
+    revalidatePath(`/institution/${institutionSlug}/duty`);
+    revalidatePath(`/institution/${institutionSlug}/attendance`);
+    revalidatePath(`/institution/${institutionSlug}/history`);
+    revalidatePath(`/institution/${institutionSlug}/statistics`);
+    revalidatePath(`/institution/${institutionSlug}/live`);
+    revalidatePath(`/institution/${institutionSlug}/city`);
   }
+  revalidatePath("/", "layout");
 
   return result;
 }

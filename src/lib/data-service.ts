@@ -988,6 +988,8 @@ export class DataService {
             createdAt: active.createdAt.toISOString(),
           };
         }
+        // DB is online and query succeeded: ground truth is user is OFF DUTY
+        return null;
       } catch (err) {
         console.warn("DB getActiveDutySession fallback:", err);
       }
@@ -1227,16 +1229,47 @@ export class DataService {
     const active = await this.getActiveDutySession(params.userId);
     const cleanId = params.userId.replace("discord-", "");
     const now = new Date();
+    let completedSession: DutySessionData | undefined;
 
-    if (active) {
-      const startTime = new Date(active.startedAt);
-      const durationSeconds = Math.max(0, Math.round((now.getTime() - startTime.getTime()) / 1000));
+    const isDb = await this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        const dbUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: params.userId },
+              { discordId: cleanId },
+              { id: `discord-${cleanId}` },
+            ],
+          },
+        });
 
-      const isDb = await this.isDatabaseAvailable();
-      if (isDb) {
-        try {
+        const userFilter = [
+          { userId: params.userId },
+          { userId: cleanId },
+          { userId: `discord-${cleanId}` },
+          { user: { discordId: cleanId } },
+          ...(dbUser ? [{ userId: dbUser.id }] : []),
+          ...(active ? [{ id: active.id }] : []),
+        ];
+
+        // 1. Close ALL open duty sessions for this user in PostgreSQL
+        const openSessions = await prisma.dutySession.findMany({
+          where: {
+            OR: userFilter,
+            endedAt: null,
+            status: "ON_DUTY",
+          },
+          include: { institution: true, user: true },
+        });
+
+        for (const s of openSessions) {
+          const durationSeconds = Math.max(
+            0,
+            Math.round((now.getTime() - new Date(s.startedAt).getTime()) / 1000)
+          );
           await prisma.dutySession.update({
-            where: { id: active.id },
+            where: { id: s.id },
             data: {
               endedAt: now,
               durationSeconds,
@@ -1244,40 +1277,47 @@ export class DataService {
             },
           });
 
-          // Audit Log
+          if (!completedSession) {
+            completedSession = {
+              id: s.id,
+              userId: s.userId,
+              userName: s.user.displayName || s.user.discordUsername,
+              institutionId: s.institutionId,
+              institutionSlug: s.institution.slug,
+              institutionName: s.institution.name,
+              startedAt: s.startedAt.toISOString(),
+              endedAt: now.toISOString(),
+              durationSeconds,
+              status: "COMPLETED",
+              notes: s.notes,
+              createdAt: s.createdAt.toISOString(),
+            };
+          }
+        }
+
+        // 2. Audit Log
+        if (dbUser && openSessions.length > 0) {
           try {
-            const dbUser = await prisma.user.findFirst({
-              where: {
-                OR: [
-                  { id: params.userId },
-                  { discordId: cleanId },
-                  { id: `discord-${cleanId}` },
-                ],
+            await prisma.auditLog.create({
+              data: {
+                actorId: dbUser.id,
+                action: "END_DUTY",
+                targetType: "DUTY_SESSION",
+                targetId: openSessions[0].id,
+                newData: JSON.stringify({
+                  endedAt: now,
+                  sessionsClosed: openSessions.length,
+                }),
               },
             });
-            if (dbUser) {
-              await prisma.auditLog.create({
-                data: {
-                  actorId: dbUser.id,
-                  action: "END_DUTY",
-                  targetType: "DUTY_SESSION",
-                  targetId: active.id,
-                  newData: JSON.stringify({
-                    endedAt: now,
-                    durationSeconds,
-                  }),
-                },
-              });
-            }
           } catch {}
-        } catch (err) {
-          console.warn("DB endDuty error, fallback to memory:", err);
         }
+      } catch (err) {
+        console.warn("DB endDuty error, fallback to memory:", err);
       }
     }
 
-    // Comprehensive memory cleanup: mark all matching open sessions for this user as completed
-    let completedSession: DutySessionData | undefined;
+    // 3. Comprehensive memory cleanup: mark all matching open sessions for this user as completed
     memoryStore.dutySessions.forEach((s) => {
       const isUserMatch =
         s.userId === params.userId ||
@@ -1470,23 +1510,22 @@ export class DataService {
           orderBy: { startedAt: "asc" },
         });
 
-        if (rows.length > 0) {
-          return rows.map((r) => ({
-            id: r.id,
-            userId: r.userId,
-            userName: r.user.displayName || r.user.discordUsername,
-            userAvatar: r.user.discordAvatar,
-            institutionId: r.institutionId,
-            institutionSlug: r.institution.slug,
-            institutionName: r.institution.name,
-            startedAt: r.startedAt.toISOString(),
-            endedAt: null,
-            durationSeconds: 0,
-            status: "ON_DUTY",
-            notes: r.notes,
-            createdAt: r.createdAt.toISOString(),
-          }));
-        }
+        // DB query succeeded: this is the ground truth
+        return rows.map((r) => ({
+          id: r.id,
+          userId: r.userId,
+          userName: r.user.displayName || r.user.discordUsername,
+          userAvatar: r.user.discordAvatar,
+          institutionId: r.institutionId,
+          institutionSlug: r.institution.slug,
+          institutionName: r.institution.name,
+          startedAt: r.startedAt.toISOString(),
+          endedAt: null,
+          durationSeconds: 0,
+          status: "ON_DUTY",
+          notes: r.notes,
+          createdAt: r.createdAt.toISOString(),
+        }));
       } catch (err) {
         console.warn("DB getLiveOnDuty error:", err);
       }

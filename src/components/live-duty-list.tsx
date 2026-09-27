@@ -14,11 +14,25 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
   const getMergedWithLocal = (incoming: DutySessionData[]): DutySessionData[] => {
     if (typeof window === "undefined") return incoming;
     try {
+      const lastOffDutyStr = localStorage.getItem("ophelia_last_off_duty_timestamp");
+      const lastOffDuty = lastOffDutyStr ? parseInt(lastOffDutyStr, 10) : 0;
+
       const stored =
         localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
         localStorage.getItem("ophelia_current_active_duty");
       if (stored) {
         const parsed = JSON.parse(stored) as DutySessionData;
+        const startedAtTime = parsed?.startedAt ? new Date(parsed.startedAt).getTime() : 0;
+
+        // If session started before last off duty, discard it!
+        if (lastOffDuty && startedAtTime <= lastOffDuty) {
+          localStorage.removeItem(`ophelia_active_duty_${institutionSlug}`);
+          localStorage.removeItem("ophelia_current_active_duty");
+          return incoming.filter(
+            (s) => !lastOffDuty || !s.startedAt || new Date(s.startedAt).getTime() > lastOffDuty
+          );
+        }
+
         if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
           const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
           const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
@@ -31,6 +45,10 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
             }
           }
         }
+      } else if (lastOffDuty) {
+        return incoming.filter(
+          (s) => !s.startedAt || new Date(s.startedAt).getTime() > lastOffDuty
+        );
       }
     } catch {}
     return incoming;

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { startDutyAction, endDutyAction } from "@/app/actions/duty-actions";
+import { clearClientDutyState } from "@/lib/duty-client";
 import { Play, Square, Clock, AlertCircle, X, Check } from "lucide-react";
 import { DutySessionData } from "@/types";
 
@@ -198,26 +199,13 @@ export function DutyTimer({
       endedSessionIdRef.current = activeSession.id;
     }
 
-    // Clear client persistence immediately
-    try {
-      localStorage.removeItem(`ophelia_active_duty_${institutionSlug}`);
-      localStorage.removeItem("ophelia_current_active_duty");
-      document.cookie = `ophelia_active_duty_${institutionSlug}=; path=/; max-age=0; SameSite=Lax`;
-      document.cookie = `ophelia_active_duty=; path=/; max-age=0; SameSite=Lax`;
-    } catch {}
+    // Clear client persistence completely
+    clearClientDutyState(institutionSlug);
 
     // Immediate optimistic update
     setActiveSession(null);
     setElapsedSeconds(0);
     setShowEndConfirmModal(false);
-
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("ophelia_duty_changed", {
-          detail: { status: "OFF_DUTY", institutionSlug },
-        })
-      );
-    }
 
     try {
       const res = await endDutyAction(institutionSlug);

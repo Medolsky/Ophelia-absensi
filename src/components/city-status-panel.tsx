@@ -48,11 +48,28 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
     (incoming: CityStatusEntry[]): CityStatusEntry[] => {
       if (typeof window === "undefined") return incoming;
       try {
+        const lastOffDutyStr = localStorage.getItem("ophelia_last_off_duty_timestamp");
+        const lastOffDuty = lastOffDutyStr ? parseInt(lastOffDutyStr, 10) : 0;
+
         const stored =
           localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
           localStorage.getItem("ophelia_current_active_duty");
         if (stored) {
           const parsed = JSON.parse(stored);
+          const startedAtTime = parsed?.startedAt ? new Date(parsed.startedAt).getTime() : 0;
+
+          // If session started before last off duty, it is stale: discard!
+          if (lastOffDuty && startedAtTime <= lastOffDuty) {
+            localStorage.removeItem(`ophelia_active_duty_${institutionSlug}`);
+            localStorage.removeItem("ophelia_current_active_duty");
+            return incoming.map((p) => {
+              if (lastOffDuty && p.dutyStartedAt && new Date(p.dutyStartedAt).getTime() <= lastOffDuty) {
+                return { ...p, isOnDuty: false, dutyStartedAt: undefined };
+              }
+              return p;
+            });
+          }
+
           if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
             const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
             const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
@@ -96,6 +113,14 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
               return updated;
             }
           }
+        } else if (lastOffDuty) {
+          // If no active session in localStorage and user recently went off duty, filter out stale on-duty entries
+          return incoming.map((p) => {
+            if (p.dutyStartedAt && new Date(p.dutyStartedAt).getTime() <= lastOffDuty) {
+              return { ...p, isOnDuty: false, dutyStartedAt: undefined };
+            }
+            return p;
+          });
         }
       } catch {}
       return incoming;
@@ -128,7 +153,17 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
 
   // Listen to ophelia_duty_changed
   useEffect(() => {
-    const handleDutyChange = () => {
+    const handleDutyChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ status: string }>;
+      if (customEvent?.detail?.status === "OFF_DUTY") {
+        setPlayers((prev) =>
+          prev.map((p) => ({
+            ...p,
+            isOnDuty: false,
+            dutyStartedAt: undefined,
+          }))
+        );
+      }
       fetchCityStatus();
     };
     window.addEventListener("ophelia_duty_changed", handleDutyChange);
