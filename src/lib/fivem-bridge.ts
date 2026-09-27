@@ -41,39 +41,42 @@ export class FiveMBridge {
     if (isDb) {
       try {
         let wentOffline = 0;
+        const db = prisma as any;
 
         // Mark absent players offline
-        const result = await prisma.fiveMPlayer.updateMany({
-          where: {
-            discordId: { notIn: [...incomingIds] },
-            isOnline: true,
-          },
-          data: { isOnline: false, lastSeenAt: now },
-        });
-        wentOffline = result.count;
-
-        // Upsert each online player
-        for (const p of players) {
-          await prisma.fiveMPlayer.upsert({
-            where: { discordId: p.discordId },
-            update: {
-              serverId: p.serverId,
-              playerName: p.name,
+        if (db.fiveMPlayer) {
+          const result = await db.fiveMPlayer.updateMany({
+            where: {
+              discordId: { notIn: [...incomingIds] },
               isOnline: true,
-              lastSeenAt: now,
             },
-            create: {
-              discordId: p.discordId,
-              serverId: p.serverId,
-              playerName: p.name,
-              isOnline: true,
-              joinedAt: now,
-              lastSeenAt: now,
-            },
+            data: { isOnline: false, lastSeenAt: now },
           });
-        }
+          wentOffline = result.count;
 
-        return { synced: players.length, wentOffline };
+          // Upsert each online player
+          for (const p of players) {
+            await db.fiveMPlayer.upsert({
+              where: { discordId: p.discordId },
+              update: {
+                serverId: p.serverId,
+                playerName: p.name,
+                isOnline: true,
+                lastSeenAt: now,
+              },
+              create: {
+                discordId: p.discordId,
+                serverId: p.serverId,
+                playerName: p.name,
+                isOnline: true,
+                joinedAt: now,
+                lastSeenAt: now,
+              },
+            });
+          }
+
+          return { synced: players.length, wentOffline };
+        }
       } catch (err) {
         console.warn("DB syncPlayers error, fallback to memory:", err);
       }
@@ -118,18 +121,21 @@ export class FiveMBridge {
     const isDb = await this.isDatabaseAvailable();
     if (isDb) {
       try {
-        const rows = await prisma.fiveMPlayer.findMany({
-          where: { isOnline: true },
-          orderBy: { joinedAt: "asc" },
-        });
-        return rows.map((r) => ({
-          discordId: r.discordId,
-          serverId: r.serverId,
-          playerName: r.playerName,
-          isOnline: r.isOnline,
-          joinedAt: r.joinedAt.toISOString(),
-          lastSeenAt: r.lastSeenAt.toISOString(),
-        }));
+        const db = prisma as any;
+        if (db.fiveMPlayer) {
+          const rows = await db.fiveMPlayer.findMany({
+            where: { isOnline: true },
+            orderBy: { joinedAt: "asc" },
+          });
+          return rows.map((r: any) => ({
+            discordId: r.discordId,
+            serverId: r.serverId,
+            playerName: r.playerName,
+            isOnline: r.isOnline,
+            joinedAt: r.joinedAt.toISOString(),
+            lastSeenAt: r.lastSeenAt.toISOString(),
+          }));
+        }
       } catch (err) {
         console.warn("DB getOnlinePlayers error:", err);
       }
