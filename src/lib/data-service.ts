@@ -801,6 +801,9 @@ export class DataService {
    */
   private static async isDatabaseAvailable(): Promise<boolean> {
     try {
+      if (!process.env.DATABASE_URL && (process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL)) {
+        process.env.DATABASE_URL = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
+      }
       if (!process.env.DATABASE_URL) return false;
       // Fast check
       await prisma.$queryRaw`SELECT 1`;
