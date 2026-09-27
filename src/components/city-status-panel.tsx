@@ -175,24 +175,7 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
         </div>
       </div>
 
-      {/* Last Update */}
-      {lastUpdate && (
-        <div className="flex items-center gap-2 text-[10px] text-neutral-500 px-1">
-          <span
-            className="h-1.5 w-1.5 rounded-full animate-pulse"
-            style={{ backgroundColor: accentColor }}
-          />
-          <span>
-            Update terakhir:{" "}
-            {lastUpdate.toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </span>
-          <span>• Auto-refresh setiap 15 detik</span>
-        </div>
-      )}
+
 
       {/* Player Grid */}
       {loading ? (

@@ -14,17 +14,10 @@ export default async function CityStatusPage({
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-[11px] text-neutral-500 uppercase tracking-wider mb-1">
-            <Gamepad2 className="h-3.5 w-3.5" />
-            <span>FiveM Integration</span>
-          </div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
             <MapPin className="h-5 w-5 text-[#E50914]" />
-            Status Kota
+            <span>Status Kota</span>
           </h1>
-          <p className="text-xs text-neutral-400 mt-1">
-            Pantau siapa yang sedang online di kota — dan siapa yang sudah on duty.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -43,10 +36,6 @@ export default async function CityStatusPage({
             <Download className="h-3.5 w-3.5" />
             <span>Download Resource</span>
           </a>
-          <div className="hidden sm:flex items-center gap-2 text-[11px] text-neutral-400 bg-[#111] border border-[#222] rounded-xl px-3 py-2">
-            <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-            <span>FiveM Connected</span>
-          </div>
         </div>
       </div>
 

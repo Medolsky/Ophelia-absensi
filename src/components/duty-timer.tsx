@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startDutyAction, endDutyAction } from "@/app/actions/duty-actions";
-import { Play, Square, Clock, ShieldCheck, AlertCircle, Sparkles, X, Check } from "lucide-react";
+import { Play, Square, Clock, AlertCircle, X, Check } from "lucide-react";
 import { DutySessionData } from "@/types";
 
 interface DutyTimerProps {
@@ -129,9 +129,6 @@ export function DutyTimer({
                 />
                 {isOnDuty ? "CURRENTLY ON DUTY" : "OFF DUTY"}
               </span>
-              <span className="text-xs text-neutral-400 flex items-center gap-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-[#E50914]" /> Server Verified
-              </span>
             </div>
 
             <h2 className="text-2xl lg:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -154,7 +151,6 @@ export function DutyTimer({
                       minute: "2-digit",
                     })}
                   </span>
-                  . Waktu dihitung dari server authority.
                 </>
               ) : (
                 `Halo ${userDisplayName}, klik tombol di samping untuk mencatat kehadiran dinas Anda.`
@@ -186,12 +182,7 @@ export function DutyTimer({
         )}
 
         {/* Action Controls */}
-        <div className="mt-6 pt-6 border-t border-[#252525] flex flex-wrap items-center justify-between gap-4">
-          <div className="text-xs text-neutral-500 flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-[#E50914]" />
-            <span>Anti-abuse aktif: Maksimal 1 sesi duty simultan per akun</span>
-          </div>
-
+        <div className="mt-6 pt-6 border-t border-[#252525] flex items-center justify-end gap-3">
           <div className="flex items-center gap-3">
             {!isOnDuty ? (
               <>
@@ -276,7 +267,7 @@ export function DutyTimer({
             </div>
 
             <p className="text-xs text-neutral-400 mb-5">
-              Apakah Anda yakin ingin menyelesaikan sesi duty ini (OFF DUTY)? Data durasi dinas akan disimpan ke database presensi instansi.
+              Apakah Anda yakin ingin menyelesaikan sesi dinas ini?
             </p>
 
             <div className="flex items-center justify-end gap-2.5">

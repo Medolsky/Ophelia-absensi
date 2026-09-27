@@ -45,14 +45,11 @@ export default async function LiveDutyPage({
       <div className="border-b border-[#202020] pb-5">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#FF1E2D]">
           <Radio className="h-4 w-4 animate-pulse" />
-          <span>Live Radar Monitoring</span>
+          <span>Live Monitoring</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Petugas Sedang Dinas — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Pantau anggota yang aktif di lapangan secara realtime beserta durasi dinas yang sedang berlangsung.
-        </p>
       </div>
 
       <LiveDutyList initialSessions={liveSessions} />

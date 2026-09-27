@@ -29,9 +29,6 @@ export default async function AttendancePage({
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Daftar Absensi — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Setiap sesi duty dicatat secara terpisah per tanggal untuk mendukung skema multiple on/off duty dalam satu hari.
-        </p>
       </div>
 
       <AttendanceTable

@@ -66,9 +66,6 @@ export default async function HistoryPage({
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Histori Absensi Bulanan — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Data absensi dari bulan-bulan sebelumnya tetap tersimpan secara permanen untuk kebutuhan evaluasi promosi jabatan atau audit dinas.
-        </p>
       </div>
 
       <div className="grid gap-4">

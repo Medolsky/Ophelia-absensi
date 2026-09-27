@@ -51,9 +51,6 @@ export default async function ReportsPage({
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Laporan Presensi — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Generate rekapitulasi jam duty seluruh anggota instansi berdasarkan rentang tanggal kustom untuk kebutuhan arsip dan evaluasi.
-        </p>
       </div>
 
       <ReportGenerator

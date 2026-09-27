@@ -48,14 +48,14 @@ export default async function SelectInstitutionPage() {
         <div className="text-center max-w-xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181818] border border-[#262626] text-xs font-semibold text-neutral-300 mb-3">
             <CheckCircle className="h-3.5 w-3.5 text-[#FF1E2D]" />
-            <span>Terverifikasi dengan Discord ID: {currentUser.discordId}</span>
+            <span>@{currentUser.discordUsername}</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
             PILIH INSTANSI DINAS
           </h1>
           <p className="text-sm text-neutral-400 mt-2">
-            Sistem memverifikasi role Discord Anda secara server-side. Anda hanya dapat masuk dan melakukan absensi pada instansi yang telah di-assign di Discord Whitelist.
+            Pilih instansi untuk memulai absensi dan memantau tugas kedinasan Anda.
           </p>
         </div>
 

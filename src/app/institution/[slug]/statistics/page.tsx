@@ -76,9 +76,6 @@ export default async function StatisticsPage({
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Statistik & Performa — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Evaluasi jam dinas mingguan dan kalender kehadiran bulanan sesuai standar pengawasan roleplay.
-        </p>
       </div>
 
       {/* Monthly Highlight Stats (PRD Section 12) */}
@@ -91,10 +88,6 @@ export default async function StatisticsPage({
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(totalMonthSeconds)}
           </div>
-          <div className="text-[11px] text-neutral-400 mt-1 flex items-center gap-1 truncate">
-            <TrendingUp className="h-3 w-3 text-[#FF1E2D]" />
-            <span>{totalMonthSeconds > 0 ? "Memenuhi kuota dinas" : "Belum ada dinas bulan ini"}</span>
-          </div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
@@ -104,9 +97,6 @@ export default async function StatisticsPage({
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(averagePerDaySeconds)}
-          </div>
-          <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            Dihitung dari hari aktif
           </div>
         </div>
 
@@ -118,9 +108,6 @@ export default async function StatisticsPage({
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(longestSessionSeconds)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            Rekor dinas nonstop
-          </div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
@@ -130,9 +117,6 @@ export default async function StatisticsPage({
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {activeDays} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
-          </div>
-          <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            Presensi keaktifan anggota
           </div>
         </div>
       </div>

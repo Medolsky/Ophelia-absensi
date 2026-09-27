@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
-import { Shield, Sparkles, CheckCircle2, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
+import { Shield, Sparkles, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
 import { DevSwitcher } from "@/components/dev-switcher";
 
 export default async function HomePage({
@@ -102,8 +102,8 @@ export default async function HomePage({
             </h1>
 
             <p className="text-base sm:text-lg text-neutral-400 max-w-xl leading-relaxed">
-              Platform pencatatan jam dinas real-time dengan sinkronisasi role Discord terintegrasi.
-              Dilengkapi validasi ganda, kalkulasi durasi server-side, pemantauan live on duty, serta audit log anti-manipulasi.
+              Platform pencatatan jam dinas real-time dengan sinkronisasi role Discord terintegrasi,
+              pemantauan kehadiran live, rekap bulanan, dan sistem penggajian transparan.
             </p>
 
             {/* CTA Buttons */}
@@ -188,23 +188,6 @@ export default async function HomePage({
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-2">
-                  <div className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider">
-                    Fitur Keamanan Terintegrasi:
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-neutral-300">
-                    <CheckCircle2 className="h-4 w-4 text-[#FF1E2D]" />
-                    <span>Server-Side Timestamp Authority (Anti-Curang)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-neutral-300">
-                    <CheckCircle2 className="h-4 w-4 text-[#FF1E2D]" />
-                    <span>Discord Server Member Role Verification (403 Guard)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-neutral-300">
-                    <CheckCircle2 className="h-4 w-4 text-[#FF1E2D]" />
-                    <span>Multiple Sessions per Day dengan Histori Otomatis</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

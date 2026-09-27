@@ -48,9 +48,6 @@ export default async function MembersPage({
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Daftar Anggota — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Kelola status dinas anggota, penetapan pangkat/jabatan, dan penonaktifan tanpa menghapus riwayat histori.
-        </p>
       </div>
 
       <MemberManagementTable

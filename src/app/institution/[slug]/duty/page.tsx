@@ -112,7 +112,7 @@ export default async function DutyDashboardPage({
             {formatHoursMinutes(todayTotalSeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            {todaySessions.length} sesi tercatat hari ini
+            {todaySessions.length} sesi hari ini
           </div>
         </div>
 
@@ -126,9 +126,6 @@ export default async function DutyDashboardPage({
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {formatHoursMinutes(monthTotalSeconds)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            Total jam kerja periode berjalan
-          </div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-[#E50914]/50 transition-colors">
@@ -141,9 +138,6 @@ export default async function DutyDashboardPage({
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {activeDaysSet.size} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            Presensi keaktifan dinas
-          </div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-[#E50914]/50 transition-colors">
@@ -155,9 +149,6 @@ export default async function DutyDashboardPage({
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate whitespace-nowrap">
             {monthSessions.length} <span className="text-sm font-sans font-medium text-neutral-400">Sesi</span>
-          </div>
-          <div className="text-[11px] text-neutral-500 mt-1 truncate">
-            Multiple on/off duty per hari
           </div>
         </div>
 

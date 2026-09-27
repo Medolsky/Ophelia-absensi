@@ -51,9 +51,6 @@ export default async function PayrollPage({
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
           Payroll & Atur Gaji — {institution.name}
         </h1>
-        <p className="text-xs text-neutral-400 mt-1">
-          Atur upah per jam untuk setiap pangkat/jabatan, tinjau kalkulasi akumulasi jam duty dinas secara otomatis, dan kelola status pencairan gaji.
-        </p>
       </div>
 
       <PayrollManagement

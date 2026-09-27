@@ -195,7 +195,7 @@ export function Navbar({
             </div>
 
             <p className="text-xs text-neutral-400 my-4">
-              Apakah Anda yakin ingin menyelesaikan sesi duty ini (OFF DUTY)? Data jam kerja akan otomatis terakumulasi ke buku absensi.
+              Apakah Anda yakin ingin menyelesaikan sesi dinas ini?
             </p>
 
             <div className="flex items-center justify-end gap-2.5">
