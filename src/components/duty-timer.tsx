@@ -20,7 +20,30 @@ export function DutyTimer({
   userDisplayName,
 }: DutyTimerProps) {
   const router = useRouter();
-  const [activeSession, setActiveSession] = useState<DutySessionData | null>(initialActiveSession);
+
+  const getStoredActiveSession = (): DutySessionData | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored =
+        localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
+        localStorage.getItem("ophelia_current_active_duty");
+      if (stored) {
+        const parsed = JSON.parse(stored) as DutySessionData;
+        if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+          const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
+          const targetSlug = institutionSlug.replace("inst-", "").toLowerCase();
+          if (cleanSlug === targetSlug) {
+            return parsed;
+          }
+        }
+      }
+    } catch {}
+    return null;
+  };
+
+  const [activeSession, setActiveSession] = useState<DutySessionData | null>(
+    () => initialActiveSession || getStoredActiveSession()
+  );
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +59,29 @@ export function DutyTimer({
         return;
       }
       setActiveSession(initialActiveSession);
+      try {
+        const json = JSON.stringify(initialActiveSession);
+        localStorage.setItem(`ophelia_active_duty_${institutionSlug}`, json);
+        localStorage.setItem("ophelia_current_active_duty", json);
+        document.cookie = `ophelia_active_duty_${institutionSlug}=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `ophelia_active_duty=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
+      } catch {}
     } else {
-      endedSessionIdRef.current = null;
-      setActiveSession(null);
+      // Server returned null. DO NOT wipe client session unless the user explicitly ended it!
+      if (endedSessionIdRef.current) {
+        setActiveSession(null);
+        return;
+      }
+      const local = getStoredActiveSession();
+      if (local && local.id !== endedSessionIdRef.current) {
+        setActiveSession(local);
+      } else {
+        setActiveSession(null);
+      }
     }
-  }, [initialActiveSession]);
+  }, [initialActiveSession, institutionSlug]);
 
-  // Synchronize state across other components (e.g. Navbar)
+  // Synchronize state across other components (e.g. Navbar & other tabs)
   useEffect(() => {
     const handleDutyChange = (e: Event) => {
       const customEvent = e as CustomEvent<{
@@ -57,15 +96,31 @@ export function DutyTimer({
         setActiveSession(null);
         setElapsedSeconds(0);
       } else if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
-        if (customEvent.detail.session.institutionSlug === institutionSlug) {
+        const s = customEvent.detail.session;
+        const cleanSlug = s.institutionSlug?.replace("inst-", "").toLowerCase();
+        const targetSlug = institutionSlug.replace("inst-", "").toLowerCase();
+        if (cleanSlug === targetSlug) {
           endedSessionIdRef.current = null;
-          setActiveSession(customEvent.detail.session);
+          setActiveSession(s);
         }
       }
     };
 
+    const handleStorageChange = () => {
+      const current = getStoredActiveSession();
+      if (current && current.id !== endedSessionIdRef.current) {
+        setActiveSession(current);
+      } else if (!current && !endedSessionIdRef.current) {
+        setActiveSession(null);
+      }
+    };
+
     window.addEventListener("ophelia_duty_changed", handleDutyChange);
-    return () => window.removeEventListener("ophelia_duty_changed", handleDutyChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("ophelia_duty_changed", handleDutyChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [activeSession, institutionSlug]);
 
   // Realtime Timer based on Server Timestamp
@@ -108,6 +163,16 @@ export function DutyTimer({
         setActiveSession(res.session);
         setShowNotesInput(false);
         setNotes("");
+
+        // Persist to localStorage and cookies for seamless tab restore
+        try {
+          const json = JSON.stringify(res.session);
+          localStorage.setItem(`ophelia_active_duty_${institutionSlug}`, json);
+          localStorage.setItem("ophelia_current_active_duty", json);
+          document.cookie = `ophelia_active_duty_${institutionSlug}=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `ophelia_active_duty=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
+        } catch {}
+
         if (typeof window !== "undefined") {
           window.dispatchEvent(
             new CustomEvent("ophelia_duty_changed", {
@@ -132,6 +197,14 @@ export function DutyTimer({
     if (activeSession?.id) {
       endedSessionIdRef.current = activeSession.id;
     }
+
+    // Clear client persistence immediately
+    try {
+      localStorage.removeItem(`ophelia_active_duty_${institutionSlug}`);
+      localStorage.removeItem("ophelia_current_active_duty");
+      document.cookie = `ophelia_active_duty_${institutionSlug}=; path=/; max-age=0; SameSite=Lax`;
+      document.cookie = `ophelia_active_duty=; path=/; max-age=0; SameSite=Lax`;
+    } catch {}
 
     // Immediate optimistic update
     setActiveSession(null);

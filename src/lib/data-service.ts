@@ -1003,6 +1003,25 @@ export class DataService {
   }
 
   /**
+   * Inject active duty session into serverless memory store
+   */
+  static injectActiveDutySession(session: DutySessionData): void {
+    if (!session || session.endedAt || session.status !== "ON_DUTY") return;
+    const cleanSessionSlug = normalizeInstSlug(session.institutionSlug || session.institutionId);
+    const existing = memoryStore.dutySessions.find((s) => s.id === session.id);
+    if (!existing) {
+      memoryStore.dutySessions.unshift({
+        ...session,
+        institutionSlug: session.institutionSlug || cleanSessionSlug,
+      });
+      persistStore();
+    } else {
+      existing.status = "ON_DUTY";
+      existing.endedAt = null;
+    }
+  }
+
+  /**
    * Start a new duty session
    */
   static async startDuty(params: {

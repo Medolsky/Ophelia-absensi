@@ -11,13 +11,40 @@ interface LiveDutyListProps {
 }
 
 export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListProps) {
-  const [sessions, setSessions] = useState(initialSessions);
+  const getMergedWithLocal = (incoming: DutySessionData[]): DutySessionData[] => {
+    if (typeof window === "undefined") return incoming;
+    try {
+      const stored =
+        localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
+        localStorage.getItem("ophelia_current_active_duty");
+      if (stored) {
+        const parsed = JSON.parse(stored) as DutySessionData;
+        if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+          const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
+          const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
+          if (!targetSlug || cleanSlug === targetSlug) {
+            const exists = incoming.some(
+              (s) => s.id === parsed.id || s.userId === parsed.userId
+            );
+            if (!exists) {
+              return [parsed, ...incoming];
+            }
+          }
+        }
+      }
+    } catch {}
+    return incoming;
+  };
+
+  const [sessions, setSessions] = useState<DutySessionData[]>(() =>
+    getMergedWithLocal(initialSessions)
+  );
   const [search, setSearch] = useState("");
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   // Sync with prop updates
   useEffect(() => {
-    setSessions(initialSessions);
+    setSessions(getMergedWithLocal(initialSessions));
   }, [initialSessions]);
 
   // Periodic polling so changes appear live
@@ -28,13 +55,45 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
         const res = await fetch(`/api/integrations/status?view=onduty&institution=${institutionSlug}`);
         const data = await res.json();
         if (Array.isArray(data.data)) {
-          setSessions(data.data);
+          setSessions(getMergedWithLocal(data.data));
         }
       } catch {}
     };
 
-    const pollInterval = setInterval(fetchLive, 6000);
+    const pollInterval = setInterval(fetchLive, 4000);
     return () => clearInterval(pollInterval);
+  }, [institutionSlug]);
+
+  // Listen to ophelia_duty_changed & storage
+  useEffect(() => {
+    const handleDutyChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        status: string;
+        session?: DutySessionData;
+        institutionSlug?: string;
+      }>;
+      if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
+        const s = customEvent.detail.session;
+        const cleanSlug = s.institutionSlug?.replace("inst-", "").toLowerCase();
+        const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
+        if (!targetSlug || cleanSlug === targetSlug) {
+          setSessions((prev) => [s, ...prev.filter((x) => x.id !== s.id && x.userId !== s.userId)]);
+        }
+      } else if (customEvent.detail?.status === "OFF_DUTY") {
+        setSessions((prev) => prev.filter((x) => x.institutionSlug !== customEvent.detail?.institutionSlug));
+      }
+    };
+
+    const handleStorageChange = () => {
+      setSessions((prev) => getMergedWithLocal(prev));
+    };
+
+    window.addEventListener("ophelia_duty_changed", handleDutyChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("ophelia_duty_changed", handleDutyChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [institutionSlug]);
 
   // Realtime tick every second

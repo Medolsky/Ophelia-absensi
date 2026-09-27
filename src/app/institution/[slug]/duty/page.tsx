@@ -5,6 +5,9 @@ import { InstitutionLogo } from "@/components/institution-logo";
 import { Clock, Calendar, CheckCircle2, Award, Zap, Layers, Banknote } from "lucide-react";
 import Link from "next/link";
 
+import { cookies } from "next/headers";
+import { DutySessionData } from "@/types";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -20,11 +23,29 @@ export default async function DutyDashboardPage({
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
 
-  const [activeSession, userSessions, userSalary] = await Promise.all([
+  // Check active duty cookie for instant lambda restoration
+  const cookieStore = await cookies();
+  const dutyCookie =
+    cookieStore.get(`ophelia_active_duty_${slug}`) ||
+    cookieStore.get("ophelia_active_duty");
+  let cookieActiveSession: DutySessionData | null = null;
+  if (dutyCookie?.value) {
+    try {
+      const parsed = JSON.parse(dutyCookie.value) as DutySessionData;
+      if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+        cookieActiveSession = parsed;
+        DataService.injectActiveDutySession(parsed);
+      }
+    } catch {}
+  }
+
+  const [dbActiveSession, userSessions, userSalary] = await Promise.all([
     DataService.getActiveDutySession(currentUser.id),
     DataService.getUserDutySessions(currentUser.id, slug),
     DataService.getUserEstimatedSalary(currentUser.id, slug),
   ]);
+
+  const activeSession = dbActiveSession || cookieActiveSession;
 
   // Filter today's sessions
   const todayDateStr = new Date().toISOString().slice(0, 10);
@@ -98,7 +119,13 @@ export default async function DutyDashboardPage({
       <DutyTimer
         institutionSlug={slug}
         institutionName={institution.name}
-        initialActiveSession={activeSession?.institutionSlug === slug ? activeSession : null}
+        initialActiveSession={
+          activeSession &&
+          (activeSession.institutionSlug?.replace("inst-", "").toLowerCase() === slug.replace("inst-", "").toLowerCase() ||
+           activeSession.institutionId?.replace("inst-", "").toLowerCase() === slug.replace("inst-", "").toLowerCase())
+            ? activeSession
+            : null
+        }
         userDisplayName={currentUser.displayName || currentUser.discordUsername}
       />
 

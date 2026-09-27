@@ -4,6 +4,8 @@ import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { revalidatePath } from "next/cache";
 
+import { cookies } from "next/headers";
+
 export async function startDutyAction(institutionSlug: string, notes?: string) {
   const user = await getCurrentUser();
   if (!user) {
@@ -27,7 +29,21 @@ export async function startDutyAction(institutionSlug: string, notes?: string) {
     notes,
   });
 
-  if (result.success) {
+  if (result.success && result.session) {
+    // Persist active duty in cookie so all serverless lambdas receive it
+    const cookieStore = await cookies();
+    const cookieValue = JSON.stringify(result.session);
+    cookieStore.set("ophelia_active_duty", cookieValue, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+    cookieStore.set(`ophelia_active_duty_${institutionSlug}`, cookieValue, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: "lax",
+    });
+
     revalidatePath(`/institution/${institutionSlug}`);
     revalidatePath(`/institution/${institutionSlug}/duty`);
     revalidatePath(`/institution/${institutionSlug}/attendance`);
@@ -53,6 +69,13 @@ export async function endDutyAction(institutionSlug?: string) {
   });
 
   if (result.success) {
+    // Delete active duty cookie on end duty
+    const cookieStore = await cookies();
+    cookieStore.delete("ophelia_active_duty");
+    if (institutionSlug) {
+      cookieStore.delete(`ophelia_active_duty_${institutionSlug}`);
+    }
+
     if (institutionSlug) {
       revalidatePath(`/institution/${institutionSlug}`);
       revalidatePath(`/institution/${institutionSlug}/duty`);

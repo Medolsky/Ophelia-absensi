@@ -44,6 +44,65 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
+  const mergeLocalOnDuty = useCallback(
+    (incoming: CityStatusEntry[]): CityStatusEntry[] => {
+      if (typeof window === "undefined") return incoming;
+      try {
+        const stored =
+          localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
+          localStorage.getItem("ophelia_current_active_duty");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+            const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
+            const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
+            if (!targetSlug || targetSlug === "all" || cleanSlug === targetSlug) {
+              const cleanDid = parsed.userId?.replace("discord-", "");
+              let matched = false;
+              const updated = incoming.map((p) => {
+                const pDid = p.discordId?.replace("discord-", "");
+                if (pDid === cleanDid || p.playerName === parsed.userName || p.displayName === parsed.userName) {
+                  matched = true;
+                  return {
+                    ...p,
+                    isOnDuty: true,
+                    dutyInstitutionSlug: parsed.institutionSlug,
+                    dutyInstitutionName: parsed.institutionName,
+                    dutyStartedAt: parsed.startedAt,
+                    positionName: parsed.positionName || p.positionName,
+                  };
+                }
+                return p;
+              });
+
+              if (!matched) {
+                updated.unshift({
+                  discordId: cleanDid || "me",
+                  playerName: parsed.userName || "Officer",
+                  serverId: 0,
+                  isOnline: true,
+                  joinedAt: parsed.startedAt,
+                  lastSeenAt: new Date().toISOString(),
+                  isOnDuty: true,
+                  dutyInstitutionName: parsed.institutionName,
+                  dutyInstitutionSlug: parsed.institutionSlug,
+                  dutyStartedAt: parsed.startedAt,
+                  memberInstitutions: [parsed.institutionSlug],
+                  displayName: parsed.userName,
+                  avatar: parsed.userAvatar || null,
+                  positionName: parsed.positionName || "Petugas",
+                });
+              }
+              return updated;
+            }
+          }
+        }
+      } catch {}
+      return incoming;
+    },
+    [institutionSlug]
+  );
+
   const fetchCityStatus = useCallback(async () => {
     try {
       const res = await fetch(
@@ -51,7 +110,7 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
       );
       const data = await res.json();
       if (data.data) {
-        setPlayers(data.data);
+        setPlayers(mergeLocalOnDuty(data.data));
         setLastUpdate(new Date());
       }
     } catch (err) {
@@ -59,12 +118,25 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [institutionSlug]);
+  }, [institutionSlug, mergeLocalOnDuty]);
 
   useEffect(() => {
     fetchCityStatus();
-    const interval = setInterval(fetchCityStatus, 15000);
+    const interval = setInterval(fetchCityStatus, 5000);
     return () => clearInterval(interval);
+  }, [fetchCityStatus]);
+
+  // Listen to ophelia_duty_changed
+  useEffect(() => {
+    const handleDutyChange = () => {
+      fetchCityStatus();
+    };
+    window.addEventListener("ophelia_duty_changed", handleDutyChange);
+    window.addEventListener("storage", handleDutyChange);
+    return () => {
+      window.removeEventListener("ophelia_duty_changed", handleDutyChange);
+      window.removeEventListener("storage", handleDutyChange);
+    };
   }, [fetchCityStatus]);
 
   useEffect(() => {

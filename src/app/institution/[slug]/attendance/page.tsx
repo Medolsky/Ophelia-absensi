@@ -3,6 +3,8 @@ import { DataService } from "@/lib/data-service";
 import { AttendanceTable } from "@/components/attendance-table";
 import { CalendarCheck, ShieldAlert } from "lucide-react";
 
+import { cookies } from "next/headers";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -18,6 +20,20 @@ export default async function AttendancePage({
   const access = await verifyInstitutionAccess(currentUser, slug);
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
+
+  // Inject active duty from cookie if present
+  const cookieStore = await cookies();
+  const dutyCookie =
+    cookieStore.get(`ophelia_active_duty_${slug}`) ||
+    cookieStore.get("ophelia_active_duty");
+  if (dutyCookie?.value) {
+    try {
+      const parsed = JSON.parse(dutyCookie.value);
+      if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+        DataService.injectActiveDutySession(parsed);
+      }
+    } catch {}
+  }
 
   // Retrieve all sessions for this institution
   const allSessions = await DataService.getInstitutionDutySessions(slug);

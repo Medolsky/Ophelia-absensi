@@ -21,6 +21,8 @@ function formatDuration(seconds: number): string {
   return `${s}s`;
 }
 
+import { cookies } from "next/headers";
+
 export default async function HistoryPage({
   params,
 }: {
@@ -32,6 +34,20 @@ export default async function HistoryPage({
 
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
+
+  // Inject active duty from cookie if present
+  const cookieStore = await cookies();
+  const dutyCookie =
+    cookieStore.get(`ophelia_active_duty_${slug}`) ||
+    cookieStore.get("ophelia_active_duty");
+  if (dutyCookie?.value) {
+    try {
+      const parsed = JSON.parse(dutyCookie.value);
+      if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+        DataService.injectActiveDutySession(parsed);
+      }
+    } catch {}
+  }
 
   // Query both institution-wide sessions and user's personal sessions
   const [allSessions, mySessions] = await Promise.all([

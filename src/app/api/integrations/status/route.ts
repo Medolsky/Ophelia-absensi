@@ -24,6 +24,19 @@ export async function GET(request: NextRequest) {
     const institution = request.nextUrl.searchParams.get("institution") || "all";
     const view = request.nextUrl.searchParams.get("view") || "overview";
 
+    // Auto-inject active duty from user's request cookie if present
+    const dutyCookie =
+      request.cookies.get(`ophelia_active_duty_${institution}`) ||
+      request.cookies.get("ophelia_active_duty");
+    if (dutyCookie?.value) {
+      try {
+        const parsed = JSON.parse(dutyCookie.value);
+        if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
+          DataService.injectActiveDutySession(parsed);
+        }
+      } catch {}
+    }
+
     switch (view) {
       case "members": {
         if (institution === "all") {
