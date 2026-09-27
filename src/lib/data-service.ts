@@ -1111,9 +1111,26 @@ export class DataService {
 
     if (isDb) {
       try {
+        // Ensure user exists in database first to satisfy foreign key constraint
+        const dbUser = await prisma.user.upsert({
+          where: { discordId: cleanId },
+          update: {
+            discordUsername: params.userName,
+            displayName: params.userName,
+            discordAvatar: params.userAvatar || null,
+          },
+          create: {
+            id: params.userId,
+            discordId: cleanId,
+            discordUsername: params.userName,
+            displayName: params.userName,
+            discordAvatar: params.userAvatar || null,
+          },
+        });
+
         const newSession = await prisma.dutySession.create({
           data: {
-            userId: params.userId,
+            userId: dbUser.id,
             institutionId: institution.id,
             startedAt: now,
             status: "ON_DUTY",
@@ -1122,15 +1139,19 @@ export class DataService {
         });
 
         // Audit Log
-        await prisma.auditLog.create({
-          data: {
-            actorId: params.userId,
-            action: "START_DUTY",
-            targetType: "DUTY_SESSION",
-            targetId: newSession.id,
-            newData: JSON.stringify({ institution: institution.name, startedAt: now }),
-          },
-        });
+        try {
+          await prisma.auditLog.create({
+            data: {
+              actorId: dbUser.id,
+              action: "START_DUTY",
+              targetType: "DUTY_SESSION",
+              targetId: newSession.id,
+              newData: JSON.stringify({ institution: institution.name, startedAt: now }),
+            },
+          });
+        } catch (auditErr) {
+          console.warn("DB auditLog error:", auditErr);
+        }
 
         const sessionResult: DutySessionData = {
           id: newSession.id,
@@ -1225,18 +1246,29 @@ export class DataService {
 
           // Audit Log
           try {
-            await prisma.auditLog.create({
-              data: {
-                actorId: params.userId,
-                action: "END_DUTY",
-                targetType: "DUTY_SESSION",
-                targetId: active.id,
-                newData: JSON.stringify({
-                  endedAt: now,
-                  durationSeconds,
-                }),
+            const dbUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { id: params.userId },
+                  { discordId: cleanId },
+                  { id: `discord-${cleanId}` },
+                ],
               },
             });
+            if (dbUser) {
+              await prisma.auditLog.create({
+                data: {
+                  actorId: dbUser.id,
+                  action: "END_DUTY",
+                  targetType: "DUTY_SESSION",
+                  targetId: active.id,
+                  newData: JSON.stringify({
+                    endedAt: now,
+                    durationSeconds,
+                  }),
+                },
+              });
+            }
           } catch {}
         } catch (err) {
           console.warn("DB endDuty error, fallback to memory:", err);
@@ -1600,6 +1632,55 @@ export class DataService {
     try {
       const institutions = await this.getInstitutions();
       const mappedRoles = mapDiscordRolesToInstitutions(sessionUser.discordRoles || []);
+
+      const isDb = await this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          const dbUser = await prisma.user.upsert({
+            where: { discordId: sessionUser.discordId },
+            update: {
+              discordUsername: sessionUser.discordUsername,
+              displayName: sessionUser.displayName || sessionUser.discordUsername,
+              discordAvatar: sessionUser.discordAvatar || null,
+              discordRoles: sessionUser.discordRoles || [],
+              isSuperAdmin: sessionUser.isSuperAdmin || false,
+            },
+            create: {
+              id: sessionUser.id,
+              discordId: sessionUser.discordId,
+              discordUsername: sessionUser.discordUsername,
+              displayName: sessionUser.displayName || sessionUser.discordUsername,
+              discordAvatar: sessionUser.discordAvatar || null,
+              discordRoles: sessionUser.discordRoles || [],
+              isSuperAdmin: sessionUser.isSuperAdmin || false,
+            },
+          });
+
+          for (const mr of mappedRoles) {
+            const targetInst = institutions.find((i) => i.slug === mr.institutionSlug);
+            if (!targetInst) continue;
+
+            await prisma.membership.upsert({
+              where: {
+                userId_institutionId: {
+                  userId: dbUser.id,
+                  institutionId: targetInst.id,
+                },
+              },
+              update: {
+                status: "ACTIVE",
+              },
+              create: {
+                userId: dbUser.id,
+                institutionId: targetInst.id,
+                status: "ACTIVE",
+              },
+            });
+          }
+        } catch (dbErr) {
+          console.warn("syncUserFromDiscordRoles DB error:", dbErr);
+        }
+      }
 
       for (const mr of mappedRoles) {
         const targetInst = institutions.find((i) => i.slug === mr.institutionSlug);
