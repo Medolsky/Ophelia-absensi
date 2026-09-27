@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { setCurrentUser } from "@/lib/auth";
 import { SessionUser } from "@/types";
 import { KNOWN_DISCORD_ROLE_IDS } from "@/lib/constants";
+import { DataService } from "@/lib/data-service";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   const clientId = process.env.DISCORD_CLIENT_ID || "1552883862726639686";
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET || "OL4UJBmYj3TTZPK7A0FnvMMFZn3uU9bs";
+  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
   const redirectUri = process.env.DISCORD_REDIRECT_URI || `${baseUrl}/api/auth/discord/callback`;
@@ -144,6 +145,13 @@ export async function GET(req: NextRequest) {
     };
 
     await setCurrentUser(sessionUser);
+
+    // Auto-sync memberships for this authenticated Discord user
+    try {
+      await DataService.syncUserFromDiscordRoles(sessionUser);
+    } catch (syncErr) {
+      console.warn("Failed to auto-sync user memberships on login:", syncErr);
+    }
 
     // Redirect to institution selector
     return NextResponse.redirect(new URL("/select-institution", baseUrl));

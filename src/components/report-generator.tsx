@@ -122,25 +122,25 @@ export function ReportGenerator({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#121212] border-b border-[#222] text-neutral-400 uppercase font-semibold">
               <tr>
-                <th className="py-3 px-4">Nama Anggota</th>
-                <th className="py-3 px-4">Jabatan</th>
-                <th className="py-3 px-4 text-center">Jumlah Sesi</th>
-                <th className="py-3 px-4 text-center">Hari Aktif</th>
-                <th className="py-3 px-4 text-right">Total Jam Dinas</th>
+                <th className="py-3 px-4 whitespace-nowrap">Nama Anggota</th>
+                <th className="py-3 px-4 whitespace-nowrap">Jabatan</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap">Jumlah Sesi</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap">Hari Aktif</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Total Jam Dinas</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
               {memberReportData.map((d) => (
                 <tr key={d.memberId} className="hover:bg-[#161616] transition-colors">
-                  <td className="py-3.5 px-4 font-bold text-white">{d.name}</td>
-                  <td className="py-3.5 px-4 text-neutral-300">{d.position}</td>
-                  <td className="py-3.5 px-4 text-center font-mono text-neutral-300">
+                  <td className="py-3.5 px-4 font-bold text-white whitespace-nowrap">{d.name}</td>
+                  <td className="py-3.5 px-4 text-neutral-300 whitespace-nowrap">{d.position}</td>
+                  <td className="py-3.5 px-4 text-center font-mono text-neutral-300 whitespace-nowrap">
                     {d.sessions}
                   </td>
-                  <td className="py-3.5 px-4 text-center font-mono text-neutral-300">
+                  <td className="py-3.5 px-4 text-center font-mono text-neutral-300 whitespace-nowrap">
                     {d.activeDays}
                   </td>
-                  <td className="py-3.5 px-4 text-right font-mono font-bold text-[#FF1E2D]">
+                  <td className="py-3.5 px-4 text-right font-mono font-bold text-[#FF1E2D] whitespace-nowrap">
                     {d.totalHoursStr}
                   </td>
                 </tr>

@@ -160,3 +160,17 @@ model AuditLog {
   @@index([action])
   @@map("audit_logs")
 }
+
+// 9. FiveM Player Online State
+model FiveMPlayer {
+  id            String   @id @default(cuid())
+  discordId     String   @unique @map("discord_id")
+  serverId      Int      @map("server_id")
+  playerName    String   @map("player_name")
+  isOnline      Boolean  @default(true) @map("is_online")
+  joinedAt      DateTime @default(now()) @map("joined_at")
+  lastSeenAt    DateTime @default(now()) @map("last_seen_at")
+
+  @@map("fivem_players")
+}
+

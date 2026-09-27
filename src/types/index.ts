@@ -138,3 +138,30 @@ export interface PayrollRecord {
   paidAt?: string | null;
   paidByName?: string | null;
 }
+
+// FiveM Integration Types
+export interface FiveMPlayerData {
+  discordId: string;
+  serverId: number;
+  playerName: string;
+  isOnline: boolean;
+  joinedAt: string;
+  lastSeenAt: string;
+}
+
+export interface CityStatusEntry {
+  discordId: string;
+  playerName: string;
+  serverId: number;
+  isOnline: boolean;
+  joinedAt: string;
+  lastSeenAt: string;
+  isOnDuty: boolean;
+  dutyInstitutionName?: string;
+  dutyInstitutionSlug?: string;
+  dutyStartedAt?: string;
+  memberInstitutions: string[];
+  displayName?: string;
+  avatar?: string | null;
+  positionName?: string;
+}

@@ -65,16 +65,16 @@ export default async function StatisticsPage({
       </div>
 
       {/* Monthly Highlight Stats (PRD Section 12) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
             <span>TOTAL DUTY BULAN INI</span>
             <Award className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {formatHoursMinutes(totalMonthSeconds || 86 * 3600 + 42 * 60)}
           </div>
-          <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 truncate">
             <TrendingUp className="h-3 w-3" />
             <span>Memenuhi kuota dinas</span>
           </div>
@@ -85,10 +85,10 @@ export default async function StatisticsPage({
             <span>RATA-RATA / HARI</span>
             <Zap className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {formatHoursMinutes(averagePerDaySeconds || 4 * 3600 + 49 * 60)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Dihitung dari hari aktif
           </div>
         </div>
@@ -98,10 +98,10 @@ export default async function StatisticsPage({
             <span>SESI TERPANJANG</span>
             <Flame className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {formatHoursMinutes(longestSessionSeconds || 7 * 3600 + 32 * 60)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Rekor dinas nonstop
           </div>
         </div>
@@ -111,17 +111,17 @@ export default async function StatisticsPage({
             <span>JUMLAH HARI DINAS</span>
             <Calendar className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {activeDays || 18} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Presensi keaktifan anggota
           </div>
         </div>
       </div>
 
       {/* Weekly Breakdown with Visual Bar Chart (PRD Section 11) */}
-      <div className="rounded-2xl bg-[#111111] border border-[#222] p-6 shadow-xl">
+      <div className="rounded-2xl bg-[#111111] border border-[#222] p-6 shadow-xl overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <div className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">
@@ -132,7 +132,7 @@ export default async function StatisticsPage({
             </h3>
           </div>
 
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <span className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">
               TOTAL MINGGU INI
             </span>
@@ -143,7 +143,8 @@ export default async function StatisticsPage({
         </div>
 
         {/* Visual Bar Chart */}
-        <div className="grid grid-cols-7 gap-3 items-end h-56 pt-8 pb-4 border-b border-[#222]">
+        <div className="overflow-x-auto pb-2">
+          <div className="grid grid-cols-7 gap-3 items-end h-56 min-w-[420px] pt-8 pb-4 border-b border-[#222]">
           {weekData.map((d) => {
             const heightPercent = Math.max(10, Math.round((d.hours / maxWeeklyHours) * 100));
             const isOff = d.hours === 0;
@@ -171,6 +172,7 @@ export default async function StatisticsPage({
           })}
         </div>
       </div>
+    </div>
 
       {/* Monthly Calendar View with Badges (PRD Section 13) */}
       <DutyCalendar sessions={sessions} />

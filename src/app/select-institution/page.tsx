@@ -75,15 +75,15 @@ export default async function SelectInstitutionPage() {
                 }`}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
                     <InstitutionLogo
                       logo={inst.logo}
                       name={inst.name}
                       size="lg"
                       className="p-1.5 rounded-xl bg-[#181818] border border-[#262626]"
                     />
-                    <div>
-                      <h2 className="text-lg font-bold text-white group-hover:text-[#FF1E2D] transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-lg font-bold text-white group-hover:text-[#FF1E2D] transition-colors truncate">
                         {inst.name}
                       </h2>
                       <p className="text-xs text-neutral-400 mt-0.5 line-clamp-2">
@@ -104,7 +104,7 @@ export default async function SelectInstitutionPage() {
                   )}
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-[#202020] flex items-center justify-between">
+                <div className="mt-5 pt-4 border-t border-[#202020] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="text-[11px] text-neutral-400">
                     Role yang dibutuhkan: <br />
                     <span className="text-neutral-300 font-mono">
@@ -115,7 +115,7 @@ export default async function SelectInstitutionPage() {
                   {hasAccess ? (
                     <Link
                       href={`/institution/${inst.slug}/duty`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm group-hover:translate-x-0.5"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm group-hover:translate-x-0.5 self-start sm:self-auto"
                     >
                       <span>Masuk Instansi</span>
                       <ArrowRight className="h-3.5 w-3.5" />

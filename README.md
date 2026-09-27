@@ -4,17 +4,17 @@ Aplikasi Web modern pencatatan absensi, jam dinas (*duty tracking*), dan pengawa
 
 ---
 
-## 🌟 Fitur Utama
+## Fitur Utama
 
 ### 1. Dual-Mode Authentication & Discord Verification
 - **Discord OAuth2 Asli**: Login langsung menggunakan akun Discord pemain dan membaca roles guild Discord server secara otomatis.
 - **Server-Side Role Authority**: Frontend tidak dapat memanipulasi akses. Setiap perpindahan instansi divalidasi ulang di backend (`/institution/[slug]` memblokir akses 403 jika user tidak memiliki role Discord instansi tersebut).
 - **Built-in Role Switcher (Dev Mode)**: Pengujian instan tanpa bot Discord. Dapat berpindah persona antara:
-  - 👮 **Officer John Doe** (Member Police)
-  - 🚔 **Chief James Gordon** (Leader Police & Member Mechanic)
-  - 🚑 **Dr. Sarah Connor** (Leader Medical / EMS)
-  - 🔧 **Alex Rivera** (Member Mechanic)
-  - 👑 **Marcus Vance** (Super Admin / Server Owner)
+  - **Officer John Doe** (Member Police)
+  - **Chief James Gordon** (Leader Police & Member Mechanic)
+  - **Dr. Sarah Connor** (Leader Medical / EMS)
+  - **Alex Rivera** (Member Mechanic)
+  - **Marcus Vance** (Super Admin / Server Owner)
 
 ### 2. Duty System & Realtime Stopwatch
 - **Server-Side Timestamp**: Durasi dihitung berdasarkan jam server/database saat `START DUTY` dan `END DUTY`, bukan jam browser lokal (mencegah manipulasi waktu).
@@ -44,7 +44,7 @@ Aplikasi Web modern pencatatan absensi, jam dinas (*duty tracking*), dan pengawa
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: Next.js 16 (App Router & Turbopack)
 - **Language**: TypeScript
@@ -55,7 +55,7 @@ Aplikasi Web modern pencatatan absensi, jam dinas (*duty tracking*), dan pengawa
 
 ---
 
-## 🚀 Panduan Menjalankan
+## Panduan Menjalankan
 
 ### 1. Persiapan Kredensial Database
 Salin `.env.example` ke `.env`:

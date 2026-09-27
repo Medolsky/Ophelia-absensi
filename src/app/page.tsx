@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS } from "@/lib/constants";
+import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { Shield, Sparkles, CheckCircle2, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
 import { DevSwitcher } from "@/components/dev-switcher";
 
@@ -63,12 +63,6 @@ export default async function HomePage({
                   : "Buka Vercel Dashboard → Settings → Environment Variables, pastikan semua variabel Discord sudah dimasukkan lalu lakukan Redeploy."}
               </p>
               <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                <Link
-                  href="/select-institution"
-                  className="px-3.5 py-1.5 rounded-lg bg-[#E50914] text-white font-bold hover:bg-[#FF1E2D] transition shadow-md"
-                >
-                  Gunakan Mode Demo Langsung →
-                </Link>
                 <a
                   href="https://discord.com/developers/applications"
                   target="_blank"
@@ -114,23 +108,25 @@ export default async function HomePage({
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link
-                href="/select-institution"
-                className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-xl glow-red active:scale-95"
-              >
-                <span>Masuk Dashboard Duty</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-
-              <a
-                href="/api/auth/discord"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm text-neutral-200 bg-[#161616] hover:bg-[#202020] border border-[#2a2a2a] transition hover:text-white"
-              >
-                <svg className="h-5 w-5 fill-[#5865F2]" viewBox="0 0 24 24">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                </svg>
-                <span>Login via Discord OAuth2</span>
-              </a>
+              {currentUser ? (
+                <Link
+                  href="/select-institution"
+                  className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-xl glow-red active:scale-95"
+                >
+                  <span>Masuk Dashboard Duty</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <a
+                  href="/api/auth/discord"
+                  className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-[#5865F2] hover:bg-[#4752C4] transition shadow-xl active:scale-95"
+                >
+                  <svg className="h-5 w-5 fill-white" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                  </svg>
+                  <span>Masuk dengan Akun Discord</span>
+                </a>
+              )}
             </div>
 
             {/* Active user status pill */}

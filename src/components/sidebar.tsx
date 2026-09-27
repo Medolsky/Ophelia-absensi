@@ -15,6 +15,8 @@ import {
   ShieldAlert,
   Sliders,
   Building,
+  MapPin,
+  Gamepad2,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -58,6 +60,11 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
       icon: Radio,
     },
     {
+      name: "Status Kota",
+      href: `/institution/${institutionSlug}/city`,
+      icon: MapPin,
+    },
+    {
       name: "Kelola Anggota",
       href: `/institution/${institutionSlug}/members`,
       icon: Users,
@@ -79,6 +86,11 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
       name: "Discord Mapping",
       href: `/admin/discord-mapping`,
       icon: Sliders,
+    },
+    {
+      name: "Integrasi FiveM & API",
+      href: `/api-docs/fivem`,
+      icon: Gamepad2,
     },
     {
       name: "Kelola Instansi",

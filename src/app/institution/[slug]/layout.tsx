@@ -73,12 +73,12 @@ export default async function InstitutionLayout({
         allowedInstitutions={allowedInstitutions}
       />
 
-      <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto min-w-0">
         <Sidebar
           institutionSlug={slug}
           permissionLevel={access.permissionLevel}
         />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {children}
         </main>
       </div>

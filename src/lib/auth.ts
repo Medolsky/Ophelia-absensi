@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { SessionUser, PermissionLevel } from "@/types";
 import { DEMO_PERSONAS, DEFAULT_INSTITUTIONS } from "./constants";
+import { DataService } from "./data-service";
 
 const COOKIE_NAME = "ophelia_session";
 
@@ -9,7 +10,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const sessionCookie = cookieStore.get(COOKIE_NAME);
 
   if (!sessionCookie?.value) {
-    // If no session is saved yet, start with default Officer John Doe for seamless dev experience
+    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "false") {
+      return null;
+    }
     return DEMO_PERSONAS[0];
   }
 
@@ -17,6 +20,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     const parsed = JSON.parse(sessionCookie.value) as SessionUser;
     return parsed;
   } catch {
+    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "false") {
+      return null;
+    }
     return DEMO_PERSONAS[0];
   }
 }
@@ -69,21 +75,54 @@ export async function verifyInstitutionAccess(
     return { allowed: true, permissionLevel: "SUPER_ADMIN" };
   }
 
-  // 3. Check Demo Persona mappings
-  const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
-  if (demoPersona) {
-    const hasRole = demoPersona.institutionSlugs.includes(institutionSlug);
-    if (!hasRole) {
+  // 3. Check active membership in DataService
+  try {
+    const memberships = await DataService.getMemberships(institutionSlug);
+    const userMembership = memberships.find(
+      (m) => m.userId === user.id || m.user?.discordId === user.discordId
+    );
+
+    if (userMembership) {
+      if (userMembership.status === "SUSPENDED") {
+        return {
+          allowed: false,
+          permissionLevel: "MEMBER",
+          reason: "Status keanggotaan Anda di instansi ini sedang diskors (SUSPENDED). Silakan hubungi Petinggi instansi.",
+        };
+      }
+      if (userMembership.status === "INACTIVE") {
+        return {
+          allowed: false,
+          permissionLevel: "MEMBER",
+          reason: "Status keanggotaan Anda di instansi ini nonaktif (INACTIVE). Silakan hubungi Petinggi instansi.",
+        };
+      }
       return {
-        allowed: false,
-        permissionLevel: "MEMBER",
-        reason: `Discord ID Anda tidak memiliki role Discord untuk instansi '${institutionSlug}'.`,
+        allowed: true,
+        permissionLevel: userMembership.permissionLevel,
       };
     }
-    return {
-      allowed: true,
-      permissionLevel: demoPersona.roleLevels[institutionSlug] || "MEMBER",
-    };
+  } catch (err) {
+    console.warn("verifyInstitutionAccess membership check error:", err);
+  }
+
+  // 4. Check Demo Persona mappings (only if dev demo enabled)
+  if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
+    const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
+    if (demoPersona) {
+      const hasRole = demoPersona.institutionSlugs.includes(institutionSlug);
+      if (!hasRole) {
+        return {
+          allowed: false,
+          permissionLevel: "MEMBER",
+          reason: `Discord ID Anda tidak memiliki role Discord untuk instansi '${institutionSlug}'.`,
+        };
+      }
+      return {
+        allowed: true,
+        permissionLevel: demoPersona.roleLevels[institutionSlug] || "MEMBER",
+      };
+    }
   }
 
   // 4. Check Discord roles against institution mapped roles

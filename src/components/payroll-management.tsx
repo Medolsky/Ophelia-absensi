@@ -179,7 +179,7 @@ export function PayrollManagement({
   return (
     <div className="space-y-6">
       {/* Top Header Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
@@ -190,7 +190,7 @@ export function PayrollManagement({
           <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 truncate">
             {formatMoney(totalPayrollBudget)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">Akumulasi periode berjalan</div>
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">Akumulasi periode berjalan</div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg relative overflow-hidden group hover:border-[#E50914]/50 transition-colors">
@@ -200,10 +200,10 @@ export function PayrollManagement({
             </span>
             <Clock className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2">
+          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate">
             {totalAccumulatedHours.toFixed(1)} <span className="text-sm font-sans font-medium text-neutral-400">Jam</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">Dari {records.length} anggota instansi</div>
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">Dari {records.length} anggota instansi</div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg relative overflow-hidden group hover:border-blue-500/50 transition-colors">
@@ -213,10 +213,10 @@ export function PayrollManagement({
             </span>
             <CheckCircle2 className="h-4 w-4 text-blue-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2">
+          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate">
             {paidCount} <span className="text-sm font-sans font-medium text-neutral-400">/ {records.length} Petugas</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">{pendingCount} menunggu pembayaran</div>
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">{pendingCount} menunggu pembayaran</div>
         </div>
 
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg relative overflow-hidden group hover:border-amber-500/50 transition-colors">
@@ -226,17 +226,17 @@ export function PayrollManagement({
             </span>
             <Coins className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2">
+          <div className="text-xl sm:text-2xl font-mono font-black text-white mt-2 truncate">
             {Object.keys(configs).length} <span className="text-sm font-sans font-medium text-neutral-400">Pangkat</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">Rate gaji per jabatan</div>
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">Rate gaji per jabatan</div>
         </div>
       </div>
 
       {/* Action Toolbar */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-lg">
-        <div className="flex items-center gap-2 flex-1 max-w-md">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 max-w-md">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
             <input
               type="text"
@@ -250,7 +250,7 @@ export function PayrollManagement({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#080808] border border-[#252525] text-xs text-neutral-300 p-2.5 rounded-xl outline-none"
+            className="bg-[#080808] border border-[#252525] text-xs text-neutral-300 p-2.5 rounded-xl outline-none shrink-0"
           >
             <option value="ALL">Semua Status</option>
             <option value="PENDING">Menunggu (Pending)</option>
@@ -258,7 +258,7 @@ export function PayrollManagement({
           </select>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end md:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
           <button
             onClick={() => setShowConfigModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition"
@@ -283,13 +283,13 @@ export function PayrollManagement({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
-                <th className="py-3.5 px-4">Nama Anggota</th>
-                <th className="py-3.5 px-4">Jabatan / Pangkat</th>
-                <th className="py-3.5 px-4 text-center">Total Jam Duty</th>
-                <th className="py-3.5 px-4 text-right">Tarif / Jam</th>
-                <th className="py-3.5 px-4 text-right">Total Gaji</th>
-                <th className="py-3.5 px-4 text-center">Status Pembayaran</th>
-                <th className="py-3.5 px-4 text-right">Aksi Petinggi</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Nama Anggota</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Jabatan / Pangkat</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Total Jam Duty</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap">Tarif / Jam</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap">Total Gaji</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Status Pembayaran</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap">Aksi Petinggi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
@@ -306,42 +306,44 @@ export function PayrollManagement({
 
                   return (
                     <tr key={record.membershipId} className="hover:bg-[#161616] transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3 min-w-0">
                           <img
                             src={
                               record.userAvatar ||
                               "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
                             }
                             alt={record.memberName}
-                            className="h-8 w-8 rounded-xl object-cover border border-[#333]"
+                            className="h-8 w-8 rounded-xl object-cover border border-[#333] shrink-0"
                           />
-                          <div>
-                            <div className="font-bold text-white">{record.memberName}</div>
-                            <div className="text-[10px] font-mono text-neutral-500">
+                          <div className="min-w-0">
+                            <div className="font-bold text-white truncate max-w-[160px] sm:max-w-[200px]">
+                              {record.memberName}
+                            </div>
+                            <div className="text-[10px] font-mono text-neutral-500 truncate max-w-[160px] sm:max-w-[200px]">
                               ID: {record.discordId}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 font-medium text-neutral-300">
+                      <td className="py-3.5 px-4 font-medium text-neutral-300 whitespace-nowrap">
                         {record.positionName}
                       </td>
 
-                      <td className="py-3.5 px-4 text-center font-mono font-bold text-white">
+                      <td className="py-3.5 px-4 text-center font-mono font-bold text-white whitespace-nowrap">
                         {record.totalDutyHours} <span className="text-[10px] text-neutral-500 font-sans">Jam</span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-mono text-neutral-400">
+                      <td className="py-3.5 px-4 text-right font-mono text-neutral-400 whitespace-nowrap">
                         {formatMoney(record.hourlyRate)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm">
+                      <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm whitespace-nowrap">
                         {formatMoney(record.totalSalary)}
                       </td>
 
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <span
                           className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${
                             isPaid
@@ -353,7 +355,7 @@ export function PayrollManagement({
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <button
                           onClick={() => handleToggleStatus(record)}
                           disabled={isToggling}

@@ -11,6 +11,10 @@ interface DevSwitcherProps {
 }
 
 export function DevSwitcher({ currentUser }: DevSwitcherProps) {
+  if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "false") {
+    return null;
+  }
+
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 

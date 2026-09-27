@@ -100,7 +100,7 @@ export default async function DutyDashboardPage({
       />
 
       {/* Metric Cards (PRD Section 42 & Payroll) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-[#E50914]/50 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
@@ -108,10 +108,10 @@ export default async function DutyDashboardPage({
             </span>
             <Clock className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {formatHoursMinutes(todayTotalSeconds)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             {todaySessions.length} sesi tercatat hari ini
           </div>
         </div>
@@ -123,10 +123,10 @@ export default async function DutyDashboardPage({
             </span>
             <Calendar className="h-4 w-4 text-[#FF1E2D]" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {formatHoursMinutes(monthTotalSeconds)}
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Total jam kerja periode berjalan
           </div>
         </div>
@@ -138,10 +138,10 @@ export default async function DutyDashboardPage({
             </span>
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {activeDaysSet.size} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Presensi keaktifan dinas
           </div>
         </div>
@@ -153,30 +153,30 @@ export default async function DutyDashboardPage({
             </span>
             <Layers className="h-4 w-4 text-amber-400" />
           </div>
-          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2">
+          <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
             {monthSessions.length} <span className="text-sm font-sans font-medium text-neutral-400">Sesi</span>
           </div>
-          <div className="text-[11px] text-neutral-500 mt-1">
+          <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Multiple on/off duty per hari
           </div>
         </div>
 
-        <div className="col-span-2 lg:col-span-1 rounded-2xl bg-gradient-to-br from-[#121c15] to-[#111111] border border-emerald-900/40 p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-1 xl:col-span-1 rounded-2xl bg-gradient-to-br from-[#121c15] to-[#111111] border border-emerald-900/40 p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
               ESTIMASI GAJI
             </span>
             <Banknote className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2">
+          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 truncate">
             {userSalary.currencySymbol} {userSalary.estimatedSalary.toLocaleString("id-ID")}
           </div>
-          <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between">
-            <span>{userSalary.currencySymbol} {userSalary.hourlyRate.toLocaleString("id-ID")}/jam</span>
+          <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between gap-1">
+            <span className="truncate">{userSalary.currencySymbol} {userSalary.hourlyRate.toLocaleString("id-ID")}/jam</span>
             {userSalary.isEligible ? (
-              <span className="text-[10px] text-emerald-400 font-bold">✓ Target</span>
+              <span className="text-[10px] text-emerald-400 font-bold shrink-0">Target OK</span>
             ) : (
-              <span className="text-[10px] text-amber-400">Min {userSalary.minDutyHours}j</span>
+              <span className="text-[10px] text-amber-400 shrink-0">Min {userSalary.minDutyHours}j</span>
             )}
           </div>
         </div>

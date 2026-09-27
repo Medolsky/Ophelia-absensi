@@ -42,8 +42,8 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
+      <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative flex-1 w-full min-w-0">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
           <input
             type="text"
@@ -53,7 +53,7 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
             className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white pl-9 pr-3 py-2.5 rounded-xl outline-none"
           />
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-neutral-400">
+        <div className="flex items-center gap-2 text-xs font-mono text-neutral-400 shrink-0">
           <span className="h-2 w-2 rounded-full bg-[#FF1E2D] animate-ping" />
           <span>{filtered.length} Petugas Sedang Bertugas</span>
         </div>
@@ -74,26 +74,26 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
               className="rounded-2xl bg-[#141414] border border-[#252525] hover:border-[#E50914]/60 p-5 shadow-xl relative overflow-hidden transition-all group"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <img
                     src={
                       session.userAvatar ||
                       "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
                     }
                     alt={session.userName || "Officer"}
-                    className="h-12 w-12 rounded-xl object-cover border border-[#333]"
+                    className="h-12 w-12 rounded-xl object-cover border border-[#333] shrink-0"
                   />
-                  <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-[#FF1E2D] transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-bold text-white group-hover:text-[#FF1E2D] transition-colors truncate">
                       {session.userName}
                     </h4>
-                    <span className="text-[11px] text-neutral-400 block font-medium">
+                    <span className="text-[11px] text-neutral-400 block font-medium truncate">
                       {session.positionName || "Petugas"}
                     </span>
                   </div>
                 </div>
 
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] text-[10px] font-mono border border-[#E50914]/40">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] text-[10px] font-mono border border-[#E50914]/40 shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#FF1E2D] animate-ping" />
                   ONLINE
                 </span>
@@ -123,8 +123,9 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
               </div>
 
               {session.notes && (
-                <div className="mt-2 text-[11px] text-neutral-400 bg-[#0d0d0d] p-2 rounded-lg border border-[#1f1f1f] truncate">
-                  📌 {session.notes}
+                <div className="mt-2 text-[11px] text-neutral-400 bg-[#0d0d0d] p-2 rounded-lg border border-[#1f1f1f] flex items-center gap-1.5 min-w-0">
+                  <Clock className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
+                  <span className="truncate">{session.notes}</span>
                 </div>
               )}
             </div>

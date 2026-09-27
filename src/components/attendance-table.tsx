@@ -75,7 +75,7 @@ export function AttendanceTable({
           </div>
 
           {/* Date Range Filters (PRD Section 15) */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1 rounded-xl">
               <span className="text-[10px] text-neutral-500 font-bold uppercase">FROM:</span>
               <input
@@ -132,13 +132,13 @@ export function AttendanceTable({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
-                <th className="py-3.5 px-4">Tanggal</th>
-                <th className="py-3.5 px-4">Mulai (Start)</th>
-                <th className="py-3.5 px-4">Selesai (End)</th>
-                <th className="py-3.5 px-4">Durasi</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Keterangan</th>
-                {canEdit && <th className="py-3.5 px-4 text-right">Aksi</th>}
+                <th className="py-3.5 px-4 whitespace-nowrap">Tanggal</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Mulai (Start)</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Selesai (End)</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Durasi</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Keterangan</th>
+                {canEdit && <th className="py-3.5 px-4 whitespace-nowrap text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
@@ -159,20 +159,20 @@ export function AttendanceTable({
                       key={session.id}
                       className="hover:bg-[#161616] transition-colors group"
                     >
-                      <td className="py-3.5 px-4 font-medium text-white">
+                      <td className="py-3.5 px-4 whitespace-nowrap font-medium text-white">
                         {startDateObj.toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
                         })}
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-neutral-300">
+                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-neutral-300">
                         {startDateObj.toLocaleTimeString("id-ID", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-neutral-300">
+                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-neutral-300">
                         {session.endedAt
                           ? new Date(session.endedAt).toLocaleTimeString("id-ID", {
                               hour: "2-digit",
@@ -180,14 +180,14 @@ export function AttendanceTable({
                             })
                           : "SEDANG DINAS"}
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-white">
+                      <td className="py-3.5 px-4 whitespace-nowrap font-mono font-bold text-white">
                         {isLive ? (
                           <span className="text-[#FF1E2D] animate-pulse">Running...</span>
                         ) : (
                           formatHoursMinutes(session.durationSeconds)
                         )}
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         {session.status === "ON_DUTY" && (
                           <span className="px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono text-[10px] border border-[#E50914]/40">
                             ON DUTY
@@ -204,11 +204,11 @@ export function AttendanceTable({
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-neutral-400 max-w-[200px] truncate">
+                      <td className="py-3.5 px-4 whitespace-nowrap text-neutral-400 max-w-[200px] truncate">
                         {session.notes || "—"}
                       </td>
                       {canEdit && (
-                        <td className="py-3.5 px-4 text-right">
+                        <td className="py-3.5 px-4 whitespace-nowrap text-right">
                           <button
                             onClick={() => setSelectedSessionToEdit(session)}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"

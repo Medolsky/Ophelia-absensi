@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { MembershipData } from "@/types";
-import { Users, Search, Plus, UserPlus, Check, X, Shield, Clock, Edit2 } from "lucide-react";
+import {
+  Users,
+  Search,
+  UserPlus,
+  RefreshCw,
+  Check,
+  X,
+  Edit2,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
 interface MemberManagementProps {
   initialMemberships: MembershipData[];
@@ -13,15 +23,78 @@ export function MemberManagementTable({
   initialMemberships,
   institutionSlug,
 }: MemberManagementProps) {
-  const [members, setMembers] = useState(initialMemberships);
+  const [members, setMembers] = useState<MembershipData[]>(initialMemberships);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<MembershipData | null>(null);
 
+  // Sync state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
+
   // Form states
   const [newDiscordId, setNewDiscordId] = useState("");
-  const [newPosition, setNewPosition] = useState("Officer");
+  const [newPosition, setNewPosition] = useState(
+    institutionSlug === "medical"
+      ? "Medis"
+      : institutionSlug === "mechanic"
+      ? "Mekanik"
+      : institutionSlug === "restaurant"
+      ? "Server Resto"
+      : institutionSlug === "pemerintah"
+      ? "Staff Pemerintah"
+      : "Officer"
+  );
   const [newStatus, setNewStatus] = useState<"ACTIVE" | "INACTIVE" | "SUSPENDED">("ACTIVE");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Position options per institution
+  const positionOptions: Record<string, string[]> = {
+    police: [
+      "Cadet",
+      "Officer",
+      "Highway Patrol",
+      "SWAT",
+      "Senior Officer",
+      "Sergeant",
+      "Commander",
+      "Chief of Police",
+    ],
+    medical: [
+      "Medis",
+      "Paramedic",
+      "Doctor",
+      "Surgeon",
+      "Petinggi Medis",
+      "Director of Emergency Medicine",
+    ],
+    mechanic: [
+      "Apprentice",
+      "Mekanik",
+      "Senior Mechanic",
+      "Leadhand Mechanic",
+      "Petinggi Bengkel",
+    ],
+    restaurant: [
+      "Server Resto",
+      "Employee",
+      "Supervisor",
+      "Petinggi Resto",
+      "Restaurant Manager",
+    ],
+    pemerintah: [
+      "Staff Pemerintah",
+      "Petinggi Pemerintah",
+    ],
+  };
+
+  const currentOptions = positionOptions[institutionSlug] || [
+    "Officer",
+    "Staff",
+    "Petinggi",
+  ];
 
   const filteredMembers = members.filter(
     (m) =>
@@ -31,52 +104,130 @@ export function MemberManagementTable({
       m.user?.discordId.includes(searchTerm)
   );
 
-  const handleAddMember = (e: React.FormEvent) => {
+  const handleSyncDiscord = async () => {
+    setIsSyncing(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/institution/${institutionSlug}/sync-discord`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.members)) {
+        setMembers(data.members);
+        setFeedback({
+          type: "success",
+          message: `Berhasil menyinkronkan ${data.count} anggota dari server Discord.`,
+        });
+      } else {
+        setFeedback({
+          type: "error",
+          message: data.error || "Gagal menyinkronkan data dari Discord.",
+        });
+      }
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: "Terjadi kesalahan koneksi saat menyinkronkan Discord.",
+      });
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setFeedback(null), 6000);
+    }
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDiscordId) return;
 
-    const newMem: MembershipData = {
-      id: `mem-${Date.now()}`,
-      userId: `user-${Date.now()}`,
-      institutionId: institutionSlug,
-      positionName: newPosition,
-      permissionLevel: newPosition.toLowerCase().includes("chief") ? "LEADER" : "MEMBER",
-      status: newStatus,
-      joinedAt: new Date().toISOString(),
-      user: {
-        id: `user-${Date.now()}`,
-        discordId: newDiscordId,
-        discordUsername: `user_${newDiscordId.slice(-4)}`,
-        displayName: `Anggota Baru (${newDiscordId.slice(-4)})`,
-        discordAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-      },
-    };
-
-    setMembers([newMem, ...members]);
-    setShowAddModal(false);
-    setNewDiscordId("");
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/institution/${institutionSlug}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          discordId: newDiscordId.trim(),
+          positionName: newPosition,
+          status: newStatus,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.member) {
+        setMembers([data.member, ...members.filter((m) => m.id !== data.member.id)]);
+        setShowAddModal(false);
+        setNewDiscordId("");
+        setFeedback({
+          type: "success",
+          message: `Anggota dengan Discord ID ${data.member.user?.discordId} berhasil ditambahkan.`,
+        });
+      } else {
+        alert(data.error || "Gagal menambah anggota.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(() => setFeedback(null), 5000);
+    }
   };
 
-  const handleUpdateMember = (e: React.FormEvent) => {
+  const handleUpdateMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMember) return;
 
-    setMembers(
-      members.map((m) =>
-        m.id === editingMember.id
-          ? {
-              ...m,
-              positionName: editingMember.positionName,
-              status: editingMember.status,
-            }
-          : m
-      )
-    );
-    setEditingMember(null);
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(
+        `/api/institution/${institutionSlug}/members/${editingMember.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            positionName: editingMember.positionName,
+            status: editingMember.status,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.success && data.member) {
+        setMembers(
+          members.map((m) => (m.id === data.member.id ? data.member : m))
+        );
+        setEditingMember(null);
+        setFeedback({
+          type: "success",
+          message: `Data anggota ${data.member.user?.displayName} berhasil diperbarui.`,
+        });
+      } else {
+        alert(data.error || "Gagal memperbarui anggota.");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(() => setFeedback(null), 5000);
+    }
   };
 
   return (
     <div className="space-y-4">
+      {/* Feedback Banner */}
+      {feedback && (
+        <div
+          className={`flex items-center gap-2 p-3 rounded-xl text-xs font-semibold border ${
+            feedback.type === "success"
+              ? "bg-emerald-950/40 border-emerald-800/50 text-emerald-300"
+              : "bg-red-950/40 border-red-800/50 text-red-300"
+          }`}
+        >
+          {feedback.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+          )}
+          <span>{feedback.message}</span>
+        </div>
+      )}
+
       {/* Top action bar */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
@@ -90,13 +241,29 @@ export function MemberManagementTable({
           />
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm self-start sm:self-auto"
-        >
-          <UserPlus className="h-4 w-4" />
-          <span>+ Tambah Anggota</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Sync Discord Button */}
+          <button
+            onClick={handleSyncDiscord}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#333] transition shadow-md disabled:opacity-50"
+            title="Tarik otomatis seluruh anggota yang memiliki role instansi ini dari Discord server"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 text-blue-400 ${isSyncing ? "animate-spin" : ""}`}
+            />
+            <span>{isSyncing ? "Menyinkronkan..." : "Sinkronisasi Discord"}</span>
+          </button>
+
+          {/* Add Member Button */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>+ Tambah Anggota</span>
+          </button>
+        </div>
       </div>
 
       {/* Members Table */}
@@ -105,83 +272,114 @@ export function MemberManagementTable({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
-                <th className="py-3.5 px-4">Anggota</th>
-                <th className="py-3.5 px-4">Discord ID</th>
-                <th className="py-3.5 px-4">Jabatan / Pangkat</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Bergabung</th>
-                <th className="py-3.5 px-4 text-right">Aksi</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Anggota</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Discord ID</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Jabatan / Pangkat</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Tingkat Akses</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Bergabung</th>
+                <th className="py-3.5 px-4 whitespace-nowrap text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
-              {filteredMembers.map((mem) => {
-                const statusColor =
-                  mem.status === "ACTIVE"
-                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                    : mem.status === "SUSPENDED"
-                    ? "bg-red-500/15 text-red-400 border-red-500/30"
-                    : "bg-neutral-800 text-neutral-400 border-neutral-700";
+              {filteredMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-neutral-400">
+                    Tidak ada anggota yang ditemukan. Klik tombol{" "}
+                    <span className="font-semibold text-white">Sinkronisasi Discord</span>{" "}
+                    untuk menarik data otomatis dari server Discord.
+                  </td>
+                </tr>
+              ) : (
+                filteredMembers.map((mem) => {
+                  const statusColor =
+                    mem.status === "ACTIVE"
+                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                      : mem.status === "SUSPENDED"
+                      ? "bg-red-500/15 text-red-400 border-red-500/30"
+                      : "bg-neutral-800 text-neutral-400 border-neutral-700";
 
-                return (
-                  <tr key={mem.id} className="hover:bg-[#161616] transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={
-                            mem.user?.discordAvatar ||
-                            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-                          }
-                          alt={mem.user?.displayName || "Member"}
-                          className="h-9 w-9 rounded-xl object-cover border border-[#333]"
-                        />
-                        <div>
-                          <div className="font-bold text-white">
-                            {mem.user?.displayName || "Anggota"}
-                          </div>
-                          <div className="text-[11px] text-neutral-400">
-                            @{mem.user?.discordUsername}
+                  const isLeader =
+                    mem.permissionLevel === "LEADER" ||
+                    mem.permissionLevel === "SUPER_ADMIN";
+
+                  return (
+                    <tr key={mem.id} className="hover:bg-[#161616] transition-colors">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {mem.user?.discordAvatar ? (
+                            <img
+                              src={mem.user.discordAvatar}
+                              alt={mem.user?.displayName || "Member"}
+                              className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
+                            />
+                          ) : (
+                            <div className="h-9 w-9 rounded-xl bg-neutral-800 border border-[#333] flex items-center justify-center font-bold text-xs text-neutral-300 shrink-0">
+                              {(mem.user?.displayName || "U").slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-bold text-white truncate max-w-[160px] sm:max-w-[220px]">
+                              {mem.user?.displayName || "Anggota"}
+                            </div>
+                            <div className="text-[11px] text-neutral-400 truncate max-w-[160px] sm:max-w-[220px]">
+                              @{mem.user?.discordUsername}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-neutral-300">
-                      {mem.user?.discordId}
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-white">
-                      {mem.positionName || "Officer"}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${statusColor}`}
-                      >
-                        {mem.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-neutral-400">
-                      {new Date(mem.joinedAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => setEditingMember(mem)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
-                      >
-                        <Edit2 className="h-3 w-3 text-[#FF1E2D]" />
-                        <span>Edit</span>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-neutral-300 whitespace-nowrap">
+                        {mem.user?.discordId}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-white whitespace-nowrap">
+                        <span className="font-semibold text-neutral-200">
+                          {mem.positionName || "Officer"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${
+                            isLeader
+                              ? "bg-amber-500/15 text-amber-400 border-amber-500/30 font-bold"
+                              : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                          }`}
+                        >
+                          {mem.permissionLevel}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${statusColor}`}
+                        >
+                          {mem.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-neutral-400 whitespace-nowrap">
+                        {new Date(mem.joinedAt).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => setEditingMember(mem)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
+                        >
+                          <Edit2 className="h-3 w-3 text-[#FF1E2D]" />
+                          <span>Edit</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add Member Modal (PRD Section 19) */}
+      {/* Add Member Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#252525] shadow-2xl p-6 relative">
@@ -205,7 +403,7 @@ export function MemberManagementTable({
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: 982736410293847101"
+                  placeholder="Contoh: 1379103020490555433"
                   value={newDiscordId}
                   onChange={(e) => setNewDiscordId(e.target.value)}
                   className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white p-2.5 rounded-xl outline-none font-mono"
@@ -216,13 +414,17 @@ export function MemberManagementTable({
                 <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
                   Jabatan / Pangkat
                 </label>
-                <input
-                  type="text"
-                  required
+                <select
                   value={newPosition}
                   onChange={(e) => setNewPosition(e.target.value)}
                   className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white p-2.5 rounded-xl outline-none"
-                />
+                >
+                  {currentOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -250,9 +452,10 @@ export function MemberManagementTable({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm disabled:opacity-50"
                 >
-                  Simpan Anggota
+                  {isSubmitting ? "Menyimpan..." : "Simpan Anggota"}
                 </button>
               </div>
             </form>
@@ -260,7 +463,7 @@ export function MemberManagementTable({
         </div>
       )}
 
-      {/* Edit Member Modal (PRD Section 20 & 21) */}
+      {/* Edit Member Modal */}
       {editingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#252525] shadow-2xl p-6 relative">
@@ -283,20 +486,24 @@ export function MemberManagementTable({
                 <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
                   Jabatan / Pangkat
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={editingMember.positionName || ""}
+                <select
+                  value={editingMember.positionName || currentOptions[0]}
                   onChange={(e) =>
                     setEditingMember({ ...editingMember, positionName: e.target.value })
                   }
                   className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white p-2.5 rounded-xl outline-none"
-                />
+                >
+                  {currentOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
-                  Status (PRD: Soft State - Anti Hard Delete)
+                  Status (Soft State - Nonaktifkan tanpa hapus histori)
                 </label>
                 <select
                   value={editingMember.status}
@@ -305,9 +512,9 @@ export function MemberManagementTable({
                   }
                   className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white p-2.5 rounded-xl outline-none"
                 >
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                  <option value="SUSPENDED">SUSPENDED</option>
+                  <option value="ACTIVE">ACTIVE (Aktif)</option>
+                  <option value="INACTIVE">INACTIVE (Nonaktif)</option>
+                  <option value="SUSPENDED">SUSPENDED (Skorsing)</option>
                 </select>
               </div>
 
@@ -321,9 +528,10 @@ export function MemberManagementTable({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm disabled:opacity-50"
                 >
-                  Update Data
+                  {isSubmitting ? "Menyimpan..." : "Update Data"}
                 </button>
               </div>
             </form>
