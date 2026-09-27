@@ -180,11 +180,11 @@ export default async function HomePage({
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 rounded-xl bg-[#161616] border border-[#222]">
                     <div className="text-neutral-500">TODAY DUTY</div>
-                    <div className="text-base font-bold text-white mt-0.5">04h 32m</div>
+                    <div className="text-base font-bold text-white mt-0.5">00h 00m</div>
                   </div>
                   <div className="p-3 rounded-xl bg-[#161616] border border-[#222]">
                     <div className="text-neutral-500">THIS MONTH</div>
-                    <div className="text-base font-bold text-[#FF1E2D] mt-0.5">86h 42m</div>
+                    <div className="text-base font-bold text-[#FF1E2D] mt-0.5">00h 00m</div>
                   </div>
                 </div>
 

@@ -25,68 +25,7 @@ interface StoreState {
   payrollStatuses: Record<string, { status: "PENDING" | "PAID"; paidAt?: string; paidByName?: string }>;
 }
 
-const initialSessions: DutySessionData[] = [
-  {
-    id: "ds-101",
-    userId: "discord-1379103020490555433",
-    userName: "OFFICER - Atong",
-    positionName: "Officer",
-    institutionId: "inst-police",
-    institutionSlug: "police",
-    institutionName: "Ophelia Police Department",
-    startedAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-    endedAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
-    durationSeconds: 2 * 3600,
-    status: "COMPLETED",
-    notes: "Patrol downtown sector",
-    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "ds-201",
-    userId: "discord-1379103020490555433",
-    userName: "OFFICER - Atong",
-    positionName: "Officer",
-    institutionId: "inst-police",
-    institutionSlug: "police",
-    institutionName: "Ophelia Police Department",
-    startedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    endedAt: null,
-    durationSeconds: 0,
-    status: "ON_DUTY",
-    notes: "Patrol downtown sector",
-    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "ds-202",
-    userId: "discord-1515016912030138433",
-    userName: "EMS - Angela Lee",
-    positionName: "Medis",
-    institutionId: "inst-medical",
-    institutionSlug: "medical",
-    institutionName: "Ophelia Medical Center",
-    startedAt: new Date(Date.now() - 95 * 60 * 1000).toISOString(),
-    endedAt: null,
-    durationSeconds: 0,
-    status: "ON_DUTY",
-    notes: "Emergency Response Standby",
-    createdAt: new Date(Date.now() - 95 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "ds-203",
-    userId: "discord-682808386349432902",
-    userName: "Axton Gareth",
-    positionName: "Mekanik",
-    institutionId: "inst-mechanic",
-    institutionSlug: "mechanic",
-    institutionName: "Ophelia Custom Garage",
-    startedAt: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
-    endedAt: null,
-    durationSeconds: 0,
-    status: "ON_DUTY",
-    notes: "Vehicle inspection and upgrade",
-    createdAt: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
-  },
-];
+const initialSessions: DutySessionData[] = [];
 
 const initialMemberships: MembershipData[] = [
   // --- POLICE DEPARTMENT ---
@@ -619,7 +558,7 @@ if (!globalMemoryStore.__ophelia_store) {
   globalMemoryStore.__ophelia_store = {
     institutions: [...DEFAULT_INSTITUTIONS],
     memberships: [...initialMemberships],
-    dutySessions: [...initialSessions],
+    dutySessions: [],
     auditLogs: [],
     attendanceEdits: [],
     salaryConfigs: { ...DEFAULT_POSITION_SALARIES },
@@ -627,11 +566,12 @@ if (!globalMemoryStore.__ophelia_store) {
   };
 } else {
   globalMemoryStore.__ophelia_store.institutions = [...DEFAULT_INSTITUTIONS];
+  globalMemoryStore.__ophelia_store.dutySessions = [];
+  globalMemoryStore.__ophelia_store.auditLogs = [];
+  globalMemoryStore.__ophelia_store.attendanceEdits = [];
+  globalMemoryStore.__ophelia_store.payrollStatuses = {};
   if (!globalMemoryStore.__ophelia_store.salaryConfigs) {
     globalMemoryStore.__ophelia_store.salaryConfigs = { ...DEFAULT_POSITION_SALARIES };
-  }
-  if (!globalMemoryStore.__ophelia_store.payrollStatuses) {
-    globalMemoryStore.__ophelia_store.payrollStatuses = {};
   }
 }
 
@@ -1360,8 +1300,7 @@ export class DataService {
           0
         );
 
-        // Fallback default duty hours for realistic demo representation if new user
-        const finalDutySeconds = totalDutySeconds > 0 ? totalDutySeconds : (m.positionName?.includes("Chief") || m.positionName?.includes("Director") ? 98 * 3600 + 15 * 60 : 64 * 3600 + 40 * 60);
+        const finalDutySeconds = totalDutySeconds;
         const totalDutyHours = Number((finalDutySeconds / 3600).toFixed(1));
 
         const posName = m.positionName || "Officer";
@@ -1441,15 +1380,14 @@ export class DataService {
     const sessions = await this.getUserDutySessions(userId, institutionSlug);
 
     const totalSeconds = sessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
-    const totalHours = Number((totalSeconds / 3600).toFixed(1)) || 4.5; // fallback sample if 0
+    const totalHours = Number((totalSeconds / 3600).toFixed(1));
 
-    // Get user position
-    const demoUser = DEMO_PERSONAS.find((p) => p.id === userId);
-    let posName = "Officer";
-    if (demoUser?.roleTitle.includes("Chief")) posName = "Chief of Police";
-    else if (demoUser?.roleTitle.includes("Director")) posName = "Director of Emergency Medicine";
-    else if (demoUser?.roleTitle.includes("Senior Mechanic")) posName = "Senior Mechanic";
-    else if (demoUser?.roleTitle.includes("Manager")) posName = "Restaurant Manager";
+    // Get user position from actual membership
+    const memberships = await this.getMemberships(institutionSlug);
+    const userMem = memberships.find(
+      (m) => m.userId === userId || m.user?.discordId === userId.replace("discord-", "")
+    );
+    const posName = userMem?.positionName || "Officer";
 
     const posConfig = configs[posName] || {
       hourlyRate: institution?.defaultHourlyRate || 50000,

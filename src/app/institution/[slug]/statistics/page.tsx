@@ -18,13 +18,30 @@ export default async function StatisticsPage({
   const sessions = await DataService.getUserDutySessions(currentUser.id, slug);
 
   // Compute Weekly Distribution (Last 7 days)
-  const daysOfWeek = ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"];
-  const weekData = daysOfWeek.map((dayName, index) => {
-    // Mock or aggregate current week
+  // Compute Weekly Distribution (Current week Monday - Sunday)
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday, ...
+  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+
+  const dayLabels = ["SEN", "SEL", "RAB", "KAM", "JUM", "SAB", "MIN"];
+  const weekData = dayLabels.map((dayName, index) => {
+    const targetDate = new Date(monday);
+    targetDate.setDate(monday.getDate() + index);
+    const dateStr = targetDate.toISOString().slice(0, 10);
+
+    const daySessions = sessions.filter((s) => s.startedAt.slice(0, 10) === dateStr);
+    const daySeconds = daySessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+    const hours = Number((daySeconds / 3600).toFixed(1));
+    const h = Math.floor(daySeconds / 3600);
+    const m = Math.floor((daySeconds % 3600) / 60);
+
     return {
       day: dayName,
-      hours: index === 0 ? 6.5 : index === 1 ? 8.2 : index === 2 ? 4.5 : index === 3 ? 7.0 : index === 4 ? 10.5 : 0,
-      label: index === 0 ? "6h 30m" : index === 1 ? "8h 12m" : index === 2 ? "4h 30m" : index === 3 ? "7h 00m" : index === 4 ? "10h 30m" : "OFF",
+      hours,
+      label: daySeconds > 0 ? `${h}h ${m.toString().padStart(2, "0")}m` : "OFF",
     };
   });
 
@@ -33,9 +50,9 @@ export default async function StatisticsPage({
   // Compute Monthly Stats (PRD Section 12)
   const totalMonthSeconds = sessions.reduce((acc, s) => acc + s.durationSeconds, 0);
   const activeDaysSet = new Set(sessions.map((s) => s.startedAt.slice(0, 10)));
-  const activeDays = Math.max(1, activeDaysSet.size);
+  const activeDays = activeDaysSet.size;
   const totalSessions = sessions.length;
-  const averagePerDaySeconds = Math.round(totalMonthSeconds / activeDays);
+  const averagePerDaySeconds = activeDays > 0 ? Math.round(totalMonthSeconds / activeDays) : 0;
   const longestSessionSeconds = sessions.reduce(
     (max, s) => Math.max(max, s.durationSeconds),
     0
@@ -72,11 +89,11 @@ export default async function StatisticsPage({
             <Award className="h-4 w-4 text-[#FF1E2D]" />
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
-            {formatHoursMinutes(totalMonthSeconds || 86 * 3600 + 42 * 60)}
+            {formatHoursMinutes(totalMonthSeconds)}
           </div>
-          <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 truncate">
-            <TrendingUp className="h-3 w-3" />
-            <span>Memenuhi kuota dinas</span>
+          <div className="text-[11px] text-neutral-400 mt-1 flex items-center gap-1 truncate">
+            <TrendingUp className="h-3 w-3 text-[#FF1E2D]" />
+            <span>{totalMonthSeconds > 0 ? "Memenuhi kuota dinas" : "Belum ada dinas bulan ini"}</span>
           </div>
         </div>
 
@@ -86,7 +103,7 @@ export default async function StatisticsPage({
             <Zap className="h-4 w-4 text-amber-400" />
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
-            {formatHoursMinutes(averagePerDaySeconds || 4 * 3600 + 49 * 60)}
+            {formatHoursMinutes(averagePerDaySeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Dihitung dari hari aktif
@@ -99,7 +116,7 @@ export default async function StatisticsPage({
             <Flame className="h-4 w-4 text-[#FF1E2D]" />
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
-            {formatHoursMinutes(longestSessionSeconds || 7 * 3600 + 32 * 60)}
+            {formatHoursMinutes(longestSessionSeconds)}
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Rekor dinas nonstop
@@ -112,7 +129,7 @@ export default async function StatisticsPage({
             <Calendar className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="text-2xl lg:text-3xl font-mono font-black text-white mt-2 truncate">
-            {activeDays || 18} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
+            {activeDays} <span className="text-sm font-sans font-medium text-neutral-400">Hari</span>
           </div>
           <div className="text-[11px] text-neutral-500 mt-1 truncate">
             Presensi keaktifan anggota

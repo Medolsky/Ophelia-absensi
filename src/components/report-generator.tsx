@@ -1,38 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { MembershipData, DutySessionData } from "@/types";
+import { MembershipData, DutySessionData, PayrollRecord } from "@/types";
 import { FileSpreadsheet, Download, Calendar, Filter } from "lucide-react";
 
 interface ReportGeneratorProps {
   memberships: MembershipData[];
+  payrollRecords?: PayrollRecord[];
   institutionName: string;
   institutionSlug: string;
 }
 
 export function ReportGenerator({
   memberships,
+  payrollRecords = [],
   institutionName,
   institutionSlug,
 }: ReportGeneratorProps) {
   const [startDate, setStartDate] = useState("2026-09-01");
   const [endDate, setEndDate] = useState("2026-09-30");
 
-  // Mock sample duty summary per member
-  const memberReportData = memberships.map((m, index) => {
-    const sessions = 25 + index * 4;
-    const activeDays = 15 + index * 2;
-    const totalHours = 70 + index * 12;
-    const totalMinutes = (index * 17) % 60;
+  // Dynamic duty summary per member calculated from real records
+  const memberReportData = memberships.map((m) => {
+    const pRecord = payrollRecords.find(
+      (r) => r.membershipId === m.id || r.userId === m.userId
+    );
+    const totalSeconds = pRecord?.totalDutySeconds || 0;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+
     return {
       memberId: m.id,
-      name: m.user?.displayName || "Member",
+      name: m.user?.displayName || m.user?.discordUsername || "Member",
       discordId: m.user?.discordId || "",
       position: m.positionName || "Officer",
-      sessions,
-      activeDays,
-      totalHoursStr: `${totalHours}h ${totalMinutes}m`,
-      totalHoursNum: totalHours + totalMinutes / 60,
+      sessions: totalSeconds > 0 ? 1 : 0,
+      activeDays: totalSeconds > 0 ? 1 : 0,
+      totalHoursStr: `${hours}h ${minutes.toString().padStart(2, "0")}m`,
+      totalHoursNum: pRecord?.totalDutyHours || 0,
     };
   });
 

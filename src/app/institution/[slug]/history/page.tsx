@@ -15,41 +15,46 @@ export default async function HistoryPage({
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
 
-  // Monthly archive records as outlined in PRD Section 14
-  const historyArchives = [
-    {
-      monthKey: "2026-09",
-      monthName: "September 2026",
-      totalHours: "86h 42m",
-      activeDays: 18,
-      sessions: 31,
-      status: "CURRENT",
-    },
-    {
-      monthKey: "2026-08",
-      monthName: "Agustus 2026",
-      totalHours: "102h 15m",
-      activeDays: 22,
-      sessions: 38,
-      status: "COMPLETED",
-    },
-    {
-      monthKey: "2026-07",
-      monthName: "Juli 2026",
-      totalHours: "74h 20m",
-      activeDays: 16,
-      sessions: 26,
-      status: "COMPLETED",
-    },
-    {
-      monthKey: "2026-06",
-      monthName: "Juni 2026",
-      totalHours: "91h 05m",
-      activeDays: 20,
-      sessions: 34,
-      status: "COMPLETED",
-    },
-  ];
+  const sessions = await DataService.getUserDutySessions(currentUser.id, slug);
+
+  // Group real duty sessions by month key (YYYY-MM)
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const monthGroups: Record<string, typeof sessions> = {};
+  for (const s of sessions) {
+    const key = s.startedAt.slice(0, 7);
+    if (!monthGroups[key]) monthGroups[key] = [];
+    monthGroups[key].push(s);
+  }
+
+  // Always ensure the active current month is displayed
+  if (!monthGroups[currentMonthKey]) {
+    monthGroups[currentMonthKey] = [];
+  }
+
+  const sortedMonthKeys = Object.keys(monthGroups).sort().reverse();
+
+  const historyArchives = sortedMonthKeys.map((mKey) => {
+    const mSessions = monthGroups[mKey] || [];
+    const totalSecs = mSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const activeDaysSet = new Set(mSessions.map((s) => s.startedAt.slice(0, 10)));
+
+    const [year, month] = mKey.split("-");
+    const dateObj = new Date(Number(year), Number(month) - 1, 1);
+    const monthName = dateObj.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+
+    return {
+      monthKey: mKey,
+      monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      totalHours: `${hours}h ${String(mins).padStart(2, "0")}m`,
+      activeDays: activeDaysSet.size,
+      sessions: mSessions.length,
+      status: mKey === currentMonthKey ? "CURRENT" : "COMPLETED",
+    };
+  });
 
   return (
     <div className="space-y-6">
