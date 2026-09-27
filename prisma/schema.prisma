@@ -100,6 +100,9 @@ model Membership {
   position      Position?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   @@unique([userId, institutionId])
+  @@index([institutionId])
+  @@index([userId])
+  @@index([status])
   @@map("memberships")
 }
 
@@ -121,6 +124,9 @@ model DutySession {
   edits           AttendanceEdit[]
 
   @@index([userId, institutionId])
+  @@index([institutionId, startedAt])
+  @@index([userId, status])
+  @@index([status, endedAt])
   @@index([startedAt])
   @@map("duty_sessions")
 }

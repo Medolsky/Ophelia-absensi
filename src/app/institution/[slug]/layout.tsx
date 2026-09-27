@@ -1,4 +1,4 @@
-import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
+import { getCurrentUser, verifyInstitutionAccess, getAllowedInstitutions } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { Navbar } from "@/components/navbar";
@@ -24,9 +24,13 @@ export default async function InstitutionLayout({
     redirect("/");
   }
 
-  // PRD Section 6 & 29: Server-side validation of Discord Role
-  const access = await verifyInstitutionAccess(currentUser, slug);
-  const currentInstitution = await DataService.getInstitutionBySlug(slug);
+  // Parallelize all checks concurrently with zero sequential blocking
+  const [access, currentInstitution, activeSession, allowedInstitutions] = await Promise.all([
+    verifyInstitutionAccess(currentUser, slug),
+    DataService.getInstitutionBySlug(slug),
+    DataService.getActiveDutySession(currentUser.id),
+    getAllowedInstitutions(currentUser),
+  ]);
 
   if (!access.allowed || !currentInstitution) {
     return (
@@ -53,19 +57,6 @@ export default async function InstitutionLayout({
       </div>
     );
   }
-
-  // Active duty session across all institutions
-  const activeSession = await DataService.getActiveDutySession(currentUser.id);
-
-  // List of allowed institutions for navbar switcher
-  const allowedInstitutions = (
-    await Promise.all(
-      DEFAULT_INSTITUTIONS.map(async (inst) => {
-        const canAccess = await verifyInstitutionAccess(currentUser, inst.slug);
-        return canAccess.allowed ? inst : null;
-      })
-    )
-  ).filter(Boolean) as typeof DEFAULT_INSTITUTIONS;
 
   return (
     <div className="min-h-screen bg-[#080808] flex flex-col selection:bg-[#E50914] selection:text-white">

@@ -120,6 +120,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={true}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                     isActive
                       ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
@@ -151,6 +152,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                       isActive
                         ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
@@ -183,6 +185,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                       isActive
                         ? "bg-amber-600 text-white shadow-lg"

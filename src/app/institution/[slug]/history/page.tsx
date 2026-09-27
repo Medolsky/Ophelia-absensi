@@ -49,11 +49,16 @@ export default async function HistoryPage({
     } catch {}
   }
 
-  // Query both institution-wide sessions and user's personal sessions
-  const [allSessions, mySessions] = await Promise.all([
-    DataService.getInstitutionDutySessions(slug),
-    DataService.getUserDutySessions(currentUser.id, slug),
-  ]);
+  // Query institution-wide sessions once, derive personal sessions in memory
+  const allSessions = await DataService.getInstitutionDutySessions(slug);
+  const cleanId = currentUser.id.replace("discord-", "");
+  const mySessions = allSessions.filter(
+    (s) =>
+      s.userId === currentUser.id ||
+      s.userId === cleanId ||
+      s.userId === `discord-${cleanId}` ||
+      (currentUser.discordId && s.userId === currentUser.discordId)
+  );
 
   // Group duty sessions by month key (YYYY-MM)
   const now = new Date();

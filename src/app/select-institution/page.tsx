@@ -1,5 +1,6 @@
-import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
+import { getCurrentUser, verifyInstitutionAccess, getAllowedInstitutions } from "@/lib/auth";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
+import { PermissionLevel } from "@/types";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shield, Lock, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
@@ -11,10 +12,26 @@ export default async function SelectInstitutionPage() {
     redirect("/");
   }
 
-  // Check access for each institution
+  // Fast check: get all allowed institutions in one batch
+  const allowedInstitutions = await getAllowedInstitutions(currentUser);
+  const allowedSlugs = new Set(allowedInstitutions.map((i) => i.slug));
+
   const institutionsWithAccess = await Promise.all(
     DEFAULT_INSTITUTIONS.map(async (inst) => {
-      const access = await verifyInstitutionAccess(currentUser, inst.slug);
+      const isAllowed = allowedSlugs.has(inst.slug);
+      let access: { allowed: boolean; permissionLevel: PermissionLevel; reason?: string } = {
+        allowed: isAllowed,
+        permissionLevel: "MEMBER",
+      };
+      if (isAllowed) {
+        access = await verifyInstitutionAccess(currentUser, inst.slug);
+      } else {
+        access = {
+          allowed: false,
+          permissionLevel: "MEMBER",
+          reason: `Discord ID Anda tidak memiliki role yang diizinkan untuk mengakses instansi ini.`,
+        };
+      }
       return {
         ...inst,
         access,

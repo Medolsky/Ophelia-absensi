@@ -809,6 +809,45 @@ export class DataService {
 
   private static institutionsCache: { data: InstitutionData[]; timestamp: number } | null = null;
   private static membershipsCache = new Map<string, { data: MembershipData[]; timestamp: number }>();
+  private static institutionSessionsCache = new Map<string, { data: DutySessionData[]; timestamp: number }>();
+  private static liveSessionsCache = new Map<string, { data: DutySessionData[]; timestamp: number }>();
+  private static activeSessionsCache = new Map<string, { data: DutySessionData | null; timestamp: number }>();
+
+  // --- CACHE INVALIDATION HELPERS ---
+  static invalidateDutySessionsCache(institutionSlug?: string) {
+    if (institutionSlug) {
+      const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+      this.institutionSessionsCache.delete(cleanSlug);
+      this.liveSessionsCache.delete(cleanSlug);
+    } else {
+      this.institutionSessionsCache.clear();
+      this.liveSessionsCache.clear();
+    }
+  }
+
+  static invalidateActiveSession(userId?: string) {
+    if (userId) {
+      const cleanId = userId.replace("discord-", "");
+      this.activeSessionsCache.delete(cleanId);
+      this.activeSessionsCache.delete(userId);
+      this.activeSessionsCache.delete(`discord-${cleanId}`);
+    } else {
+      this.activeSessionsCache.clear();
+    }
+  }
+
+  static invalidateMembershipsCache(institutionSlug?: string) {
+    if (institutionSlug) {
+      const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+      this.membershipsCache.delete(cleanSlug);
+    } else {
+      this.membershipsCache.clear();
+    }
+  }
+
+  static invalidateInstitutionsCache() {
+    this.institutionsCache = null;
+  }
 
   // --- INSTITUTIONS ---
 
@@ -960,6 +999,12 @@ export class DataService {
    */
   static async getActiveDutySession(userId: string): Promise<DutySessionData | null> {
     const cleanId = userId.replace("discord-", "");
+    const now = Date.now();
+    const cached = this.activeSessionsCache.get(cleanId);
+    if (cached && now - cached.timestamp < 5000) {
+      return cached.data;
+    }
+
     const isDb = await this.isDatabaseAvailable();
     if (isDb) {
       try {
@@ -980,7 +1025,7 @@ export class DataService {
           },
         });
         if (active) {
-          return {
+          const res: DutySessionData = {
             id: active.id,
             userId: active.userId,
             userName: active.user.displayName || active.user.discordUsername,
@@ -994,8 +1039,13 @@ export class DataService {
             notes: active.notes,
             createdAt: active.createdAt.toISOString(),
           };
+          this.activeSessionsCache.set(cleanId, { data: res, timestamp: now });
+          this.activeSessionsCache.set(userId, { data: res, timestamp: now });
+          return res;
         }
         // DB is online and query succeeded: ground truth is user is OFF DUTY
+        this.activeSessionsCache.set(cleanId, { data: null, timestamp: now });
+        this.activeSessionsCache.set(userId, { data: null, timestamp: now });
         return null;
       } catch (err) {
         console.warn("DB getActiveDutySession fallback:", err);
@@ -1011,7 +1061,10 @@ export class DataService {
         !s.endedAt &&
         s.status === "ON_DUTY"
     );
-    return session || null;
+    const result = session || null;
+    this.activeSessionsCache.set(cleanId, { data: result, timestamp: now });
+    this.activeSessionsCache.set(userId, { data: result, timestamp: now });
+    return result;
   }
 
   /**
@@ -1183,6 +1236,10 @@ export class DataService {
         memoryStore.dutySessions.unshift(sessionResult);
         persistStore();
 
+        // Invalidate duty sessions and active session caches
+        this.invalidateDutySessionsCache(institution.slug);
+        this.invalidateActiveSession(params.userId);
+
         return {
           success: true,
           session: sessionResult,
@@ -1222,6 +1279,9 @@ export class DataService {
     });
 
     persistStore();
+
+    this.invalidateDutySessionsCache(institution.slug);
+    this.invalidateActiveSession(params.userId);
 
     return { success: true, session };
   }
@@ -1347,6 +1407,9 @@ export class DataService {
     // Always persist changes to disk
     persistStore();
 
+    this.invalidateDutySessionsCache(params.institutionSlug);
+    this.invalidateActiveSession(params.userId);
+
     if (completedSession) {
       memoryStore.auditLogs.unshift({
         id: `audit-${Date.now()}`,
@@ -1384,24 +1447,27 @@ export class DataService {
    * Get all duty sessions for an institution (all officers/members)
    */
   static async getInstitutionDutySessions(institutionSlug: string): Promise<DutySessionData[]> {
+    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+    const now = Date.now();
+    const cached = this.institutionSessionsCache.get(cleanSlug);
+    if (cached && now - cached.timestamp < 10000) {
+      return cached.data;
+    }
+
+    const institution = await this.getInstitutionBySlug(institutionSlug);
     const isDb = await this.isDatabaseAvailable();
-    if (isDb) {
+    if (isDb && institution) {
       try {
         const rows = await prisma.dutySession.findMany({
           where: {
-            institution: {
-              OR: [
-                { slug: institutionSlug },
-                { id: institutionSlug },
-              ],
-            },
+            institutionId: institution.id,
           },
           include: { institution: true, user: true },
           orderBy: { startedAt: "desc" },
         });
 
         if (rows.length > 0) {
-          return rows.map((r) => ({
+          const result: DutySessionData[] = rows.map((r) => ({
             id: r.id,
             userId: r.userId,
             userName: r.user.displayName || r.user.discordUsername,
@@ -1416,6 +1482,8 @@ export class DataService {
             notes: r.notes,
             createdAt: r.createdAt.toISOString(),
           }));
+          this.institutionSessionsCache.set(cleanSlug, { data: result, timestamp: now });
+          return result;
         }
       } catch (err) {
         console.warn("DB getInstitutionDutySessions error:", err);
@@ -1423,9 +1491,11 @@ export class DataService {
     }
 
     reloadPersistedSessions();
-    return memoryStore.dutySessions
+    const memoryResult = memoryStore.dutySessions
       .filter((s) => matchesInstitution(s, institutionSlug))
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+    this.institutionSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: now });
+    return memoryResult;
   }
 
   /**
@@ -1436,22 +1506,29 @@ export class DataService {
     institutionSlug: string
   ): Promise<DutySessionData[]> {
     const cleanId = userId.replace("discord-", "");
+    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+
+    // Fast check: if institution sessions are already in cache, filter in-memory with 0ms DB queries!
+    const cached = this.institutionSessionsCache.get(cleanSlug);
+    if (cached && Date.now() - cached.timestamp < 10000) {
+      return cached.data.filter(
+        (s) => s.userId === userId || s.userId === cleanId || s.userId === `discord-${cleanId}`
+      );
+    }
+
+    const institution = await this.getInstitutionBySlug(institutionSlug);
     const isDb = await this.isDatabaseAvailable();
-    if (isDb) {
+    if (isDb && institution) {
       try {
         const rows = await prisma.dutySession.findMany({
           where: {
+            institutionId: institution.id,
             OR: [
               { userId },
               { userId: cleanId },
               { userId: `discord-${cleanId}` },
+              { user: { discordId: cleanId } },
             ],
-            institution: {
-              OR: [
-                { slug: institutionSlug },
-                { id: institutionSlug },
-              ],
-            },
           },
           include: { institution: true, user: true },
           orderBy: { startedAt: "desc" },
@@ -1495,6 +1572,13 @@ export class DataService {
    * Get all live members currently on duty for an institution (or all institutions)
    */
   static async getLiveOnDuty(institutionSlug?: string): Promise<DutySessionData[]> {
+    const cleanSlug = institutionSlug ? institutionSlug.replace("inst-", "").toLowerCase() : "all";
+    const now = Date.now();
+    const cached = this.liveSessionsCache.get(cleanSlug);
+    if (cached && now - cached.timestamp < 5000) {
+      return cached.data;
+    }
+
     const isDb = await this.isDatabaseAvailable();
     if (isDb) {
       try {
@@ -1517,8 +1601,7 @@ export class DataService {
           orderBy: { startedAt: "asc" },
         });
 
-        // DB query succeeded: this is the ground truth
-        return rows.map((r) => ({
+        const result: DutySessionData[] = rows.map((r) => ({
           id: r.id,
           userId: r.userId,
           userName: r.user.displayName || r.user.discordUsername,
@@ -1533,26 +1616,167 @@ export class DataService {
           notes: r.notes,
           createdAt: r.createdAt.toISOString(),
         }));
+        this.liveSessionsCache.set(cleanSlug, { data: result, timestamp: now });
+        return result;
       } catch (err) {
         console.warn("DB getLiveOnDuty error:", err);
       }
     }
 
     reloadPersistedSessions();
-    return memoryStore.dutySessions.filter((s) => {
+    const memoryResult = memoryStore.dutySessions.filter((s) => {
       const isLive = !s.endedAt && s.status === "ON_DUTY";
       if (!isLive) return false;
       return matchesInstitution(s, institutionSlug);
     });
+    this.liveSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: now });
+    return memoryResult;
   }
 
   // --- MEMBERSHIP & PERMISSIONS ---
+
+  /**
+   * Fast targeted lookup for a single user's membership in an institution.
+   * Avoids loading all members of the institution.
+   */
+  static async getUserMembership(
+    userId: string,
+    institutionSlug: string
+  ): Promise<MembershipData | null> {
+    const cleanId = userId.replace("discord-", "");
+    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+
+    // 1. Check membershipsCache if already loaded
+    const cached = this.membershipsCache.get(cleanSlug);
+    if (cached && Date.now() - cached.timestamp < 60000) {
+      const found = cached.data.find(
+        (m) =>
+          m.userId === userId ||
+          m.userId === cleanId ||
+          m.userId === `discord-${cleanId}` ||
+          m.user?.discordId === cleanId
+      );
+      if (found) return found;
+    }
+
+    const institution = await this.getInstitutionBySlug(institutionSlug);
+    if (!institution) return null;
+
+    const isDb = this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        const row = await prisma.membership.findFirst({
+          where: {
+            institutionId: institution.id,
+            OR: [
+              { userId },
+              { userId: cleanId },
+              { userId: `discord-${cleanId}` },
+              { user: { discordId: cleanId } },
+            ],
+          },
+          include: { user: true, position: true },
+        });
+
+        if (row) {
+          return {
+            id: row.id,
+            userId: row.userId,
+            institutionId: row.institutionId,
+            positionName: row.position?.name || "Officer",
+            permissionLevel: (row.position?.permissionLevel || "MEMBER") as PermissionLevel,
+            status: row.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
+            joinedAt: row.joinedAt.toISOString(),
+            user: {
+              id: row.user.id,
+              discordId: row.user.discordId,
+              discordUsername: row.user.discordUsername,
+              displayName: row.user.displayName || row.user.discordUsername,
+              discordAvatar: row.user.discordAvatar,
+            },
+          };
+        }
+      } catch (err) {
+        console.warn("DB getUserMembership error:", err);
+      }
+    }
+
+    const memoryMembers = memoryStore.memberships.filter(
+      (m) => m.institutionId === institution.id || m.institutionId === institutionSlug
+    );
+    return (
+      memoryMembers.find(
+        (m) =>
+          m.userId === userId ||
+          m.userId === cleanId ||
+          m.userId === `discord-${cleanId}` ||
+          m.user?.discordId === cleanId
+      ) || null
+    );
+  }
+
+  /**
+   * Fast query for all active memberships belonging to a single user across all institutions.
+   * Replaces looping verifyInstitutionAccess over all institutions.
+   */
+  static async getUserMemberships(
+    userId: string,
+    discordId?: string
+  ): Promise<MembershipData[]> {
+    const cleanId = (discordId || userId).replace("discord-", "");
+    const isDb = this.isDatabaseAvailable();
+    if (isDb) {
+      try {
+        const rows = await prisma.membership.findMany({
+          where: {
+            OR: [
+              { userId },
+              { userId: cleanId },
+              { userId: `discord-${cleanId}` },
+              { user: { discordId: cleanId } },
+            ],
+          },
+          include: { user: true, position: true, institution: true },
+        });
+
+        if (rows.length > 0) {
+          return rows.map((r) => ({
+            id: r.id,
+            userId: r.userId,
+            institutionId: r.institutionId,
+            institutionSlug: r.institution.slug,
+            positionName: r.position?.name || "Officer",
+            permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
+            status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
+            joinedAt: r.joinedAt.toISOString(),
+            user: {
+              id: r.user.id,
+              discordId: r.user.discordId,
+              discordUsername: r.user.discordUsername,
+              displayName: r.user.displayName || r.user.discordUsername,
+              discordAvatar: r.user.discordAvatar,
+            },
+          }));
+        }
+      } catch (err) {
+        console.warn("DB getUserMemberships error:", err);
+      }
+    }
+
+    return memoryStore.memberships.filter(
+      (m) =>
+        m.userId === userId ||
+        m.userId === cleanId ||
+        m.userId === `discord-${cleanId}` ||
+        m.user?.discordId === cleanId
+    );
+  }
 
   static async getMemberships(institutionSlug: string): Promise<MembershipData[]> {
     const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
     const now = Date.now();
     const cached = this.membershipsCache.get(cleanSlug);
-    if (cached && now - cached.timestamp < 30000) {
+    if (cached && now - cached.timestamp < 60000) {
       return cached.data;
     }
 
@@ -1959,48 +2183,77 @@ export class DataService {
     const memberships = await this.getMemberships(institutionSlug);
     const configs = this.getSalaryConfigs(institutionSlug);
 
-    // Compute payroll per member
-    const records: PayrollRecord[] = await Promise.all(
-      memberships.map(async (m) => {
-        const userSessions = await this.getUserDutySessions(m.userId, institutionSlug);
-        const totalDutySeconds = userSessions.reduce(
-          (acc, s) => acc + (s.durationSeconds || 0),
-          0
-        );
+    // Fetch ALL sessions for this institution in ONE single query (or from RAM cache)
+    const allInstitutionSessions = await this.getInstitutionDutySessions(institutionSlug);
 
-        const finalDutySeconds = totalDutySeconds;
-        const totalDutyHours = Number((finalDutySeconds / 3600).toFixed(1));
+    // Group sessions by userId and cleanId in memory in O(N)
+    const sessionsByUser = new Map<string, DutySessionData[]>();
+    for (const session of allInstitutionSessions) {
+      const uId = session.userId;
+      const cleanUId = uId.replace("discord-", "");
 
-        const posName = m.positionName || "Officer";
-        const posConfig = configs[posName] || {
-          hourlyRate: institution?.defaultHourlyRate || 50000,
-          minDutyHours: 15,
-        };
+      let list = sessionsByUser.get(uId);
+      if (!list) {
+        list = [];
+        sessionsByUser.set(uId, list);
+      }
+      list.push(session);
 
-        const totalSalary = Math.round(totalDutyHours * posConfig.hourlyRate);
-        const isEligible = totalDutyHours >= posConfig.minDutyHours;
+      if (cleanUId !== uId) {
+        let cleanList = sessionsByUser.get(cleanUId);
+        if (!cleanList) {
+          cleanList = [];
+          sessionsByUser.set(cleanUId, cleanList);
+        }
+        cleanList.push(session);
+      }
+    }
 
-        const payStatus = memoryStore.payrollStatuses[m.id] || { status: "PENDING" };
+    // Map memberships with 0 additional database queries!
+    const records: PayrollRecord[] = memberships.map((m) => {
+      const cleanId = m.userId.replace("discord-", "");
+      const userSessions =
+        sessionsByUser.get(m.userId) ||
+        (m.user?.discordId ? sessionsByUser.get(m.user.discordId) : null) ||
+        sessionsByUser.get(cleanId) ||
+        [];
 
-        return {
-          membershipId: m.id,
-          userId: m.userId,
-          memberName: m.user?.displayName || "Anggota",
-          discordId: m.user?.discordId || "",
-          userAvatar: m.user?.discordAvatar,
-          positionName: posName,
-          hourlyRate: posConfig.hourlyRate,
-          totalDutySeconds: finalDutySeconds,
-          totalDutyHours,
-          totalSalary,
-          minDutyHours: posConfig.minDutyHours,
-          isEligible,
-          status: payStatus.status,
-          paidAt: payStatus.paidAt,
-          paidByName: payStatus.paidByName,
-        };
-      })
-    );
+      const totalDutySeconds = userSessions.reduce(
+        (acc, s) => acc + (s.durationSeconds || 0),
+        0
+      );
+
+      const totalDutyHours = Number((totalDutySeconds / 3600).toFixed(1));
+
+      const posName = m.positionName || "Officer";
+      const posConfig = configs[posName] || {
+        hourlyRate: institution?.defaultHourlyRate || 50000,
+        minDutyHours: 15,
+      };
+
+      const totalSalary = Math.round(totalDutyHours * posConfig.hourlyRate);
+      const isEligible = totalDutyHours >= posConfig.minDutyHours;
+
+      const payStatus = memoryStore.payrollStatuses[m.id] || { status: "PENDING" };
+
+      return {
+        membershipId: m.id,
+        userId: m.userId,
+        memberName: m.user?.displayName || "Anggota",
+        discordId: m.user?.discordId || "",
+        userAvatar: m.user?.discordAvatar,
+        positionName: posName,
+        hourlyRate: posConfig.hourlyRate,
+        totalDutySeconds,
+        totalDutyHours,
+        totalSalary,
+        minDutyHours: posConfig.minDutyHours,
+        isEligible,
+        status: payStatus.status,
+        paidAt: payStatus.paidAt,
+        paidByName: payStatus.paidByName,
+      };
+    });
 
     return records;
   }
@@ -2034,7 +2287,8 @@ export class DataService {
 
   static async getUserEstimatedSalary(
     userId: string,
-    institutionSlug: string
+    institutionSlug: string,
+    existingSessions?: DutySessionData[]
   ): Promise<{
     hourlyRate: number;
     totalHours: number;
@@ -2045,16 +2299,13 @@ export class DataService {
   }> {
     const institution = await this.getInstitutionBySlug(institutionSlug);
     const configs = this.getSalaryConfigs(institutionSlug);
-    const sessions = await this.getUserDutySessions(userId, institutionSlug);
+    const sessions = existingSessions || (await this.getUserDutySessions(userId, institutionSlug));
 
     const totalSeconds = sessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
     const totalHours = Number((totalSeconds / 3600).toFixed(1));
 
-    // Get user position from actual membership
-    const memberships = await this.getMemberships(institutionSlug);
-    const userMem = memberships.find(
-      (m) => m.userId === userId || m.user?.discordId === userId.replace("discord-", "")
-    );
+    // Get user position from actual membership directly
+    const userMem = await this.getUserMembership(userId, institutionSlug);
     const posName = userMem?.positionName || "Officer";
 
     const posConfig = configs[posName] || {

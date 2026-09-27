@@ -39,11 +39,16 @@ export default async function DutyDashboardPage({
     } catch {}
   }
 
-  const [dbActiveSession, userSessions, userSalary] = await Promise.all([
+  const [dbActiveSession, userSessions] = await Promise.all([
     DataService.getActiveDutySession(currentUser.id),
     DataService.getUserDutySessions(currentUser.id, slug),
-    DataService.getUserEstimatedSalary(currentUser.id, slug),
   ]);
+
+  const userSalary = await DataService.getUserEstimatedSalary(
+    currentUser.id,
+    slug,
+    userSessions
+  );
 
   const activeSession = dbActiveSession || cookieActiveSession;
 

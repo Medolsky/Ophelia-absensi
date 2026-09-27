@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { SessionUser, PermissionLevel } from "@/types";
 import { DEMO_PERSONAS, DEFAULT_INSTITUTIONS } from "./constants";
 import { DataService } from "./data-service";
 
 const COOKIE_NAME = "ophelia_session";
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(COOKIE_NAME);
 
@@ -25,7 +26,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     }
     return DEMO_PERSONAS[0];
   }
-}
+});
 
 export async function setCurrentUser(user: SessionUser): Promise<void> {
   const cookieStore = await cookies();
@@ -46,8 +47,9 @@ export async function logoutUser(): Promise<void> {
 /**
  * Validate whether the user possesses the Discord role required for an institution.
  * Enforces PRD Section 6 & 29 (Server-side Discord Role Verification)
+ * Memoized per request using React cache() to avoid duplicate DB/cookie queries.
  */
-export async function verifyInstitutionAccess(
+export const verifyInstitutionAccess = cache(async function verifyInstitutionAccess(
   user: SessionUser,
   institutionSlug: string
 ): Promise<{ allowed: boolean; permissionLevel: PermissionLevel; reason?: string }> {
@@ -75,12 +77,9 @@ export async function verifyInstitutionAccess(
     return { allowed: true, permissionLevel: "SUPER_ADMIN" };
   }
 
-  // 3. Check active membership in DataService
+  // 3. Fast targeted check for user's membership in this institution
   try {
-    const memberships = await DataService.getMemberships(institutionSlug);
-    const userMembership = memberships.find(
-      (m) => m.userId === user.id || m.user?.discordId === user.discordId
-    );
+    const userMembership = await DataService.getUserMembership(user.id, institutionSlug);
 
     if (userMembership) {
       if (userMembership.status === "SUSPENDED") {
@@ -125,7 +124,7 @@ export async function verifyInstitutionAccess(
     }
   }
 
-  // 4. Check Discord roles against institution mapped roles
+  // 5. Check Discord roles against institution mapped roles
   const institution = DEFAULT_INSTITUTIONS.find((i) => i.slug === institutionSlug);
   if (!institution) {
     return { allowed: false, permissionLevel: "MEMBER", reason: "Instansi tidak valid." };
@@ -153,7 +152,7 @@ export async function verifyInstitutionAccess(
     };
   }
 
-  // 5. Determine Leader role
+  // 6. Determine Leader role
   const isLeader = userRoles.some((role) => {
     const norm = normalize(role);
     return (
@@ -172,4 +171,70 @@ export async function verifyInstitutionAccess(
     allowed: true,
     permissionLevel: isLeader ? "LEADER" : "MEMBER",
   };
-}
+});
+
+/**
+ * Fast batched query for all institutions a user is allowed to access.
+ * Eliminates looping verifyInstitutionAccess over all institutions.
+ */
+export const getAllowedInstitutions = cache(async function getAllowedInstitutions(
+  user: SessionUser
+): Promise<typeof DEFAULT_INSTITUTIONS> {
+  if (user.isSuperAdmin) {
+    return DEFAULT_INSTITUTIONS;
+  }
+
+  const userRoles = user.discordRoles || [];
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const hasAdminRole = userRoles.some((r) => {
+    const norm = normalize(r);
+    return norm === "admin" || norm === "pimpinan" || norm.includes("admin") || norm.includes("owner");
+  });
+
+  if (hasAdminRole) {
+    return DEFAULT_INSTITUTIONS;
+  }
+
+  // Single fast query for all memberships of this user
+  const userMemberships = await DataService.getUserMemberships(user.id, user.discordId);
+  const activeInstIdsOrSlugs = new Set(
+    userMemberships
+      .filter((m) => m.status === "ACTIVE")
+      .flatMap((m) => [m.institutionId, (m as any).institutionSlug].filter(Boolean))
+  );
+
+  return DEFAULT_INSTITUTIONS.filter((inst) => {
+    // 1. Direct active membership
+    if (activeInstIdsOrSlugs.has(inst.id) || activeInstIdsOrSlugs.has(inst.slug)) {
+      return true;
+    }
+
+    // 2. Demo Persona check (if enabled)
+    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
+      const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
+      if (demoPersona && demoPersona.institutionSlugs.includes(inst.slug)) {
+        return true;
+      }
+    }
+
+    // 3. Discord role matching
+    const requiredRoles = inst.discordRoleNames || [inst.name];
+    return userRoles.some((role) => {
+      const normRole = normalize(role);
+      return requiredRoles.some((req) => {
+        const normReq = normalize(req);
+        return (
+          normRole === normReq ||
+          normRole.includes(normReq) ||
+          normReq.includes(normRole)
+        );
+      });
+    });
+  });
+});
