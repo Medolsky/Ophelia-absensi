@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { CityStatusEntry } from "@/types";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import {
   MapPin,
   Search,
@@ -219,12 +220,16 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="relative shrink-0">
                     <img
-                      src={
-                        entry.avatar ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(entry.playerName)}&background=222&color=fff&size=96`
-                      }
+                      src={getDiscordAvatarUrl(entry.discordId, entry.avatar)}
                       alt={entry.displayName || entry.playerName}
                       className="h-12 w-12 rounded-xl object-cover border border-[#333]"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = getDiscordAvatarUrl(entry.discordId, null);
+                        if (target.src !== fallback) {
+                          target.src = fallback;
+                        }
+                      }}
                     />
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#141414] ${

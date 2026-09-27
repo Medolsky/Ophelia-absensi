@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DutySessionData } from "@/types";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { Radio, Clock, Shield, Search } from "lucide-react";
 
 interface LiveDutyListProps {
@@ -77,12 +78,19 @@ export function LiveDutyList({ initialSessions }: LiveDutyListProps) {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <img
-                    src={
-                      session.userAvatar ||
-                      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-                    }
+                    src={getDiscordAvatarUrl(
+                      session.userId?.replace("discord-", ""),
+                      session.userAvatar
+                    )}
                     alt={session.userName || "Officer"}
                     className="h-12 w-12 rounded-xl object-cover border border-[#333] shrink-0"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallback = getDiscordAvatarUrl(session.userId?.replace("discord-", ""), null);
+                      if (target.src !== fallback) {
+                        target.src = fallback;
+                      }
+                    }}
                   />
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-bold text-white group-hover:text-[#FF1E2D] transition-colors truncate">

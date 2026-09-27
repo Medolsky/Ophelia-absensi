@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { Shield, Sparkles, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
 import { DevSwitcher } from "@/components/dev-switcher";
 
@@ -135,7 +136,7 @@ export default async function HomePage({
                 <span className="text-neutral-500">Masuk sebagai:</span>
                 <div className="flex items-center gap-2 bg-[#141414] border border-[#252525] px-3 py-1.5 rounded-lg">
                   <img
-                    src={currentUser.discordAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"}
+                    src={getDiscordAvatarUrl(currentUser.discordId, currentUser.discordAvatar)}
                     alt={currentUser.displayName}
                     className="h-5 w-5 rounded-full object-cover"
                   />

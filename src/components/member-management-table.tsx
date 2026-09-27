@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MembershipData } from "@/types";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import {
   Users,
   Search,
@@ -307,17 +308,18 @@ export function MemberManagementTable({
                     <tr key={mem.id} className="hover:bg-[#161616] transition-colors">
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
-                          {mem.user?.discordAvatar ? (
-                            <img
-                              src={mem.user.discordAvatar}
-                              alt={mem.user?.displayName || "Member"}
-                              className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
-                            />
-                          ) : (
-                            <div className="h-9 w-9 rounded-xl bg-neutral-800 border border-[#333] flex items-center justify-center font-bold text-xs text-neutral-300 shrink-0">
-                              {(mem.user?.displayName || "U").slice(0, 2).toUpperCase()}
-                            </div>
-                          )}
+                          <img
+                            src={getDiscordAvatarUrl(mem.user?.discordId, mem.user?.discordAvatar)}
+                            alt={mem.user?.displayName || "Member"}
+                            className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              const fallback = getDiscordAvatarUrl(mem.user?.discordId, null);
+                              if (target.src !== fallback) {
+                                target.src = fallback;
+                              }
+                            }}
+                          />
                           <div className="min-w-0">
                             <div className="font-bold text-white truncate max-w-[160px] sm:max-w-[220px]">
                               {mem.user?.displayName || "Anggota"}
@@ -474,12 +476,28 @@ export function MemberManagementTable({
               <X className="h-4 w-4" />
             </button>
 
-            <h3 className="text-base font-bold text-white mb-1">
-              Edit Anggota: {editingMember.user?.displayName}
-            </h3>
-            <p className="text-xs text-neutral-400 mb-4 font-mono">
-              Discord ID: {editingMember.user?.discordId}
-            </p>
+            <div className="flex items-center gap-3 mb-4 pr-8">
+              <img
+                src={getDiscordAvatarUrl(editingMember.user?.discordId, editingMember.user?.discordAvatar)}
+                alt={editingMember.user?.displayName || "Member"}
+                className="h-10 w-10 rounded-xl object-cover border border-[#333] shrink-0"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallback = getDiscordAvatarUrl(editingMember.user?.discordId, null);
+                  if (target.src !== fallback) {
+                    target.src = fallback;
+                  }
+                }}
+              />
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white truncate">
+                  Edit Anggota: {editingMember.user?.displayName}
+                </h3>
+                <p className="text-xs text-neutral-400 font-mono truncate">
+                  Discord ID: {editingMember.user?.discordId}
+                </p>
+              </div>
+            </div>
 
             <form onSubmit={handleUpdateMember} className="space-y-4">
               <div>

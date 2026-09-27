@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { MembershipData } from "@/types";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 
 export async function GET(
   req: NextRequest,
@@ -64,6 +65,55 @@ export async function POST(
     }
 
     const isChief = /chief|director|petinggi|pimpinan|manager|head/i.test(positionName);
+
+    let displayName = `Anggota (${discordId.slice(-4)})`;
+    let discordUsername = `user_${discordId.slice(-4)}`;
+    let discordAvatar = getDiscordAvatarUrl(discordId, null);
+
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    const guildId = process.env.DISCORD_GUILD_ID;
+    if (botToken) {
+      try {
+        if (guildId) {
+          const gmRes = await fetch(
+            `https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`,
+            { headers: { Authorization: `Bot ${botToken}` } }
+          );
+          if (gmRes.ok) {
+            const gm = await gmRes.json();
+            displayName =
+              gm.nick ||
+              gm.user?.global_name ||
+              gm.user?.username ||
+              displayName;
+            discordUsername = gm.user?.username || discordUsername;
+            if (gm.avatar) {
+              discordAvatar = `https://cdn.discordapp.com/guilds/${guildId}/users/${discordId}/avatars/${gm.avatar}.png`;
+            } else if (gm.user?.avatar) {
+              discordAvatar = `https://cdn.discordapp.com/avatars/${discordId}/${gm.user.avatar}.png`;
+            }
+          }
+        }
+
+        if (!discordAvatar || discordAvatar.includes("/embed/avatars/")) {
+          const uRes = await fetch(
+            `https://discord.com/api/v10/users/${discordId}`,
+            { headers: { Authorization: `Bot ${botToken}` } }
+          );
+          if (uRes.ok) {
+            const u = await uRes.json();
+            discordUsername = u.username || discordUsername;
+            displayName = u.global_name || u.username || displayName;
+            if (u.avatar) {
+              discordAvatar = `https://cdn.discordapp.com/avatars/${discordId}/${u.avatar}.png`;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch Discord user info:", err);
+      }
+    }
+
     const newMember: MembershipData = {
       id: `mem-${slug}-${discordId}`,
       userId: `discord-${discordId}`,
@@ -75,9 +125,9 @@ export async function POST(
       user: {
         id: `discord-${discordId}`,
         discordId,
-        discordUsername: `user_${discordId.slice(-4)}`,
-        displayName: `Anggota (${discordId.slice(-4)})`,
-        discordAvatar: null,
+        discordUsername,
+        displayName,
+        discordAvatar,
       },
     };
 

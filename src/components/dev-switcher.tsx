@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DEMO_PERSONAS } from "@/lib/constants";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { switchUserPersonaAction } from "@/app/actions/auth-actions";
 import { UserCheck, ShieldAlert, ChevronDown, Check, Users } from "lucide-react";
 import { SessionUser } from "@/types";
@@ -79,9 +80,16 @@ export function DevSwitcher({ currentUser }: DevSwitcherProps) {
                   >
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={persona.discordAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"}
+                        src={getDiscordAvatarUrl(persona.discordId, persona.discordAvatar)}
                         alt={persona.displayName}
                         className="h-7 w-7 rounded-full object-cover border border-[#333]"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = getDiscordAvatarUrl(persona.discordId, null);
+                          if (target.src !== fallback) {
+                            target.src = fallback;
+                          }
+                        }}
                       />
                       <div>
                         <div className="text-xs font-semibold text-white flex items-center gap-1.5">

@@ -19,6 +19,33 @@ export interface MappedInstitutionRole {
 }
 
 /**
+ * Resolves a Discord avatar URL, falling back to Discord's official default avatar.
+ */
+export function getDiscordAvatarUrl(
+  discordId?: string | null,
+  avatarUrl?: string | null
+): string {
+  if (
+    avatarUrl &&
+    avatarUrl.trim().length > 0 &&
+    !avatarUrl.includes("unsplash.com") &&
+    !avatarUrl.includes("ui-avatars.com")
+  ) {
+    return avatarUrl;
+  }
+  if (!discordId) {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
+  }
+  try {
+    const cleanId = discordId.replace(/\D/g, "");
+    const defaultIndex = Number((BigInt(cleanId) >> BigInt(22)) % BigInt(6));
+    return `https://cdn.discordapp.com/embed/avatars/${Math.abs(defaultIndex)}.png`;
+  } catch {
+    return "https://cdn.discordapp.com/embed/avatars/0.png";
+  }
+}
+
+/**
  * Remove emojis, special bullets, and excessive spaces from role names.
  * Ensures zero-emoji compliance.
  */
@@ -262,7 +289,7 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
         ? `https://cdn.discordapp.com/guilds/${guildId}/users/${m.user.id}/avatars/${m.avatar}.png`
         : m.user.avatar
         ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
-        : null;
+        : getDiscordAvatarUrl(m.user.id, null);
 
       const rawDisplayName = m.nick || m.user.global_name || m.user.username;
       // Clean up emoji from display name if needed, or keep clean nickname

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SessionUser, InstitutionData, DutySessionData } from "@/types";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { DevSwitcher } from "./dev-switcher";
 import { logoutAction } from "@/app/actions/auth-actions";
 import { endDutyAction } from "@/app/actions/duty-actions";
@@ -157,9 +158,16 @@ export function Navbar({
             {/* User Profile & Logout */}
             <div className="flex items-center gap-2 pl-2 border-l border-[#252525]">
               <img
-                src={currentUser.discordAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"}
+                src={getDiscordAvatarUrl(currentUser.discordId, currentUser.discordAvatar)}
                 alt={currentUser.displayName}
                 className="h-8 w-8 rounded-full object-cover border border-[#333]"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallback = getDiscordAvatarUrl(currentUser.discordId, null);
+                  if (target.src !== fallback) {
+                    target.src = fallback;
+                  }
+                }}
               />
               <button
                 onClick={handleLogout}

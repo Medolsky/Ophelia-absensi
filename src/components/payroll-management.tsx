@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PayrollRecord } from "@/types";
+import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { updatePositionSalaryAction, togglePayrollStatusAction } from "@/app/actions/payroll-actions";
 import {
   Banknote,
@@ -309,12 +310,16 @@ export function PayrollManagement({
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
                           <img
-                            src={
-                              record.userAvatar ||
-                              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
-                            }
+                            src={getDiscordAvatarUrl(record.discordId, record.userAvatar)}
                             alt={record.memberName}
                             className="h-8 w-8 rounded-xl object-cover border border-[#333] shrink-0"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              const fallback = getDiscordAvatarUrl(record.discordId, null);
+                              if (target.src !== fallback) {
+                                target.src = fallback;
+                              }
+                            }}
                           />
                           <div className="min-w-0">
                             <div className="font-bold text-white truncate max-w-[160px] sm:max-w-[200px]">

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS, DEFAULT_POSITION_SALARIES } from "./constants";
-import { fetchDiscordGuildMembers, mapDiscordRolesToInstitutions } from "./discord-sync";
+import { fetchDiscordGuildMembers, mapDiscordRolesToInstitutions, getDiscordAvatarUrl } from "./discord-sync";
 import {
   DutySessionData,
   InstitutionData,
@@ -42,7 +42,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "1379103020490555433",
       discordUsername: "ajiboyy00",
       displayName: "OFFICER - Atong",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/1379103020490555433/bae8bfb17bb812fb21dff07b2141e273.png",
     },
   },
   {
@@ -138,7 +138,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "983237484236374057",
       discordUsername: "athaa00",
       displayName: "ORP | Nasaa",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/983237484236374057/74ba611fe6b8ba7c10b747ae721ac8aa.png",
     },
   },
   {
@@ -188,7 +188,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "1515016912030138433",
       discordUsername: "angllvvxx",
       displayName: "EMS - Angela Lee",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/1515016912030138433/77686f0158e57b004671dae529cddedd.png",
     },
   },
   {
@@ -204,7 +204,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "1130847993214537759",
       discordUsername: "bangblackdragon",
       displayName: "AdingUki",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/1130847993214537759/1bfaae4d16f5408a0fca20dfdbf2b6bf.png",
     },
   },
   {
@@ -220,7 +220,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "1322937860717936766",
       discordUsername: "aditya_wijaya25",
       displayName: "Aditya Wijaya",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/1322937860717936766/add0f21040ee83976a33853aa37757e5.png",
     },
   },
   {
@@ -350,7 +350,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "682808386349432902",
       discordUsername: "mercifulmariner",
       displayName: "Axton Gareth",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/682808386349432902/946e602c0b23a837154371c8155e6974.png",
     },
   },
   {
@@ -366,7 +366,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "1342015505170432053",
       discordUsername: "ataazahwa_29372",
       displayName: "Ata Zahwa",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/1342015505170432053/660be92c49a2170a19774fee4b996080.png",
     },
   },
   {
@@ -382,7 +382,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "461152817093148683",
       discordUsername: "bigguydelucas",
       displayName: "Bigguy",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/461152817093148683/cb09b64cf63e86b8c3f46ed2c3449c23.png",
     },
   },
   {
@@ -512,7 +512,7 @@ const initialMemberships: MembershipData[] = [
       discordId: "944299382398939146",
       discordUsername: "afrizall9682",
       displayName: "JASON2",
-      discordAvatar: null,
+      discordAvatar: "https://cdn.discordapp.com/avatars/944299382398939146/f18c94d15c26076a27e9d635450f9d7b.png",
     },
   },
   {
@@ -1036,7 +1036,7 @@ export class DataService {
               discordId: dm.discordId,
               discordUsername: dm.username,
               displayName: dm.displayName,
-              discordAvatar: dm.avatarUrl,
+              discordAvatar: getDiscordAvatarUrl(dm.discordId, dm.avatarUrl),
             },
           };
 
@@ -1104,7 +1104,7 @@ export class DataService {
             discordId: sessionUser.discordId,
             discordUsername: sessionUser.discordUsername,
             displayName: sessionUser.displayName,
-            discordAvatar: sessionUser.discordAvatar,
+            discordAvatar: getDiscordAvatarUrl(sessionUser.discordId, sessionUser.discordAvatar),
           },
         };
 
