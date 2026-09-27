@@ -797,33 +797,35 @@ function matchesInstitution(
 
 export class DataService {
   /**
-   * Check if Postgres is reachable via Prisma
+   * Check if Postgres connection is configured
    */
-  private static async isDatabaseAvailable(): Promise<boolean> {
-    try {
-      if (!process.env.DATABASE_URL && (process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL)) {
-        process.env.DATABASE_URL = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
-      }
-      if (!process.env.DATABASE_URL) return false;
-      // Fast check
-      await prisma.$queryRaw`SELECT 1`;
-      return true;
-    } catch {
-      return false;
-    }
+  private static isDatabaseAvailable(): boolean {
+    return !!(
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL
+    );
   }
+
+  private static institutionsCache: { data: InstitutionData[]; timestamp: number } | null = null;
+  private static membershipsCache = new Map<string, { data: MembershipData[]; timestamp: number }>();
 
   // --- INSTITUTIONS ---
 
   static async getInstitutions(): Promise<InstitutionData[]> {
-    const isDb = await this.isDatabaseAvailable();
+    const now = Date.now();
+    if (this.institutionsCache && now - this.institutionsCache.timestamp < 60000) {
+      return this.institutionsCache.data;
+    }
+
+    const isDb = this.isDatabaseAvailable();
     if (isDb) {
       try {
         const rows = await prisma.institution.findMany({
           orderBy: { name: "asc" },
           include: { discordRoles: true },
         });
-        return rows.map((r) => ({
+        const result = rows.map((r) => ({
           id: r.id,
           name: r.name,
           slug: r.slug,
@@ -833,6 +835,8 @@ export class DataService {
           status: r.status as "ACTIVE" | "INACTIVE",
           discordRoleNames: r.discordRoles.map((dr) => dr.name),
         }));
+        this.institutionsCache = { data: result, timestamp: now };
+        return result;
       } catch (err) {
         console.warn("DB query failed, fallback to memory:", err);
       }
@@ -893,6 +897,7 @@ export class DataService {
     } else {
       memoryStore.institutions.push(newInst);
     }
+    this.institutionsCache = null;
     return newInst;
   }
 
@@ -900,7 +905,7 @@ export class DataService {
     id: string,
     updates: Partial<InstitutionData>
   ): Promise<InstitutionData | null> {
-    const isDb = await this.isDatabaseAvailable();
+    const isDb = this.isDatabaseAvailable();
     if (isDb) {
       try {
         await prisma.institution.update({
@@ -925,11 +930,12 @@ export class DataService {
       ...memoryStore.institutions[idx],
       ...updates,
     };
+    this.institutionsCache = null;
     return memoryStore.institutions[idx];
   }
 
   static async deleteInstitution(id: string): Promise<boolean> {
-    const isDb = await this.isDatabaseAvailable();
+    const isDb = this.isDatabaseAvailable();
     if (isDb) {
       try {
         await prisma.institution.delete({ where: { id } });
@@ -941,6 +947,7 @@ export class DataService {
     const idx = memoryStore.institutions.findIndex((i) => i.id === id || i.slug === id);
     if (idx !== -1) {
       memoryStore.institutions.splice(idx, 1);
+      this.institutionsCache = null;
       return true;
     }
     return false;
@@ -1542,10 +1549,17 @@ export class DataService {
   // --- MEMBERSHIP & PERMISSIONS ---
 
   static async getMemberships(institutionSlug: string): Promise<MembershipData[]> {
+    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+    const now = Date.now();
+    const cached = this.membershipsCache.get(cleanSlug);
+    if (cached && now - cached.timestamp < 30000) {
+      return cached.data;
+    }
+
     const institution = await this.getInstitutionBySlug(institutionSlug);
     if (!institution) return [];
 
-    const isDb = await this.isDatabaseAvailable();
+    const isDb = this.isDatabaseAvailable();
     if (isDb) {
       try {
         const rows = await prisma.membership.findMany({
@@ -1554,7 +1568,7 @@ export class DataService {
           orderBy: { joinedAt: "asc" },
         });
         if (rows.length > 0) {
-          return rows.map((r) => ({
+          const result = rows.map((r) => ({
             id: r.id,
             userId: r.userId,
             institutionId: r.institutionId,
@@ -1570,6 +1584,8 @@ export class DataService {
               discordAvatar: r.user.discordAvatar,
             },
           }));
+          this.membershipsCache.set(cleanSlug, { data: result, timestamp: now });
+          return result;
         }
       } catch (err) {
         console.warn("DB getMemberships fallback to memory:", err);
@@ -1579,7 +1595,7 @@ export class DataService {
     const memoryMembers = memoryStore.memberships.filter(
       (m) => m.institutionId === institution.id || m.institutionId === institutionSlug
     );
-
+    this.membershipsCache.set(cleanSlug, { data: memoryMembers, timestamp: now });
     return memoryMembers;
   }
 

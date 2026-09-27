@@ -147,7 +147,10 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
 
   useEffect(() => {
     fetchCityStatus();
-    const interval = setInterval(fetchCityStatus, 5000);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchCityStatus();
+    }, 8000);
     return () => clearInterval(interval);
   }, [fetchCityStatus]);
 

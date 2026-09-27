@@ -1,10 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 
 // Support Vercel Postgres / Neon auto-injected environment variable names
-if (!process.env.DATABASE_URL) {
+// Prefer connection pooler URL (10x faster connection establishment in serverless)
+if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.includes("-pooler")) {
   process.env.DATABASE_URL =
     process.env.POSTGRES_PRISMA_URL ||
     process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
     process.env.POSTGRES_URL_NON_POOLING;
 }
 
@@ -15,7 +17,8 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    log: ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Always reuse Prisma instance on globalThis across warm serverless requests
+globalForPrisma.prisma = prisma;

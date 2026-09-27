@@ -17,15 +17,15 @@ if (!globalFiveM.__fivem_players) {
 const playerStore = globalFiveM.__fivem_players;
 
 export class FiveMBridge {
-  private static async isDatabaseAvailable(): Promise<boolean> {
-    try {
-      if (!process.env.DATABASE_URL) return false;
-      await prisma.$queryRaw`SELECT 1`;
-      return true;
-    } catch {
-      return false;
-    }
+  private static isDatabaseAvailable(): boolean {
+    return !!(
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL
+    );
   }
+
+  private static cityStatusCache = new Map<string, { data: CityStatusEntry[]; timestamp: number }>();
 
   /**
    * Sync full player list pushed from FiveM server.
@@ -149,6 +149,13 @@ export class FiveMBridge {
    * to produce the full "city status" view.
    */
   static async getCityStatus(institutionSlug?: string): Promise<CityStatusEntry[]> {
+    const cacheKey = institutionSlug || "all";
+    const now = Date.now();
+    const cached = this.cityStatusCache.get(cacheKey);
+    if (cached && now - cached.timestamp < 3000) {
+      return cached.data;
+    }
+
     const onlinePlayers = await this.getOnlinePlayers();
     const onDutySessions = await DataService.getLiveOnDuty();
 
@@ -313,10 +320,11 @@ export class FiveMBridge {
 
     const entries = Array.from(entriesMap.values());
 
+    let result = entries;
     // Filter by institution if requested
     if (institutionSlug && institutionSlug !== "all") {
       const cleanTarget = institutionSlug.replace("inst-", "").toLowerCase();
-      return entries.filter(
+      result = entries.filter(
         (e) =>
           e.dutyInstitutionSlug?.replace("inst-", "").toLowerCase() === cleanTarget ||
           e.memberInstitutions.some(
@@ -325,7 +333,8 @@ export class FiveMBridge {
       );
     }
 
-    return entries;
+    this.cityStatusCache.set(cacheKey, { data: result, timestamp: now });
+    return result;
   }
 
   /**

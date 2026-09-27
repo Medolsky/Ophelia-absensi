@@ -69,6 +69,7 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
   useEffect(() => {
     if (!institutionSlug) return;
     const fetchLive = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
       try {
         const res = await fetch(`/api/integrations/status?view=onduty&institution=${institutionSlug}`);
         const data = await res.json();
@@ -78,7 +79,7 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
       } catch {}
     };
 
-    const pollInterval = setInterval(fetchLive, 4000);
+    const pollInterval = setInterval(fetchLive, 8000);
     return () => clearInterval(pollInterval);
   }, [institutionSlug]);
 
