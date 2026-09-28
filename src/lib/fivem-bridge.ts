@@ -172,7 +172,7 @@ export class FiveMBridge {
     // We need memberships to know which institutions each player belongs to.
     // The memberships store references users by userId, but FiveM gives us discordId.
     // Cross-reference through the membership user objects.
-    const allInstitutionSlugs = ["police", "medical", "mechanic", "restaurant"];
+    const allInstitutionSlugs = ["police", "medical", "mechanic", "restaurant", "pemerintah"];
     const allMemberships = (
       await Promise.all(allInstitutionSlugs.map((s) => DataService.getMemberships(s)))
     ).flat();

@@ -821,6 +821,7 @@ export class DataService {
       const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
       this.institutionSessionsCache.delete(cleanSlug);
       this.liveSessionsCache.delete(cleanSlug);
+      this.liveSessionsCache.delete("all");
     } else {
       this.institutionSessionsCache.clear();
       this.liveSessionsCache.clear();
@@ -849,6 +850,43 @@ export class DataService {
 
   static invalidateInstitutionsCache() {
     this.institutionsCache = null;
+  }
+
+  private static lastGuildSyncTime = new Map<string, number>();
+  private static guildSyncInFlight = new Map<string, Promise<any>>();
+
+  /**
+   * Auto-sync Discord members for an institution if last sync was more than 45 seconds ago.
+   * Debounced to ensure automatic real-time sync when roles are updated in Discord.
+   */
+  static async autoSyncDiscordMembersIfNeeded(institutionSlug?: string): Promise<void> {
+    const slug = institutionSlug ? institutionSlug.replace("inst-", "").toLowerCase() : "all";
+    const now = Date.now();
+    const lastSync = this.lastGuildSyncTime.get(slug) || 0;
+
+    // Throttle to 45 seconds to avoid unnecessary API requests
+    if (now - lastSync < 45000) {
+      return;
+    }
+
+    const inFlight = this.guildSyncInFlight.get(slug);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const syncPromise = (async () => {
+      try {
+        await this.syncDiscordMembers(institutionSlug);
+        this.lastGuildSyncTime.set(slug, Date.now());
+      } catch (err) {
+        console.warn(`autoSyncDiscordMembersIfNeeded error for ${slug}:`, err);
+      } finally {
+        this.guildSyncInFlight.delete(slug);
+      }
+    })();
+
+    this.guildSyncInFlight.set(slug, syncPromise);
+    return syncPromise;
   }
 
   // --- INSTITUTIONS ---
@@ -1452,7 +1490,7 @@ export class DataService {
     const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
     const now = Date.now();
     const cached = this.institutionSessionsCache.get(cleanSlug);
-    if (cached && now - cached.timestamp < 10000) {
+    if (cached && now - cached.timestamp < 30000) {
       return cached.data;
     }
 
@@ -1460,20 +1498,49 @@ export class DataService {
     const isDb = await this.isDatabaseAvailable();
     if (isDb && institution) {
       try {
-        const rows = await prisma.dutySession.findMany({
-          where: {
-            institutionId: institution.id,
-          },
-          include: { institution: true, user: true },
-          orderBy: { startedAt: "desc" },
-        });
+        const [rows, members] = await Promise.all([
+          prisma.dutySession.findMany({
+            where: {
+              OR: [
+                { institutionId: institution.id },
+                { institutionId: institution.slug },
+                { institutionId: `inst-${cleanSlug}` },
+              ],
+            },
+            include: { institution: true, user: true },
+            orderBy: { startedAt: "desc" },
+          }),
+          this.getMemberships(institutionSlug),
+        ]);
 
-        if (rows.length > 0) {
-          const result: DutySessionData[] = rows.map((r) => ({
+        const posMap = new Map<string, string>();
+        for (const m of members) {
+          if (m.positionName) {
+            posMap.set(m.userId, m.positionName);
+            posMap.set(m.userId.replace("discord-", ""), m.positionName);
+            if (m.user?.discordId) posMap.set(m.user.discordId, m.positionName);
+          }
+        }
+
+        const defaultPos = cleanSlug.includes("med")
+          ? "Medis"
+          : cleanSlug.includes("mech") || cleanSlug.includes("bengkel")
+          ? "Mekanik"
+          : cleanSlug.includes("resto")
+          ? "Server Resto"
+          : cleanSlug.includes("pemerintah")
+          ? "Staff Sipil"
+          : "Officer";
+
+        const result: DutySessionData[] = rows.map((r) => {
+          const cleanUId = r.userId.replace("discord-", "");
+          const pos = posMap.get(r.userId) || posMap.get(cleanUId) || posMap.get(r.user.discordId) || defaultPos;
+          return {
             id: r.id,
             userId: r.userId,
             userName: r.user.displayName || r.user.discordUsername,
             userAvatar: r.user.discordAvatar,
+            positionName: pos,
             institutionId: r.institutionId,
             institutionSlug: r.institution.slug,
             institutionName: r.institution.name,
@@ -1483,10 +1550,11 @@ export class DataService {
             status: r.status as DutySessionData["status"],
             notes: r.notes,
             createdAt: r.createdAt.toISOString(),
-          }));
-          this.institutionSessionsCache.set(cleanSlug, { data: result, timestamp: now });
-          return result;
-        }
+          };
+        });
+
+        this.institutionSessionsCache.set(cleanSlug, { data: result, timestamp: now });
+        return result;
       } catch (err) {
         console.warn("DB getInstitutionDutySessions error:", err);
       }
@@ -1588,12 +1656,14 @@ export class DataService {
           where: {
             endedAt: null,
             status: "ON_DUTY",
-            ...(institutionSlug
+            ...(institutionSlug && institutionSlug !== "all"
               ? {
                   institution: {
                     OR: [
+                      { slug: cleanSlug },
                       { slug: institutionSlug },
                       { id: institutionSlug },
+                      { id: `inst-${cleanSlug}` },
                     ],
                   },
                 }
@@ -1603,21 +1673,54 @@ export class DataService {
           orderBy: { startedAt: "asc" },
         });
 
-        const result: DutySessionData[] = rows.map((r) => ({
-          id: r.id,
-          userId: r.userId,
-          userName: r.user.displayName || r.user.discordUsername,
-          userAvatar: r.user.discordAvatar,
-          institutionId: r.institutionId,
-          institutionSlug: r.institution.slug,
-          institutionName: r.institution.name,
-          startedAt: r.startedAt.toISOString(),
-          endedAt: null,
-          durationSeconds: 0,
-          status: "ON_DUTY",
-          notes: r.notes,
-          createdAt: r.createdAt.toISOString(),
-        }));
+        // Resolve position names from cached memberships
+        const posMap = new Map<string, string>();
+        if (institutionSlug && institutionSlug !== "all") {
+          const members = await this.getMemberships(cleanSlug);
+          for (const m of members) {
+            if (m.positionName) {
+              posMap.set(m.userId, m.positionName);
+              posMap.set(m.userId.replace("discord-", ""), m.positionName);
+              if (m.user?.discordId) posMap.set(m.user.discordId, m.positionName);
+            }
+          }
+        }
+
+        const defaultPos = cleanSlug.includes("med")
+          ? "Medis"
+          : cleanSlug.includes("mech") || cleanSlug.includes("bengkel")
+          ? "Mekanik"
+          : cleanSlug.includes("resto")
+          ? "Server Resto"
+          : cleanSlug.includes("pemerintah")
+          ? "Staff Sipil"
+          : "Officer";
+
+        const result: DutySessionData[] = rows.map((r) => {
+          const cleanUId = r.userId.replace("discord-", "");
+          const pos =
+            posMap.get(r.userId) ||
+            posMap.get(cleanUId) ||
+            posMap.get(r.user.discordId) ||
+            defaultPos;
+
+          return {
+            id: r.id,
+            userId: r.userId,
+            userName: r.user.displayName || r.user.discordUsername,
+            userAvatar: r.user.discordAvatar,
+            positionName: pos,
+            institutionId: r.institutionId,
+            institutionSlug: r.institution.slug,
+            institutionName: r.institution.name,
+            startedAt: r.startedAt.toISOString(),
+            endedAt: null,
+            durationSeconds: 0,
+            status: "ON_DUTY",
+            notes: r.notes,
+            createdAt: r.createdAt.toISOString(),
+          };
+        });
         this.liveSessionsCache.set(cleanSlug, { data: result, timestamp: now });
         return result;
       } catch (err) {
@@ -1788,7 +1891,13 @@ export class DataService {
     if (isDb) {
       try {
         const rows = await prisma.membership.findMany({
-          where: { institutionId: institution.id },
+          where: {
+            OR: [
+              { institutionId: institution.id },
+              { institutionId: institution.slug },
+              { institutionId: `inst-${cleanSlug}` },
+            ],
+          },
           include: { user: true, position: true },
           orderBy: { joinedAt: "asc" },
         });

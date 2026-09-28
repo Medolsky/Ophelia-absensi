@@ -337,47 +337,60 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
     // 1. Fetch guild roles map
     const roleMap = await getGuildRoleMap();
 
-    // 2. Discover members via search with rate-limiting backoff and throttling
+    // 2. Discover members via fast chunked parallel search
     const allFound = new Map<string, any>();
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789_-. !?@#$%^&*()+=~".split("");
-    const searchTerms = [...chars, "pol", "ems", "med", "beng", "rest", "orp", "adm", "mek"];
+    const searchTerms = [
+      "a", "e", "i", "o", "u",
+      "s", "r", "n", "t", "m",
+      "k", "l", "d", "b", "p",
+      "g", "h", "j", "f", "c",
+      "w", "v", "z", "y", "q", "x",
+      "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+      "pol", "med", "orp", "mek", "res", "pem"
+    ];
 
-    for (const term of searchTerms) {
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          const s = await fetch(
-            `https://discord.com/api/v10/guilds/${guildId}/members/search?query=${encodeURIComponent(
-              term
-            )}&limit=100`,
-            {
-              headers: { Authorization: `Bot ${botToken}` },
-              cache: "no-store",
-            }
-          );
-          if (s.status === 429) {
-            const body = await s.json().catch(() => ({}));
-            const retryAfter = (body.retry_after || 1) * 1000 + 200;
-            await new Promise((r) => setTimeout(r, retryAfter));
-            retries--;
-            continue;
-          }
-          if (s.ok) {
-            const list: any[] = await s.json();
-            for (const m of list) {
-              if (m.user && !m.user.bot) {
-                allFound.set(m.user.id, m);
+    // Concurrently process in chunks of 6 to respect rate limits while maintaining ultra-fast execution (~2s)
+    for (let i = 0; i < searchTerms.length; i += 6) {
+      const chunk = searchTerms.slice(i, i + 6);
+      await Promise.all(
+        chunk.map(async (term) => {
+          let retries = 2;
+          while (retries > 0) {
+            try {
+              const s = await fetch(
+                `https://discord.com/api/v10/guilds/${guildId}/members/search?query=${encodeURIComponent(
+                  term
+                )}&limit=100`,
+                {
+                  headers: { Authorization: `Bot ${botToken}` },
+                  cache: "no-store",
+                }
+              );
+              if (s.status === 429) {
+                const body = await s.json().catch(() => ({}));
+                const retryAfter = (body.retry_after || 0.5) * 1000 + 100;
+                await new Promise((r) => setTimeout(r, retryAfter));
+                retries--;
+                continue;
               }
+              if (s.ok) {
+                const list: any[] = await s.json();
+                for (const m of list) {
+                  if (m.user && !m.user.bot) {
+                    allFound.set(m.user.id, m);
+                  }
+                }
+              }
+              break;
+            } catch (err) {
+              console.warn(`Search error for term '${term}':`, err);
+              break;
             }
           }
-          break;
-        } catch (err) {
-          console.warn(`Search error for term '${term}':`, err);
-          break;
-        }
-      }
-      // Small throttle to stay well below Discord rate limits
-      await new Promise((r) => setTimeout(r, 60));
+        })
+      );
+      // Ultra-short 25ms pause between batches
+      await new Promise((r) => setTimeout(r, 25));
     }
 
     // Convert to DiscordMemberInfo

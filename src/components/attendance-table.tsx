@@ -4,7 +4,19 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DutySessionData, PermissionLevel } from "@/types";
 import { AttendanceEditModal } from "./attendance-edit-modal";
-import { Search, Filter, Calendar, Edit2, Clock, CheckCircle2, User, Users } from "lucide-react";
+import {
+  Search,
+  Calendar,
+  Edit2,
+  Clock,
+  User,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
+} from "lucide-react";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 
 interface AttendanceTableProps {
@@ -29,10 +41,19 @@ export function AttendanceTable({
   const [endDate, setEndDate] = useState<string>("");
   const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+
   // Sync if parent updates
   useEffect(() => {
     setSessionsList(sessions);
   }, [sessions]);
+
+  // Reset to page 1 whenever any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode, searchTerm, statusFilter, startDate, endDate, pageSize]);
 
   const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN";
 
@@ -49,8 +70,8 @@ export function AttendanceTable({
       }
 
       // Search by notes, date, officer name, or position
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase().trim();
         const matchesNote = s.notes?.toLowerCase().includes(term);
         const matchesDate = s.startedAt.includes(term);
         const matchesName = s.userName?.toLowerCase().includes(term);
@@ -63,7 +84,7 @@ export function AttendanceTable({
         return false;
       }
 
-      // Date range filter (PRD section 15)
+      // Date range filter
       const sessionDateStr = s.startedAt.slice(0, 10);
       if (startDate && sessionDateStr < startDate) return false;
       if (endDate && sessionDateStr > endDate) return false;
@@ -73,8 +94,17 @@ export function AttendanceTable({
   }, [sessionsList, viewMode, currentUserId, searchTerm, statusFilter, startDate, endDate]);
 
   const totalFilteredSeconds = useMemo(() => {
-    return filteredSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
+    return filteredSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
   }, [filteredSessions]);
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredSessions.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedSessions = useMemo(() => {
+    const startIndex = (safePage - 1) * pageSize;
+    return filteredSessions.slice(startIndex, startIndex + pageSize);
+  }, [filteredSessions, safePage, pageSize]);
 
   const formatHoursMinutes = (secs: number) => {
     if (!secs || secs <= 0) return "0s";
@@ -93,7 +123,7 @@ export function AttendanceTable({
   return (
     <div className="space-y-4">
       {/* View Mode Tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setViewMode("ALL")}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
@@ -122,21 +152,32 @@ export function AttendanceTable({
       <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           {/* Search Input */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
             <input
               type="text"
               placeholder="Cari nama petugas, pangkat, catatan tugas, atau tanggal..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white pl-9 pr-3 py-2.5 rounded-xl outline-none"
+              className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white pl-9 pr-3 py-2.5 rounded-xl outline-none transition-colors"
             />
           </div>
 
-          {/* Date Range Filters (PRD Section 15) */}
+          {/* Status & Date Range Filters */}
           <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-[#080808] border border-[#252525] text-xs text-neutral-300 px-3 py-2 rounded-xl outline-none"
+            >
+              <option value="ALL">Semua Status</option>
+              <option value="ON_DUTY">ON DUTY</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="CORRECTED">CORRECTED</option>
+            </select>
+
             <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1 rounded-xl">
-              <span className="text-[10px] text-neutral-500 font-bold uppercase">FROM:</span>
+              <span className="text-[10px] text-neutral-500 font-bold uppercase">DARI:</span>
               <input
                 type="date"
                 value={startDate}
@@ -146,7 +187,7 @@ export function AttendanceTable({
             </div>
 
             <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1 rounded-xl">
-              <span className="text-[10px] text-neutral-500 font-bold uppercase">TO:</span>
+              <span className="text-[10px] text-neutral-500 font-bold uppercase">SAMPAI:</span>
               <input
                 type="date"
                 value={endDate}
@@ -163,7 +204,7 @@ export function AttendanceTable({
                   setSearchTerm("");
                   setStatusFilter("ALL");
                 }}
-                className="text-xs text-neutral-400 hover:text-white px-2.5 py-2 rounded-lg border border-[#252525] hover:bg-[#1f1f1f] transition"
+                className="text-xs text-neutral-400 hover:text-white px-2.5 py-2 rounded-lg border border-[#252525] hover:bg-[#1f1f1f] transition cursor-pointer"
               >
                 Reset
               </button>
@@ -172,7 +213,7 @@ export function AttendanceTable({
         </div>
 
         {/* Filter Summary Stats */}
-        <div className="mt-3 pt-3 border-t border-[#1c1c1c] flex flex-wrap items-center justify-between text-xs text-neutral-400">
+        <div className="mt-3 pt-3 border-t border-[#1c1c1c] flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
           <div>
             Menampilkan <span className="text-white font-bold">{filteredSessions.length}</span> sesi {viewMode === "MINE" ? "(Absensi Saya)" : "(Semua Anggota)"}
           </div>
@@ -185,10 +226,10 @@ export function AttendanceTable({
         </div>
       </div>
 
-      {/* Sessions Table (PRD Section 10) */}
+      {/* Sessions Table with Horizontal Scroll Guard */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[700px] text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3.5 px-4 whitespace-nowrap">Petugas</th>
@@ -202,7 +243,7 @@ export function AttendanceTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
-              {filteredSessions.length === 0 ? (
+              {paginatedSessions.length === 0 ? (
                 <tr>
                   <td colSpan={canEdit ? 8 : 7} className="py-12 text-center text-neutral-500">
                     <Clock className="h-8 w-8 mx-auto text-neutral-600 mb-2" />
@@ -210,7 +251,7 @@ export function AttendanceTable({
                   </td>
                 </tr>
               ) : (
-                filteredSessions.map((session) => {
+                paginatedSessions.map((session) => {
                   const startDateObj = new Date(session.startedAt);
                   const isLive = !session.endedAt && session.status === "ON_DUTY";
 
@@ -295,7 +336,7 @@ export function AttendanceTable({
                           <button
                             type="button"
                             onClick={() => setSelectedSessionToEdit(session)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#2c2c2c] transition"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#2c2c2c] transition cursor-pointer"
                           >
                             <Edit2 className="h-3 w-3" />
                             <span>Koreksi</span>
@@ -309,6 +350,76 @@ export function AttendanceTable({
             </tbody>
           </table>
         </div>
+
+        {/* Agency-Grade Pagination Bar */}
+        {filteredSessions.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 bg-[#141414] border-t border-[#222] text-xs">
+            <div className="flex items-center gap-2 text-neutral-400">
+              <span>Baris per halaman:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-[#0c0c0c] border border-[#2a2a2a] text-white px-2 py-1 rounded-lg text-xs outline-none cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-neutral-500 hidden sm:inline">|</span>
+              <span className="text-neutral-400">
+                Menampilkan <span className="text-white font-medium">{(safePage - 1) * pageSize + 1}</span>–
+                <span className="text-white font-medium">{Math.min(safePage * pageSize, filteredSessions.length)}</span> dari{" "}
+                <span className="text-white font-medium">{filteredSessions.length}</span> sesi
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage <= 1}
+                className="p-1.5 rounded-lg border border-[#2a2a2a] text-neutral-400 hover:text-white hover:bg-[#202020] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                title="Halaman Pertama"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                className="p-1.5 rounded-lg border border-[#2a2a2a] text-neutral-400 hover:text-white hover:bg-[#202020] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                title="Halaman Sebelumnya"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              <span className="px-3 py-1 text-xs font-mono font-bold text-white bg-[#0c0c0c] border border-[#2a2a2a] rounded-lg">
+                {safePage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                className="p-1.5 rounded-lg border border-[#2a2a2a] text-neutral-400 hover:text-white hover:bg-[#202020] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                title="Halaman Berikutnya"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safePage >= totalPages}
+                className="p-1.5 rounded-lg border border-[#2a2a2a] text-neutral-400 hover:text-white hover:bg-[#202020] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                title="Halaman Terakhir"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Attendance Edit Modal for Leaders */}

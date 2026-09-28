@@ -20,16 +20,19 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
   try {
     let parsed = JSON.parse(sessionCookie.value) as SessionUser;
 
-    // Auto-sync Discord user roles if missing or periodically
+    // Fast path: if roles are already present in session cookie, return immediately (0ms)
+    // Only fetch live from Discord if roles are completely missing
     if (parsed.discordId && !parsed.discordId.startsWith("demo-")) {
       const isMissingRoles = !parsed.discordRoles || parsed.discordRoles.length === 0;
-      try {
-        const freshUser = await DataService.syncDiscordUser(parsed.discordId, isMissingRoles);
-        if (freshUser) {
-          parsed = freshUser;
+      if (isMissingRoles) {
+        try {
+          const freshUser = await DataService.syncDiscordUser(parsed.discordId, true);
+          if (freshUser) {
+            parsed = freshUser;
+          }
+        } catch (err) {
+          console.warn("Discord role sync on missing roles error:", err);
         }
-      } catch (err) {
-        console.warn("Background Discord role sync error:", err);
       }
     }
 

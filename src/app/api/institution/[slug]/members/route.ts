@@ -11,6 +11,12 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
+    const syncParam = req.nextUrl.searchParams.get("sync");
+    if (syncParam === "true") {
+      await DataService.syncDiscordMembers(slug);
+    } else {
+      await DataService.autoSyncDiscordMembersIfNeeded(slug);
+    }
     const members = await DataService.getMemberships(slug);
     return NextResponse.json({ success: true, members });
   } catch (error) {

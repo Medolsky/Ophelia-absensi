@@ -293,7 +293,7 @@ export function PayrollManagement({
       {/* Payroll Table */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3.5 px-4 whitespace-nowrap">Nama Anggota</th>

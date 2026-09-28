@@ -282,12 +282,12 @@ export function DutyTimer({
           </div>
 
           {/* Realtime Digital Clock Display */}
-          <div className="shrink-0 flex flex-col items-center md:items-end justify-center">
-            <div className="bg-[#080808] border border-[#252525] rounded-xl px-5 sm:px-6 py-3.5 sm:py-4 shadow-inner min-w-[240px] sm:min-w-[270px] whitespace-nowrap">
-              <span className="text-xs text-neutral-500 font-medium uppercase tracking-wider block text-center md:text-right mb-1 whitespace-nowrap">
+          <div className="w-full md:w-auto shrink-0 flex flex-col items-center md:items-end justify-center">
+            <div className="w-full sm:w-auto bg-[#080808] border border-[#252525] rounded-xl px-4 sm:px-6 py-3.5 sm:py-4 shadow-inner min-w-full sm:min-w-[240px] md:min-w-[270px]">
+              <span className="text-xs text-neutral-500 font-medium uppercase tracking-wider block text-center md:text-right mb-1">
                 {isOnDuty ? "DURASI REALTIME" : "STANDBY TIME"}
               </span>
-              <div className="font-mono text-2xl sm:text-3xl lg:text-4xl font-black tracking-normal sm:tracking-wider text-white flex items-center justify-center md:justify-end gap-2 sm:gap-2.5 whitespace-nowrap select-none">
+              <div className="font-mono text-2xl sm:text-3xl lg:text-4xl font-black tracking-normal sm:tracking-wider text-white flex items-center justify-center md:justify-end gap-2 sm:gap-2.5 select-none">
                 <Clock className={`h-5 w-5 sm:h-6 sm:w-6 shrink-0 ${isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"}`} />
                 <span className={`whitespace-nowrap tabular-nums font-mono ${isOnDuty ? "text-white text-glow" : "text-neutral-400"}`}>
                   {formatTimer(elapsedSeconds)}
@@ -305,8 +305,8 @@ export function DutyTimer({
         )}
 
         {/* Action Controls */}
-        <div className="mt-6 pt-6 border-t border-[#252525] flex items-center justify-end gap-3">
-          <div className="flex items-center gap-3">
+        <div className="mt-6 pt-6 border-t border-[#252525] flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             {!isOnDuty ? (
               <>
                 {showNotesInput && (
@@ -315,13 +315,13 @@ export function DutyTimer({
                     placeholder="Catatan dinas (opsional e.g. Patroli Sektor 4)..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white px-3 py-2 rounded-lg outline-none w-64 transition-colors"
+                    className="bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white px-3 py-2.5 rounded-lg outline-none w-full sm:w-64 transition-colors"
                   />
                 )}
                 <button
                   type="button"
                   onClick={() => setShowNotesInput(!showNotesInput)}
-                  className="text-xs text-neutral-400 hover:text-white px-3 py-2 rounded-lg border border-[#252525] hover:bg-[#1a1a1a] transition"
+                  className="text-xs text-neutral-400 hover:text-white px-3 py-2.5 rounded-lg border border-[#252525] hover:bg-[#1a1a1a] transition text-center cursor-pointer"
                 >
                   {showNotesInput ? "Tutup Catatan" : "+ Tambah Catatan"}
                 </button>
@@ -329,10 +329,10 @@ export function DutyTimer({
                   type="button"
                   onClick={handleStartDuty}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] active:scale-95 shadow-lg glow-red transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] active:scale-95 shadow-lg glow-red transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Play className="h-4 w-4 fill-white" />
-                  {loading ? "Menghubungkan Server..." : "START DUTY"}
+                  <Play className="h-4 w-4 fill-white shrink-0" />
+                  <span>{loading ? "Menghubungkan Server..." : "START DUTY"}</span>
                 </button>
               </>
             ) : (
@@ -340,9 +340,9 @@ export function DutyTimer({
                 type="button"
                 onClick={() => setShowEndConfirmModal(true)}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-neutral-800 hover:bg-red-700/80 hover:border-red-600 border border-neutral-700 active:scale-95 shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-neutral-800 hover:bg-red-700/80 hover:border-red-600 border border-neutral-700 active:scale-95 shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
-                <Square className="h-4 w-4 fill-white text-white" />
+                <Square className="h-4 w-4 fill-white text-white shrink-0" />
                 <span>END DUTY (OFF)</span>
               </button>
             )}

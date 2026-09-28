@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface MemberManagementProps {
@@ -40,6 +42,10 @@ export function MemberManagementTable({
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(
     null
   );
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   // Form states
   const [newDiscordId, setNewDiscordId] = useState("");
@@ -110,6 +116,11 @@ export function MemberManagementTable({
       m.positionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.user?.discordId.includes(searchTerm)
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const paginatedMembers = filteredMembers.slice(startIndex, startIndex + pageSize);
 
   const handleSyncDiscord = async () => {
     setIsSyncing(true);
@@ -304,7 +315,10 @@ export function MemberManagementTable({
             type="text"
             placeholder="Cari nama, username Discord, atau ID..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white pl-9 pr-3 py-2.5 rounded-xl outline-none"
           />
         </div>
@@ -337,7 +351,7 @@ export function MemberManagementTable({
       {/* Members Table */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3.5 px-4 whitespace-nowrap">Anggota</th>
@@ -359,7 +373,7 @@ export function MemberManagementTable({
                   </td>
                 </tr>
               ) : (
-                filteredMembers.map((mem) => {
+                paginatedMembers.map((mem) => {
                   const statusColor =
                     mem.status === "ACTIVE"
                       ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
@@ -457,6 +471,65 @@ export function MemberManagementTable({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {filteredMembers.length > 0 && (
+          <div className="border-t border-[#202020] bg-[#141414] px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-neutral-400">
+              <span>Menampilkan</span>
+              <span className="font-mono text-white font-semibold">
+                {startIndex + 1}-{Math.min(startIndex + pageSize, filteredMembers.length)}
+              </span>
+              <span>dari</span>
+              <span className="font-mono text-white font-semibold">{filteredMembers.length}</span>
+              <span>anggota</span>
+            </div>
+
+            <div className="flex items-center gap-4 self-end sm:self-auto">
+              <div className="flex items-center gap-1.5 text-neutral-400">
+                <span className="text-[11px]">Baris:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-[#1c1c1c] border border-[#333] text-white rounded-lg px-2 py-1 text-xs outline-none focus:border-[#E50914]"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={validCurrentPage <= 1}
+                  className="p-1.5 rounded-lg border border-[#2e2e2e] bg-[#1a1a1a] text-neutral-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#252525] transition"
+                  title="Halaman sebelumnya"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                <span className="px-2 font-mono text-xs text-neutral-400">
+                  <span className="text-white font-bold">{validCurrentPage}</span> / {totalPages}
+                </span>
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={validCurrentPage >= totalPages}
+                  className="p-1.5 rounded-lg border border-[#2e2e2e] bg-[#1a1a1a] text-neutral-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#252525] transition"
+                  title="Halaman berikutnya"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Member Modal */}

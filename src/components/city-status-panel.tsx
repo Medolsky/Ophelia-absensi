@@ -27,6 +27,7 @@ const INSTITUTION_COLORS: Record<string, string> = {
   medical: "#00B4D8",
   mechanic: "#FF9900",
   restaurant: "#D4AF37",
+  pemerintah: "#059669",
 };
 
 const INSTITUTION_NAMES: Record<string, string> = {
@@ -34,6 +35,7 @@ const INSTITUTION_NAMES: Record<string, string> = {
   medical: "Medical Center",
   mechanic: "Custom Garage",
   restaurant: "Restaurant",
+  pemerintah: "Pemerintah Kota",
 };
 
 export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {

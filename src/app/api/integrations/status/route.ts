@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     switch (view) {
       case "members": {
         if (institution === "all") {
-          const slugs = ["police", "medical", "mechanic", "restaurant"];
+          const slugs = ["police", "medical", "mechanic", "restaurant", "pemerintah"];
           const allMembers = await Promise.all(
             slugs.map(async (s) => ({
               institution: s,
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
       case "overview":
       default: {
-        const slugs = ["police", "medical", "mechanic", "restaurant"];
+        const slugs = ["police", "medical", "mechanic", "restaurant", "pemerintah"];
         const overview = await Promise.all(
           slugs.map(async (slug) => {
             const inst = await DataService.getInstitutionBySlug(slug);
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
             return {
               institution: slug,
               name: inst?.name || slug,
-              icon: { police: "shield", medical: "cross", mechanic: "wrench", restaurant: "utensils" }[slug] || "building",
+              icon: { police: "shield", medical: "cross", mechanic: "wrench", restaurant: "utensils", pemerintah: "landmark" }[slug] || "building",
               stats: {
                 totalMembers: members.length,
                 onDuty: onDuty.length,

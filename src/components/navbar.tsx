@@ -103,12 +103,12 @@ export function Navbar({
       <header className="sticky top-0 z-30 border-b border-[#252525] bg-[#0c0c0c]/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Brand Logo & Current Institution */}
-          <div className="flex items-center gap-4 sm:gap-6">
-            <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="flex items-center gap-2.5 sm:gap-6 min-w-0">
+            <Link href="/" className="flex items-center gap-2 group shrink-0">
               <img
                 src="/logos/ophelia-logo.png"
                 alt="Ophelia Roleplay"
-                className="h-7 sm:h-8 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_12px_rgba(229,9,20,0.35)]"
+                className="h-6 sm:h-8 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_12px_rgba(229,9,20,0.35)]"
               />
               <span className="hidden sm:inline-block text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#E50914]/15 text-[#FF1E2D] border border-[#E50914]/30">
                 DUTY
@@ -116,16 +116,16 @@ export function Navbar({
             </Link>
 
             {/* Institution Switcher Dropdown */}
-            <div className="relative">
+            <div className="relative min-w-0">
               <button
                 onClick={() => setInstMenuOpen(!instMenuOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#1f1f1f] border border-[#252525] text-xs font-semibold text-white transition"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#1f1f1f] border border-[#252525] text-xs font-semibold text-white transition max-w-[170px] sm:max-w-none"
               >
                 <InstitutionLogo logo={currentInstitution?.logo} name={currentInstitution?.name} size="sm" />
-                <span className="truncate max-w-[140px] sm:max-w-[180px]">
+                <span className="truncate max-w-[90px] sm:max-w-[180px]">
                   {currentInstitution?.name || "Pilih Instansi"}
                 </span>
-                <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
+                <ChevronDown className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
               </button>
 
               {instMenuOpen && (

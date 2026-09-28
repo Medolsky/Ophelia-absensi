@@ -4,6 +4,9 @@ import { MemberManagementTable } from "@/components/member-management-table";
 import { Users, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function MembersPage({
   params,
 }: {
@@ -36,6 +39,8 @@ export default async function MembersPage({
     );
   }
 
+  // Auto-sync Discord members if role added on Discord
+  await DataService.autoSyncDiscordMembersIfNeeded(slug);
   const memberships = await DataService.getMemberships(slug);
 
   return (

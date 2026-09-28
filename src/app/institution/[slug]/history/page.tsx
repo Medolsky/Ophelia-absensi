@@ -218,7 +218,7 @@ export default async function HistoryPage({
         ) : (
           <div className="rounded-2xl border border-[#222] bg-[#111111] overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-neutral-300">
+              <table className="w-full text-left text-sm text-neutral-300 min-w-[650px]">
                 <thead className="bg-[#161616] text-[11px] uppercase tracking-wider text-neutral-400 font-semibold border-b border-[#252525]">
                   <tr>
                     <th scope="col" className="py-3 px-4">Petugas</th>
