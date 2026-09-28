@@ -66,6 +66,7 @@ export function mapDiscordRolesToInstitutions(
   const results: MappedInstitutionRole[] = [];
 
   const allRoleStrings = [
+    ...roleNames.map((r) => cleanRoleName(r).toUpperCase()),
     ...roleNames.map((r) => r.toUpperCase()),
     ...roleIds.map((id) => (KNOWN_DISCORD_ROLE_IDS[id] || "").toUpperCase()),
   ].filter(Boolean);
@@ -77,7 +78,7 @@ export function mapDiscordRolesToInstitutions(
   // 1. Police
   const hasPoliceChief =
     roleIds.includes("1482622396954312807") ||
-    allRoleStrings.some((r) => r.includes("CHIEF OF POLICE") || r.includes("POLICE CHIEF"));
+    allRoleStrings.some((r) => r.includes("CHIEF OF POLICE") || r.includes("POLICE CHIEF") || r.includes("KAPOLRES"));
   const hasSwat =
     roleIds.includes("1508742513874440303") ||
     allRoleStrings.some((r) => r.includes("SWAT"));
@@ -86,7 +87,7 @@ export function mapDiscordRolesToInstitutions(
     allRoleStrings.some((r) => r.includes("HIGHWAY PATROL"));
   const hasOfficer =
     roleIds.includes("1522915139072950312") ||
-    allRoleStrings.some((r) => r.includes("OFFICER") || r.includes("POLICE") || r.includes("CADET"));
+    allRoleStrings.some((r) => r.includes("OFFICER") || r.includes("POLICE") || r.includes("POLISI") || r.includes("CADET"));
 
   if (hasPoliceChief) {
     results.push({
@@ -118,13 +119,13 @@ export function mapDiscordRolesToInstitutions(
     });
   }
 
-  // 2. Medical
+  // 2. Medical (Medis & EMS)
   const hasPetinggiMedis =
     roleIds.includes("1482622396954312805") ||
-    allRoleStrings.some((r) => r.includes("PETINGGI MEDIS") || r.includes("DIRECTOR") || r.includes("CHIEF MEDIC"));
+    allRoleStrings.some((r) => r.includes("PETINGGI MEDIS") || r.includes("DIRECTOR") || r.includes("CHIEF MEDIC") || r.includes("KADIS KESEHATAN") || r.includes("HEAD MEDIC"));
   const hasMedis =
     roleIds.includes("1482622396946055227") ||
-    allRoleStrings.some((r) => r.includes("MEDIS") || r.includes("EMS") || r.includes("DOCTOR") || r.includes("PARAMEDIC"));
+    allRoleStrings.some((r) => r.includes("MEDIS") || r.includes("EMS") || r.includes("DOCTOR") || r.includes("DOKTER") || r.includes("PARAMEDIC") || r.includes("PERAWAT") || r.includes("SURGEON") || r.includes("HOSPITAL") || r.includes("RUMAH SAKIT"));
 
   if (hasPetinggiMedis) {
     results.push({
@@ -142,13 +143,13 @@ export function mapDiscordRolesToInstitutions(
     });
   }
 
-  // 3. Mechanic
+  // 3. Mechanic (Bengkel & OCG)
   const hasPetinggiBengkel =
     roleIds.includes("1482622396946055224") ||
-    allRoleStrings.some((r) => r.includes("PETINGGI BENGKEL") || r.includes("HEAD MECHANIC"));
+    allRoleStrings.some((r) => r.includes("PETINGGI BENGKEL") || r.includes("PETINGGI MEKANIK") || r.includes("HEAD MECHANIC") || r.includes("BENGKEL OWNER") || r.includes("OWNER BENGKEL") || r.includes("LEADHAND MECHANIC"));
   const hasBengkel =
     roleIds.includes("1482622396946055223") ||
-    allRoleStrings.some((r) => r.includes("BENGKEL") || r.includes("MECHANIC"));
+    allRoleStrings.some((r) => r.includes("BENGKEL") || r.includes("MECHANIC") || r.includes("MEKANIK") || r.includes("CUSTOM GARAGE") || r.includes("OCG") || r.includes("GARAGE") || r.includes("TUNER") || r.includes("APPRENTICE"));
 
   if (hasPetinggiBengkel) {
     results.push({
@@ -166,13 +167,13 @@ export function mapDiscordRolesToInstitutions(
     });
   }
 
-  // 4. Restaurant
+  // 4. Restaurant (Resto & Lounge)
   const hasPetinggiResto =
     roleIds.includes("1482622396946055226") ||
-    allRoleStrings.some((r) => r.includes("PETINGGI RESTO") || r.includes("RESTAURANT MANAGER"));
+    allRoleStrings.some((r) => r.includes("PETINGGI RESTO") || r.includes("RESTAURANT MANAGER") || r.includes("MANAGER RESTO") || r.includes("HEAD CHEF"));
   const hasResto =
     roleIds.includes("1482622396946055225") ||
-    allRoleStrings.some((r) => r.includes("SERVERS RESTO") || r.includes("RESTO") || r.includes("RESTAURANT"));
+    allRoleStrings.some((r) => r.includes("SERVERS RESTO") || r.includes("RESTO") || r.includes("RESTAURANT") || r.includes("CHEF") || r.includes("COOK") || r.includes("KITCHEN") || r.includes("BARTENDER") || r.includes("WAITER") || r.includes("WAITRESS") || r.includes("BARISTA") || r.includes("SERVER"));
 
   if (hasPetinggiResto) {
     results.push({
@@ -193,10 +194,10 @@ export function mapDiscordRolesToInstitutions(
   // 5. Pemerintah
   const hasPetinggiPemerintah =
     roleIds.includes("1482622396946055222") ||
-    allRoleStrings.some((r) => r.includes("PETINGGI PEMERINTAH") || r.includes("WALIKOTA"));
+    allRoleStrings.some((r) => r.includes("PETINGGI PEMERINTAH") || r.includes("WALIKOTA") || r.includes("WAKIL WALIKOTA"));
   const hasPemerintah =
     roleIds.includes("1482622396946055221") ||
-    allRoleStrings.some((r) => r.includes("PEMERINTAH"));
+    allRoleStrings.some((r) => r.includes("PEMERINTAH") || r.includes("STAFF PEMERINTAH") || r.includes("STAFF SIPIL"));
 
   if (hasPetinggiPemerintah) {
     results.push({
@@ -338,32 +339,47 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
     // 1. Fetch guild roles map
     const roleMap = await getGuildRoleMap();
 
-    // 2. Discover members via search
+    // 2. Discover members via search with rate-limiting backoff and throttling
     const allFound = new Map<string, any>();
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789_-.".split("");
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789_-. !?@#$%^&*()+=~".split("");
+    const searchTerms = [...chars, "pol", "ems", "med", "beng", "rest", "orp", "adm", "mek"];
 
-    for (const ch of chars) {
-      try {
-        const s = await fetch(
-          `https://discord.com/api/v10/guilds/${guildId}/members/search?query=${encodeURIComponent(
-            ch
-          )}&limit=100`,
-          {
-            headers: { Authorization: `Bot ${botToken}` },
-            cache: "no-store",
+    for (const term of searchTerms) {
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          const s = await fetch(
+            `https://discord.com/api/v10/guilds/${guildId}/members/search?query=${encodeURIComponent(
+              term
+            )}&limit=100`,
+            {
+              headers: { Authorization: `Bot ${botToken}` },
+              cache: "no-store",
+            }
+          );
+          if (s.status === 429) {
+            const body = await s.json().catch(() => ({}));
+            const retryAfter = (body.retry_after || 1) * 1000 + 200;
+            await new Promise((r) => setTimeout(r, retryAfter));
+            retries--;
+            continue;
           }
-        );
-        if (s.ok) {
-          const list: any[] = await s.json();
-          for (const m of list) {
-            if (m.user && !m.user.bot) {
-              allFound.set(m.user.id, m);
+          if (s.ok) {
+            const list: any[] = await s.json();
+            for (const m of list) {
+              if (m.user && !m.user.bot) {
+                allFound.set(m.user.id, m);
+              }
             }
           }
+          break;
+        } catch (err) {
+          console.warn(`Search error for term '${term}':`, err);
+          break;
         }
-      } catch (err) {
-        console.warn(`Search error for char '${ch}':`, err);
       }
+      // Small throttle to stay well below Discord rate limits
+      await new Promise((r) => setTimeout(r, 60));
     }
 
     // Convert to DiscordMemberInfo

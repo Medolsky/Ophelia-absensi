@@ -11,9 +11,10 @@ export async function GET(req: NextRequest) {
   }
 
   const scope = encodeURIComponent("identify guilds guilds.members.read");
+  const forcePrompt = req.nextUrl.searchParams.get("prompt") === "consent";
   const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
     redirectUri
-  )}&response_type=code&scope=${scope}`;
+  )}&response_type=code&scope=${scope}${forcePrompt ? "&prompt=consent" : ""}`;
 
   return NextResponse.redirect(discordAuthUrl);
 }

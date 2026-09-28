@@ -56,8 +56,22 @@ export default async function SelectInstitutionPage() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <SyncDiscordRolesButton discordId={currentUser.discordId} variant="compact" />
+            <a
+              href="/api/auth/discord?prompt=consent"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition"
+              title="Ganti ke akun Discord lain"
+            >
+              Ganti Akun
+            </a>
+            <a
+              href="/api/auth/logout"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#282828] transition"
+              title="Keluar dari akun ini"
+            >
+              Keluar
+            </a>
           </div>
         </div>
       </header>
@@ -85,6 +99,28 @@ export default async function SelectInstitutionPage() {
             Pilih instansi untuk memulai absensi dan memantau tugas kedinasan Anda.
           </p>
         </div>
+
+        {/* Warning if no roles found */}
+        {allowedInstitutions.length === 0 && (
+          <div className="mb-8 p-5 rounded-2xl bg-amber-950/30 border border-amber-800/50 shadow-xl text-center max-w-2xl mx-auto">
+            <div className="flex items-center justify-center gap-2 text-amber-400 font-bold text-sm mb-1.5">
+              <ShieldAlert className="h-5 w-5" />
+              <span>Role Kedinasan Belum Terdeteksi</span>
+            </div>
+            <p className="text-xs text-neutral-300 leading-relaxed max-w-lg mx-auto">
+              Akun Discord Anda (<strong>{currentUser.displayName}</strong>) saat ini belum memiliki role kedinasan untuk Polisi, Medis, Mekanik, ataupun Resto di server Discord Ophelia Roleplay.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+              <SyncDiscordRolesButton discordId={currentUser.discordId} variant="full" />
+              <a
+                href="/api/auth/discord?prompt=consent"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-neutral-200 bg-[#202020] hover:bg-[#2b2b2b] border border-[#3a3a3a] transition"
+              >
+                Ganti ke Akun Discord Lain
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Institutions Grid */}
         <div className="grid md:grid-cols-2 gap-6">

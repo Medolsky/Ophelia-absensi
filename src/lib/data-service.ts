@@ -1685,7 +1685,7 @@ export class DataService {
             id: row.id,
             userId: row.userId,
             institutionId: row.institutionId,
-            positionName: row.position?.name || "Officer",
+            positionName: row.position?.name || (cleanSlug.includes("med") ? "Medis" : cleanSlug.includes("mech") || cleanSlug.includes("bengkel") ? "Mekanik" : cleanSlug.includes("resto") ? "Server Resto" : cleanSlug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
             permissionLevel: (row.position?.permissionLevel || "MEMBER") as PermissionLevel,
             status: row.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
             joinedAt: row.joinedAt.toISOString(),
@@ -1746,8 +1746,7 @@ export class DataService {
             id: r.id,
             userId: r.userId,
             institutionId: r.institutionId,
-            institutionSlug: r.institution.slug,
-            positionName: r.position?.name || "Officer",
+            positionName: r.position?.name || (r.institution.slug.includes("med") ? "Medis" : r.institution.slug.includes("mech") || r.institution.slug.includes("bengkel") ? "Mekanik" : r.institution.slug.includes("resto") ? "Server Resto" : r.institution.slug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
             permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
             status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
             joinedAt: r.joinedAt.toISOString(),
@@ -1798,7 +1797,7 @@ export class DataService {
             id: r.id,
             userId: r.userId,
             institutionId: r.institutionId,
-            positionName: r.position?.name || "Officer",
+            positionName: r.position?.name || (cleanSlug.includes("med") ? "Medis" : cleanSlug.includes("mech") || cleanSlug.includes("bengkel") ? "Mekanik" : cleanSlug.includes("resto") ? "Server Resto" : cleanSlug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
             permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
             status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
             joinedAt: r.joinedAt.toISOString(),
@@ -1839,7 +1838,7 @@ export class DataService {
       }
 
       const institutions = await this.getInstitutions();
-      const updatedList: MembershipData[] = [];
+      const isDb = this.isDatabaseAvailable();
 
       for (const dm of discordMembers) {
         const mappedRoles = mapDiscordRolesToInstitutions(dm.roles, dm.roleIds);
@@ -1868,7 +1867,75 @@ export class DataService {
             },
           };
 
-          // Update memoryStore
+          // 1. If PostgreSQL DB is available, persist user and membership
+          if (isDb) {
+            try {
+              const dbUser = await prisma.user.upsert({
+                where: { discordId: dm.discordId },
+                update: {
+                  discordUsername: dm.username,
+                  displayName: dm.displayName,
+                  discordAvatar: dm.avatarUrl,
+                  discordRoles: dm.roles,
+                },
+                create: {
+                  id: `discord-${dm.discordId}`,
+                  discordId: dm.discordId,
+                  discordUsername: dm.username,
+                  displayName: dm.displayName,
+                  discordAvatar: dm.avatarUrl,
+                  discordRoles: dm.roles,
+                },
+              });
+
+              let positionId: string | null = null;
+              try {
+                const pos = await prisma.position.findFirst({
+                  where: {
+                    institutionId: targetInst.id,
+                    name: { equals: mr.positionName, mode: "insensitive" },
+                  },
+                });
+                if (pos) {
+                  positionId = pos.id;
+                } else {
+                  const createdPos = await prisma.position.create({
+                    data: {
+                      institutionId: targetInst.id,
+                      name: mr.positionName,
+                      permissionLevel: mr.permissionLevel,
+                    },
+                  });
+                  positionId = createdPos.id;
+                }
+              } catch (posErr) {
+                console.warn("Position link error in syncDiscordMembers:", posErr);
+              }
+
+              await prisma.membership.upsert({
+                where: {
+                  userId_institutionId: {
+                    userId: dbUser.id,
+                    institutionId: targetInst.id,
+                  },
+                },
+                update: {
+                  status: "ACTIVE",
+                  positionId: positionId || undefined,
+                },
+                create: {
+                  userId: dbUser.id,
+                  institutionId: targetInst.id,
+                  status: "ACTIVE",
+                  positionId: positionId || undefined,
+                },
+              });
+            } catch (dbErr) {
+              console.warn("syncDiscordMembers DB upsert error:", dbErr);
+            }
+          }
+
+          // 2. Update memoryStore
           const existingIdx = memoryStore.memberships.findIndex(
             (m) =>
               m.userId === newMem.userId &&
@@ -1882,12 +1949,17 @@ export class DataService {
               permissionLevel: mr.permissionLevel,
               user: newMem.user,
             };
-            updatedList.push(memoryStore.memberships[existingIdx]);
           } else {
             memoryStore.memberships.push(newMem);
-            updatedList.push(newMem);
           }
         }
+      }
+
+      // Invalidate caches
+      if (institutionSlug) {
+        this.invalidateMembershipsCache(institutionSlug);
+      } else {
+        this.invalidateMembershipsCache();
       }
 
       const resultMembers = institutionSlug
@@ -2320,7 +2392,8 @@ export class DataService {
 
       const totalDutyHours = Number((totalDutySeconds / 3600).toFixed(1));
 
-      const posName = m.positionName || "Officer";
+      const defaultPos = institutionSlug.includes("med") ? "Medis" : institutionSlug.includes("mech") || institutionSlug.includes("bengkel") ? "Mekanik" : institutionSlug.includes("resto") ? "Server Resto" : institutionSlug.includes("pemerintah") ? "Staff Sipil" : "Officer";
+      const posName = m.positionName || defaultPos;
       const posConfig = configs[posName] || {
         hourlyRate: institution?.defaultHourlyRate || 50000,
         minDutyHours: 15,
@@ -2401,7 +2474,8 @@ export class DataService {
 
     // Get user position from actual membership directly
     const userMem = await this.getUserMembership(userId, institutionSlug);
-    const posName = userMem?.positionName || "Officer";
+    const defaultPos = institutionSlug.includes("med") ? "Medis" : institutionSlug.includes("mech") || institutionSlug.includes("bengkel") ? "Mekanik" : institutionSlug.includes("resto") ? "Server Resto" : institutionSlug.includes("pemerintah") ? "Staff Sipil" : "Officer";
+    const posName = userMem?.positionName || defaultPos;
 
     const posConfig = configs[posName] || {
       hourlyRate: institution?.defaultHourlyRate || 50000,

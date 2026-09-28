@@ -11,10 +11,10 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
   const sessionCookie = cookieStore.get(COOKIE_NAME);
 
   if (!sessionCookie?.value) {
-    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "false") {
-      return null;
+    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
+      return DEMO_PERSONAS[0];
     }
-    return DEMO_PERSONAS[0];
+    return null;
   }
 
   try {
@@ -35,10 +35,10 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
 
     return parsed;
   } catch {
-    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "false") {
-      return null;
+    if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
+      return DEMO_PERSONAS[0];
     }
-    return DEMO_PERSONAS[0];
+    return null;
   }
 });
 
