@@ -1,6 +1,7 @@
 import { DataService } from "./data-service";
 import { FiveMBridge } from "./fivem-bridge";
 import { CityStatusEntry } from "@/types";
+import { getDiscordCredentials } from "./discord-credentials";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -18,8 +19,8 @@ interface DiscordEmbed {
  * Discord REST API helper — sends authenticated requests using the bot token.
  */
 async function discordFetch(path: string, options: RequestInit = {}) {
-  const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token) throw new Error("DISCORD_BOT_TOKEN not set");
+  const { botToken } = getDiscordCredentials();
+  const token = botToken;
 
   const res = await fetch(`${DISCORD_API}${path}`, {
     ...options,

@@ -1,5 +1,6 @@
 import { MembershipData, SessionUser, PermissionLevel } from "@/types";
 import { KNOWN_DISCORD_ROLE_IDS } from "./constants";
+import { getDiscordCredentials } from "./discord-credentials";
 
 export interface DiscordMemberInfo {
   id: string;
@@ -232,8 +233,7 @@ let cachedGuildRoles: { roles: Record<string, string>; fetchedAt: number } | nul
  * Fetch and cache guild roles map (id -> clean name) with a 5-minute TTL
  */
 export async function getGuildRoleMap(): Promise<Record<string, string>> {
-  const botToken = process.env.DISCORD_BOT_TOKEN;
-  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
+  const { botToken, guildId } = getDiscordCredentials();
   const now = Date.now();
 
   if (cachedGuildRoles && now - cachedGuildRoles.fetchedAt < 5 * 60 * 1000) {
@@ -267,8 +267,7 @@ export async function getGuildRoleMap(): Promise<Record<string, string>> {
  * Returns null if member is not found or credentials are not configured.
  */
 export async function fetchDiscordMemberLive(discordId: string): Promise<DiscordMemberInfo | null> {
-  const botToken = process.env.DISCORD_BOT_TOKEN;
-  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
+  const { botToken, guildId } = getDiscordCredentials();
 
   if (!botToken || !guildId || !discordId) {
     return null;
@@ -327,8 +326,7 @@ export async function fetchDiscordMemberLive(discordId: string): Promise<Discord
  * Fetch all guild members from Discord API using Bot token search
  */
 export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
-  const botToken = process.env.DISCORD_BOT_TOKEN;
-  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
+  const { botToken, guildId } = getDiscordCredentials();
 
   if (!botToken || !guildId) {
     console.warn("Discord credentials missing for guild member sync.");

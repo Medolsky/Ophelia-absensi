@@ -3,6 +3,7 @@ import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { MembershipData } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
+import { getDiscordCredentials } from "@/lib/discord-credentials";
 
 export async function GET(
   req: NextRequest,
@@ -70,8 +71,7 @@ export async function POST(
     let discordUsername = `user_${discordId.slice(-4)}`;
     let discordAvatar = getDiscordAvatarUrl(discordId, null);
 
-    const botToken = process.env.DISCORD_BOT_TOKEN;
-    const guildId = process.env.DISCORD_GUILD_ID;
+    const { botToken, guildId } = getDiscordCredentials();
     if (botToken) {
       try {
         if (guildId) {

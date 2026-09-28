@@ -3,6 +3,7 @@ import { setCurrentUser } from "@/lib/auth";
 import { SessionUser } from "@/types";
 import { KNOWN_DISCORD_ROLE_IDS } from "@/lib/constants";
 import { DataService } from "@/lib/data-service";
+import { getDiscordCredentials } from "@/lib/discord-credentials";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -12,10 +13,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/?error=missing_code", baseUrl));
   }
 
-  const clientId = process.env.DISCORD_CLIENT_ID || "1552883862726639686";
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET;
-  const botToken = process.env.DISCORD_BOT_TOKEN;
-  const guildId = process.env.DISCORD_GUILD_ID || "1482622396946055218";
+  const { clientId, clientSecret, botToken, guildId } = getDiscordCredentials();
   const redirectUri = process.env.DISCORD_REDIRECT_URI || `${baseUrl}/api/auth/discord/callback`;
 
   if (!clientId || !clientSecret) {
