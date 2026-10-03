@@ -814,10 +814,23 @@ export class DataService {
   }
 
   private static institutionsCache: { data: InstitutionData[]; timestamp: number } | null = null;
+  private static inFlightInstitutions: Promise<InstitutionData[]> | null = null;
+
   private static membershipsCache = new Map<string, { data: MembershipData[]; timestamp: number }>();
+  private static inFlightMemberships = new Map<string, Promise<MembershipData[]>>();
+
+  private static userMembershipsCache = new Map<string, { data: MembershipData[]; timestamp: number }>();
+  private static inFlightUserMemberships = new Map<string, Promise<MembershipData[]>>();
+
   private static institutionSessionsCache = new Map<string, { data: DutySessionData[]; timestamp: number }>();
+  private static inFlightInstitutionSessions = new Map<string, Promise<DutySessionData[]>>();
+
   private static liveSessionsCache = new Map<string, { data: DutySessionData[]; timestamp: number }>();
+  private static inFlightLiveSessions = new Map<string, Promise<DutySessionData[]>>();
+
   private static activeSessionsCache = new Map<string, { data: DutySessionData | null; timestamp: number }>();
+  private static inFlightActiveSessions = new Map<string, Promise<DutySessionData | null>>();
+
   private static userLastSyncMap = new Map<string, number>();
   private static userSyncInFlightMap = new Map<string, Promise<SessionUser | null>>();
 
@@ -851,6 +864,18 @@ export class DataService {
       this.membershipsCache.delete(cleanSlug);
     } else {
       this.membershipsCache.clear();
+    }
+    this.userMembershipsCache.clear();
+  }
+
+  static invalidateUserMembershipsCache(userId?: string) {
+    if (userId) {
+      const cleanId = userId.replace("discord-", "");
+      this.userMembershipsCache.delete(cleanId);
+      this.userMembershipsCache.delete(userId);
+      this.userMembershipsCache.delete(`discord-${cleanId}`);
+    } else {
+      this.userMembershipsCache.clear();
     }
   }
 
@@ -899,34 +924,47 @@ export class DataService {
 
   static async getInstitutions(): Promise<InstitutionData[]> {
     const now = Date.now();
-    if (this.institutionsCache && now - this.institutionsCache.timestamp < 60000) {
+    if (this.institutionsCache && now - this.institutionsCache.timestamp < 600000) {
       return this.institutionsCache.data;
     }
 
-    const isDb = this.isDatabaseAvailable();
-    if (isDb) {
-      try {
-        const rows = await prisma.institution.findMany({
-          orderBy: { name: "asc" },
-          include: { discordRoles: true },
-        });
-        const result = rows.map((r) => ({
-          id: r.id,
-          name: r.name,
-          slug: r.slug,
-          description: r.description || "",
-          logo: r.logo || "",
-          primaryColor: r.primaryColor,
-          status: r.status as "ACTIVE" | "INACTIVE",
-          discordRoleNames: r.discordRoles.map((dr) => dr.name),
-        }));
-        this.institutionsCache = { data: result, timestamp: now };
-        return result;
-      } catch (err) {
-        console.warn("DB query failed, fallback to memory:", err);
-      }
+    if (this.inFlightInstitutions) {
+      return this.inFlightInstitutions;
     }
-    return memoryStore.institutions;
+
+    const fetchPromise = (async () => {
+      const isDb = this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          const rows = await prisma.institution.findMany({
+            orderBy: { name: "asc" },
+            include: { discordRoles: true },
+          });
+          const result = rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            description: r.description || "",
+            logo: r.logo || "",
+            primaryColor: r.primaryColor,
+            status: r.status as "ACTIVE" | "INACTIVE",
+            discordRoleNames: r.discordRoles.map((dr) => dr.name),
+          }));
+          this.institutionsCache = { data: result, timestamp: Date.now() };
+          return result;
+        } catch (err) {
+          console.warn("DB query failed, fallback to memory:", err);
+        }
+      }
+      return memoryStore.institutions;
+    })();
+
+    this.inFlightInstitutions = fetchPromise;
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightInstitutions = null;
+    }
   }
 
   static async getInstitutionBySlug(slug: string): Promise<InstitutionData | null> {
@@ -1057,70 +1095,86 @@ export class DataService {
     const cleanId = userId.replace("discord-", "");
     const now = Date.now();
     const cached = this.activeSessionsCache.get(cleanId);
-    if (cached && now - cached.timestamp < 5000) {
+    if (cached && now - cached.timestamp < 60000) {
       return cached.data;
     }
 
-    const isDb = await this.isDatabaseAvailable();
-    if (isDb) {
-      try {
-        const active = await prisma.dutySession.findFirst({
-          where: {
-            OR: [
-              { userId },
-              { userId: cleanId },
-              { userId: `discord-${cleanId}` },
-              { user: { discordId: cleanId } },
-            ],
-            endedAt: null,
-            status: "ON_DUTY",
-          },
-          include: {
-            institution: true,
-            user: true,
-          },
-        });
-        if (active) {
-          const res: DutySessionData = {
-            id: active.id,
-            userId: active.userId,
-            userName: active.user.displayName || active.user.discordUsername,
-            institutionId: active.institutionId,
-            institutionSlug: active.institution.slug,
-            institutionName: active.institution.name,
-            startedAt: active.startedAt.toISOString(),
-            endedAt: null,
-            durationSeconds: 0,
-            status: "ON_DUTY",
-            notes: active.notes,
-            createdAt: active.createdAt.toISOString(),
-          };
-          this.activeSessionsCache.set(cleanId, { data: res, timestamp: now });
-          this.activeSessionsCache.set(userId, { data: res, timestamp: now });
-          return res;
-        }
-        // DB is online and query succeeded: ground truth is user is OFF DUTY
-        this.activeSessionsCache.set(cleanId, { data: null, timestamp: now });
-        this.activeSessionsCache.set(userId, { data: null, timestamp: now });
-        return null;
-      } catch (err) {
-        console.warn("DB getActiveDutySession fallback:", err);
-      }
+    const inFlight = this.inFlightActiveSessions.get(cleanId);
+    if (inFlight) {
+      return inFlight;
     }
 
-    reloadPersistedSessions();
-    const session = memoryStore.dutySessions.find(
-      (s) =>
-        (s.userId === userId ||
-          s.userId === cleanId ||
-          s.userId === `discord-${cleanId}`) &&
-        !s.endedAt &&
-        s.status === "ON_DUTY"
-    );
-    const result = session || null;
-    this.activeSessionsCache.set(cleanId, { data: result, timestamp: now });
-    this.activeSessionsCache.set(userId, { data: result, timestamp: now });
-    return result;
+    const fetchPromise = (async () => {
+      const isDb = await this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          const active = await prisma.dutySession.findFirst({
+            where: {
+              OR: [
+                { userId },
+                { userId: cleanId },
+                { userId: `discord-${cleanId}` },
+                { user: { discordId: cleanId } },
+              ],
+              endedAt: null,
+              status: "ON_DUTY",
+            },
+            include: {
+              institution: true,
+              user: true,
+            },
+          });
+          const stamp = Date.now();
+          if (active) {
+            const res: DutySessionData = {
+              id: active.id,
+              userId: active.userId,
+              userName: active.user.displayName || active.user.discordUsername,
+              institutionId: active.institutionId,
+              institutionSlug: active.institution.slug,
+              institutionName: active.institution.name,
+              startedAt: active.startedAt.toISOString(),
+              endedAt: null,
+              durationSeconds: 0,
+              status: "ON_DUTY",
+              notes: active.notes,
+              createdAt: active.createdAt.toISOString(),
+            };
+            this.activeSessionsCache.set(cleanId, { data: res, timestamp: stamp });
+            this.activeSessionsCache.set(userId, { data: res, timestamp: stamp });
+            return res;
+          }
+          // DB is online and query succeeded: ground truth is user is OFF DUTY
+          this.activeSessionsCache.set(cleanId, { data: null, timestamp: stamp });
+          this.activeSessionsCache.set(userId, { data: null, timestamp: stamp });
+          return null;
+        } catch (err) {
+          console.warn("DB getActiveDutySession fallback:", err);
+        }
+      }
+
+      reloadPersistedSessions();
+      const session = memoryStore.dutySessions.find(
+        (s) =>
+          (s.userId === userId ||
+            s.userId === cleanId ||
+            s.userId === `discord-${cleanId}`) &&
+          !s.endedAt &&
+          s.status === "ON_DUTY"
+      );
+      const result = session || null;
+      const stamp = Date.now();
+      this.activeSessionsCache.set(cleanId, { data: result, timestamp: stamp });
+      this.activeSessionsCache.set(userId, { data: result, timestamp: stamp });
+      return result;
+    })();
+
+    this.inFlightActiveSessions.set(cleanId, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightActiveSessions.delete(cleanId);
+    }
   }
 
   /**
@@ -1129,6 +1183,11 @@ export class DataService {
   static injectActiveDutySession(session: DutySessionData): void {
     if (!session || session.endedAt || session.status !== "ON_DUTY") return;
     const cleanSessionSlug = normalizeInstSlug(session.institutionSlug || session.institutionId);
+    const cleanId = session.userId.replace("discord-", "");
+    const now = Date.now();
+    this.activeSessionsCache.set(cleanId, { data: session, timestamp: now });
+    this.activeSessionsCache.set(session.userId, { data: session, timestamp: now });
+
     const existing = memoryStore.dutySessions.find((s) => s.id === session.id);
     if (!existing) {
       memoryStore.dutySessions.unshift({
@@ -1506,82 +1565,96 @@ export class DataService {
     const cleanSlug = normalizeInstSlug(institutionSlug);
     const now = Date.now();
     const cached = this.institutionSessionsCache.get(cleanSlug);
-    if (cached && now - cached.timestamp < 30000) {
+    if (cached && now - cached.timestamp < 60000) {
       return cached.data;
     }
 
-    const institution = await this.getInstitutionBySlug(cleanSlug);
-    const isDb = await this.isDatabaseAvailable();
-    if (isDb && institution) {
-      try {
-        const [rows, members] = await Promise.all([
-          prisma.dutySession.findMany({
-            where: {
-              OR: [
-                { institutionId: institution.id },
-                { institutionId: institution.slug },
-                { institutionId: `inst-${cleanSlug}` },
-              ],
-            },
-            include: { institution: true, user: true },
-            orderBy: { startedAt: "desc" },
-          }),
-          this.getMemberships(institutionSlug),
-        ]);
-
-        const posMap = new Map<string, string>();
-        for (const m of members) {
-          if (m.positionName) {
-            posMap.set(m.userId, m.positionName);
-            posMap.set(m.userId.replace("discord-", ""), m.positionName);
-            if (m.user?.discordId) posMap.set(m.user.discordId, m.positionName);
-          }
-        }
-
-        const defaultPos = cleanSlug.includes("med")
-          ? "Medis"
-          : cleanSlug.includes("mech") || cleanSlug.includes("bengkel")
-          ? "Mekanik"
-          : cleanSlug.includes("resto")
-          ? "Server Resto"
-          : cleanSlug.includes("pemerintah")
-          ? "Staff Sipil"
-          : "Officer";
-
-        const result: DutySessionData[] = rows.map((r) => {
-          const cleanUId = r.userId.replace("discord-", "");
-          const pos = posMap.get(r.userId) || posMap.get(cleanUId) || posMap.get(r.user.discordId) || defaultPos;
-          return {
-            id: r.id,
-            userId: r.userId,
-            userName: r.user.displayName || r.user.discordUsername,
-            userAvatar: r.user.discordAvatar,
-            positionName: pos,
-            institutionId: r.institutionId,
-            institutionSlug: r.institution.slug,
-            institutionName: r.institution.name,
-            startedAt: r.startedAt.toISOString(),
-            endedAt: r.endedAt ? r.endedAt.toISOString() : null,
-            durationSeconds: r.durationSeconds,
-            status: r.status as DutySessionData["status"],
-            notes: r.notes,
-            createdAt: r.createdAt.toISOString(),
-          };
-        });
-
-        this.institutionSessionsCache.set(cleanSlug, { data: result, timestamp: now });
-        return result;
-      } catch (err) {
-        console.warn("DB getInstitutionDutySessions error:", err);
-      }
+    const inFlight = this.inFlightInstitutionSessions.get(cleanSlug);
+    if (inFlight) {
+      return inFlight;
     }
 
-    reloadPersistedSessions();
-    const memoryResult = memoryStore.dutySessions
-      .filter((s) => matchesInstitution(s, institutionSlug))
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
-    this.institutionSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: now });
-    return memoryResult;
+    const fetchPromise = (async () => {
+      const institution = await this.getInstitutionBySlug(cleanSlug);
+      const isDb = await this.isDatabaseAvailable();
+      if (isDb && institution) {
+        try {
+          const [rows, members] = await Promise.all([
+            prisma.dutySession.findMany({
+              where: {
+                OR: [
+                  { institutionId: institution.id },
+                  { institutionId: institution.slug },
+                  { institutionId: `inst-${cleanSlug}` },
+                ],
+              },
+              include: { institution: true, user: true },
+              orderBy: { startedAt: "desc" },
+            }),
+            this.getMemberships(institutionSlug),
+          ]);
+
+          const posMap = new Map<string, string>();
+          for (const m of members) {
+            if (m.positionName) {
+              posMap.set(m.userId, m.positionName);
+              posMap.set(m.userId.replace("discord-", ""), m.positionName);
+              if (m.user?.discordId) posMap.set(m.user.discordId, m.positionName);
+            }
+          }
+
+          const defaultPos = cleanSlug.includes("med")
+            ? "Medis"
+            : cleanSlug.includes("mech") || cleanSlug.includes("bengkel")
+            ? "Mekanik"
+            : cleanSlug.includes("resto")
+            ? "Server Resto"
+            : cleanSlug.includes("pemerintah")
+            ? "Staff Sipil"
+            : "Officer";
+
+          const result: DutySessionData[] = rows.map((r) => {
+            const cleanUId = r.userId.replace("discord-", "");
+            const pos = posMap.get(r.userId) || posMap.get(cleanUId) || posMap.get(r.user.discordId) || defaultPos;
+            return {
+              id: r.id,
+              userId: r.userId,
+              userName: r.user.displayName || r.user.discordUsername,
+              userAvatar: r.user.discordAvatar,
+              positionName: pos,
+              institutionId: r.institutionId,
+              institutionSlug: r.institution.slug,
+              institutionName: r.institution.name,
+              startedAt: r.startedAt.toISOString(),
+              endedAt: r.endedAt ? r.endedAt.toISOString() : null,
+              durationSeconds: r.durationSeconds,
+              status: r.status as DutySessionData["status"],
+              notes: r.notes,
+              createdAt: r.createdAt.toISOString(),
+            };
+          });
+
+          this.institutionSessionsCache.set(cleanSlug, { data: result, timestamp: Date.now() });
+          return result;
+        } catch (err) {
+          console.warn("DB getInstitutionDutySessions error:", err);
+        }
+      }
+
+      reloadPersistedSessions();
+      const memoryResult = memoryStore.dutySessions
+        .filter((s) => matchesInstitution(s, institutionSlug))
+        .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+      this.institutionSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: Date.now() });
+      return memoryResult;
+    })();
+
+    this.inFlightInstitutionSessions.set(cleanSlug, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightInstitutionSessions.delete(cleanSlug);
+    }
   }
 
   /**
@@ -1592,66 +1665,17 @@ export class DataService {
     institutionSlug: string
   ): Promise<DutySessionData[]> {
     const cleanId = userId.replace("discord-", "");
-    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+    const cleanSlug = normalizeInstSlug(institutionSlug);
 
-    // Fast check: if institution sessions are already in cache, filter in-memory with 0ms DB queries!
-    const cached = this.institutionSessionsCache.get(cleanSlug);
-    if (cached && Date.now() - cached.timestamp < 10000) {
-      return cached.data.filter(
-        (s) => s.userId === userId || s.userId === cleanId || s.userId === `discord-${cleanId}`
-      );
-    }
-
-    const institution = await this.getInstitutionBySlug(institutionSlug);
-    const isDb = await this.isDatabaseAvailable();
-    if (isDb && institution) {
-      try {
-        const rows = await prisma.dutySession.findMany({
-          where: {
-            institutionId: institution.id,
-            OR: [
-              { userId },
-              { userId: cleanId },
-              { userId: `discord-${cleanId}` },
-              { user: { discordId: cleanId } },
-            ],
-          },
-          include: { institution: true, user: true },
-          orderBy: { startedAt: "desc" },
-        });
-
-        if (rows.length > 0) {
-          return rows.map((r) => ({
-            id: r.id,
-            userId: r.userId,
-            userName: r.user.displayName || r.user.discordUsername,
-            institutionId: r.institutionId,
-            institutionSlug: r.institution.slug,
-            institutionName: r.institution.name,
-            startedAt: r.startedAt.toISOString(),
-            endedAt: r.endedAt?.toISOString() || null,
-            durationSeconds: r.durationSeconds,
-            status: r.status as DutySessionData["status"],
-            notes: r.notes,
-            createdAt: r.createdAt.toISOString(),
-          }));
-        }
-      } catch (err) {
-        console.warn("DB getUserDutySessions error:", err);
-      }
-    }
-
-    reloadPersistedSessions();
-    return memoryStore.dutySessions
-      .filter((s) => {
-        const userMatch =
-          s.userId === userId ||
-          s.userId === cleanId ||
-          s.userId === `discord-${cleanId}`;
-        const instMatch = matchesInstitution(s, institutionSlug);
-        return userMatch && instMatch;
-      })
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+    // Fast path: reuse or populate the institution's sessions cache
+    const all = await this.getInstitutionDutySessions(cleanSlug);
+    return all.filter(
+      (s) =>
+        s.userId === userId ||
+        s.userId === cleanId ||
+        s.userId === `discord-${cleanId}` ||
+        s.userName === cleanId
+    );
   }
 
   /**
@@ -1661,97 +1685,113 @@ export class DataService {
     const cleanSlug = institutionSlug ? institutionSlug.replace("inst-", "").toLowerCase() : "all";
     const now = Date.now();
     const cached = this.liveSessionsCache.get(cleanSlug);
-    if (cached && now - cached.timestamp < 5000) {
+    if (cached && now - cached.timestamp < 30000) {
       return cached.data;
     }
 
-    const isDb = await this.isDatabaseAvailable();
-    if (isDb) {
-      try {
-        const rows = await prisma.dutySession.findMany({
-          where: {
-            endedAt: null,
-            status: "ON_DUTY",
-            ...(institutionSlug && institutionSlug !== "all"
-              ? {
-                  institution: {
-                    OR: [
-                      { slug: cleanSlug },
-                      { slug: institutionSlug },
-                      { id: institutionSlug },
-                      { id: `inst-${cleanSlug}` },
-                    ],
-                  },
-                }
-              : {}),
-          },
-          include: { institution: true, user: true },
-          orderBy: { startedAt: "asc" },
-        });
-
-        // Resolve position names from cached memberships
-        const posMap = new Map<string, string>();
-        if (institutionSlug && institutionSlug !== "all") {
-          const members = await this.getMemberships(cleanSlug);
-          for (const m of members) {
-            if (m.positionName) {
-              posMap.set(m.userId, m.positionName);
-              posMap.set(m.userId.replace("discord-", ""), m.positionName);
-              if (m.user?.discordId) posMap.set(m.user.discordId, m.positionName);
-            }
-          }
-        }
-
-        const defaultPos = cleanSlug.includes("med")
-          ? "Medis"
-          : cleanSlug.includes("mech") || cleanSlug.includes("bengkel")
-          ? "Mekanik"
-          : cleanSlug.includes("resto")
-          ? "Server Resto"
-          : cleanSlug.includes("pemerintah")
-          ? "Staff Sipil"
-          : "Officer";
-
-        const result: DutySessionData[] = rows.map((r) => {
-          const cleanUId = r.userId.replace("discord-", "");
-          const pos =
-            posMap.get(r.userId) ||
-            posMap.get(cleanUId) ||
-            posMap.get(r.user.discordId) ||
-            defaultPos;
-
-          return {
-            id: r.id,
-            userId: r.userId,
-            userName: r.user.displayName || r.user.discordUsername,
-            userAvatar: r.user.discordAvatar,
-            positionName: pos,
-            institutionId: r.institutionId,
-            institutionSlug: r.institution.slug,
-            institutionName: r.institution.name,
-            startedAt: r.startedAt.toISOString(),
-            endedAt: null,
-            durationSeconds: 0,
-            status: "ON_DUTY",
-            notes: r.notes,
-            createdAt: r.createdAt.toISOString(),
-          };
-        });
-        this.liveSessionsCache.set(cleanSlug, { data: result, timestamp: now });
-        return result;
-      } catch (err) {
-        console.warn("DB getLiveOnDuty error:", err);
-      }
+    const inFlight = this.inFlightLiveSessions.get(cleanSlug);
+    if (inFlight) {
+      return inFlight;
     }
 
-    reloadPersistedSessions();
-    const memoryResult = memoryStore.dutySessions.filter((s) => {
-      const isLive = !s.endedAt && s.status === "ON_DUTY";
-      if (!isLive) return false;
-      return matchesInstitution(s, institutionSlug);
-    });
-    this.liveSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: now });
-    return memoryResult;
+    const fetchPromise = (async () => {
+      const isDb = await this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          const rows = await prisma.dutySession.findMany({
+            where: {
+              endedAt: null,
+              status: "ON_DUTY",
+              ...(institutionSlug && institutionSlug !== "all"
+                ? {
+                    institution: {
+                      OR: [
+                        { slug: cleanSlug },
+                        { slug: institutionSlug },
+                        { slug: `inst-${cleanSlug}` },
+                        { id: cleanSlug },
+                        { id: institutionSlug },
+                        { id: `inst-${cleanSlug}` },
+                      ],
+                    },
+                  }
+                : {}),
+            },
+            include: { institution: true, user: true },
+            orderBy: { startedAt: "asc" },
+          });
+
+          // Resolve position names from cached memberships
+          const posMap = new Map<string, string>();
+          if (institutionSlug && institutionSlug !== "all") {
+            const members = await this.getMemberships(cleanSlug);
+            for (const m of members) {
+              if (m.positionName) {
+                posMap.set(m.userId, m.positionName);
+                posMap.set(m.userId.replace("discord-", ""), m.positionName);
+                if (m.user?.discordId) posMap.set(m.user.discordId, m.positionName);
+              }
+            }
+          }
+
+          const defaultPos = cleanSlug.includes("med")
+            ? "Medis"
+            : cleanSlug.includes("mech") || cleanSlug.includes("bengkel")
+            ? "Mekanik"
+            : cleanSlug.includes("resto")
+            ? "Server Resto"
+            : cleanSlug.includes("pemerintah")
+            ? "Staff Sipil"
+            : "Officer";
+
+          const result: DutySessionData[] = rows.map((r) => {
+            const cleanUId = r.userId.replace("discord-", "");
+            const pos =
+              posMap.get(r.userId) ||
+              posMap.get(cleanUId) ||
+              posMap.get(r.user.discordId) ||
+              defaultPos;
+
+            return {
+              id: r.id,
+              userId: r.userId,
+              userName: r.user.displayName || r.user.discordUsername,
+              userAvatar: r.user.discordAvatar,
+              positionName: pos,
+              institutionId: r.institutionId,
+              institutionSlug: r.institution.slug,
+              institutionName: r.institution.name,
+              startedAt: r.startedAt.toISOString(),
+              endedAt: null,
+              durationSeconds: 0,
+              status: "ON_DUTY",
+              notes: r.notes,
+              createdAt: r.createdAt.toISOString(),
+            };
+          });
+          this.liveSessionsCache.set(cleanSlug, { data: result, timestamp: Date.now() });
+          return result;
+        } catch (err) {
+          console.warn("DB getLiveOnDuty error:", err);
+        }
+      }
+
+      reloadPersistedSessions();
+      const memoryResult = memoryStore.dutySessions.filter((s) => {
+        const isLive = !s.endedAt && s.status === "ON_DUTY";
+        if (!isLive) return false;
+        return matchesInstitution(s, institutionSlug);
+      });
+      this.liveSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: Date.now() });
+      return memoryResult;
+    })();
+
+    this.inFlightLiveSessions.set(cleanSlug, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightLiveSessions.delete(cleanSlug);
+    }
   }
 
   // --- MEMBERSHIP & PERMISSIONS ---
@@ -1765,11 +1805,11 @@ export class DataService {
     institutionSlug: string
   ): Promise<MembershipData | null> {
     const cleanId = userId.replace("discord-", "");
-    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+    const cleanSlug = normalizeInstSlug(institutionSlug);
 
-    // 1. Check membershipsCache if already loaded
+    // 1. Check membershipsCache if already loaded (0ms)
     const cached = this.membershipsCache.get(cleanSlug);
-    if (cached && Date.now() - cached.timestamp < 60000) {
+    if (cached && Date.now() - cached.timestamp < 300000) {
       const found = cached.data.find(
         (m) =>
           m.userId === userId ||
@@ -1779,6 +1819,30 @@ export class DataService {
       );
       if (found) return found;
     }
+
+    // 2. Check userMembershipsCache if already loaded (0ms)
+    const userCached = this.userMembershipsCache.get(cleanId);
+    if (userCached && Date.now() - userCached.timestamp < 300000) {
+      const found = userCached.data.find(
+        (m) =>
+          normalizeInstSlug(m.institutionId) === cleanSlug ||
+          normalizeInstSlug((m as any).institutionSlug || "") === cleanSlug
+      );
+      if (found) return found;
+    }
+
+    // 3. Fast check from in-memory seed/store (0ms)
+    const memoryMembers = memoryStore.memberships.filter(
+      (m) => normalizeInstSlug(m.institutionId) === cleanSlug || m.institutionId === institutionSlug
+    );
+    const memFound = memoryMembers.find(
+      (m) =>
+        m.userId === userId ||
+        m.userId === cleanId ||
+        m.userId === `discord-${cleanId}` ||
+        m.user?.discordId === cleanId
+    );
+    if (memFound) return memFound;
 
     const institution = await this.getInstitutionBySlug(institutionSlug);
     if (!institution) return null;
@@ -1822,18 +1886,7 @@ export class DataService {
       }
     }
 
-    const memoryMembers = memoryStore.memberships.filter(
-      (m) => m.institutionId === institution.id || m.institutionId === institutionSlug
-    );
-    return (
-      memoryMembers.find(
-        (m) =>
-          m.userId === userId ||
-          m.userId === cleanId ||
-          m.userId === `discord-${cleanId}` ||
-          m.user?.discordId === cleanId
-      ) || null
-    );
+    return null;
   }
 
   /**
@@ -1845,108 +1898,148 @@ export class DataService {
     discordId?: string
   ): Promise<MembershipData[]> {
     const cleanId = (discordId || userId).replace("discord-", "");
-    const isDb = this.isDatabaseAvailable();
-    if (isDb) {
-      try {
-        const rows = await prisma.membership.findMany({
-          where: {
-            OR: [
-              { userId },
-              { userId: cleanId },
-              { userId: `discord-${cleanId}` },
-              { user: { discordId: cleanId } },
-            ],
-          },
-          include: { user: true, position: true, institution: true },
-        });
-
-        if (rows.length > 0) {
-          return rows.map((r) => ({
-            id: r.id,
-            userId: r.userId,
-            institutionId: r.institutionId,
-            positionName: r.position?.name || (r.institution.slug.includes("med") ? "Medis" : r.institution.slug.includes("mech") || r.institution.slug.includes("bengkel") ? "Mekanik" : r.institution.slug.includes("resto") ? "Server Resto" : r.institution.slug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
-            permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
-            status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
-            joinedAt: r.joinedAt.toISOString(),
-            user: {
-              id: r.user.id,
-              discordId: r.user.discordId,
-              discordUsername: r.user.discordUsername,
-              displayName: r.user.displayName || r.user.discordUsername,
-              discordAvatar: r.user.discordAvatar,
-            },
-          }));
-        }
-      } catch (err) {
-        console.warn("DB getUserMemberships error:", err);
-      }
+    const now = Date.now();
+    const cached = this.userMembershipsCache.get(cleanId);
+    if (cached && now - cached.timestamp < 300000) {
+      return cached.data;
     }
 
-    return memoryStore.memberships.filter(
-      (m) =>
-        m.userId === userId ||
-        m.userId === cleanId ||
-        m.userId === `discord-${cleanId}` ||
-        m.user?.discordId === cleanId
-    );
+    const inFlight = this.inFlightUserMemberships.get(cleanId);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const fetchPromise = (async () => {
+      const isDb = this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          const rows = await prisma.membership.findMany({
+            where: {
+              OR: [
+                { userId },
+                { userId: cleanId },
+                { userId: `discord-${cleanId}` },
+                { user: { discordId: cleanId } },
+              ],
+            },
+            include: { user: true, position: true, institution: true },
+          });
+
+          if (rows.length > 0) {
+            const result: MembershipData[] = rows.map((r) => ({
+              id: r.id,
+              userId: r.userId,
+              institutionId: r.institutionId,
+              positionName: r.position?.name || (r.institution.slug.includes("med") ? "Medis" : r.institution.slug.includes("mech") || r.institution.slug.includes("bengkel") ? "Mekanik" : r.institution.slug.includes("resto") ? "Server Resto" : r.institution.slug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
+              permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
+              status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
+              joinedAt: r.joinedAt.toISOString(),
+              user: {
+                id: r.user.id,
+                discordId: r.user.discordId,
+                discordUsername: r.user.discordUsername,
+                displayName: r.user.displayName || r.user.discordUsername,
+                discordAvatar: r.user.discordAvatar,
+              },
+            }));
+            this.userMembershipsCache.set(cleanId, { data: result, timestamp: Date.now() });
+            this.userMembershipsCache.set(userId, { data: result, timestamp: Date.now() });
+            return result;
+          }
+        } catch (err) {
+          console.warn("DB getUserMemberships error:", err);
+        }
+      }
+
+      const memList = memoryStore.memberships.filter(
+        (m) =>
+          m.userId === userId ||
+          m.userId === cleanId ||
+          m.userId === `discord-${cleanId}` ||
+          m.user?.discordId === cleanId
+      );
+      this.userMembershipsCache.set(cleanId, { data: memList, timestamp: Date.now() });
+      this.userMembershipsCache.set(userId, { data: memList, timestamp: Date.now() });
+      return memList;
+    })();
+
+    this.inFlightUserMemberships.set(cleanId, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightUserMemberships.delete(cleanId);
+    }
   }
 
   static async getMemberships(institutionSlug: string): Promise<MembershipData[]> {
     const cleanSlug = normalizeInstSlug(institutionSlug);
     const now = Date.now();
     const cached = this.membershipsCache.get(cleanSlug);
-    if (cached && now - cached.timestamp < 60000) {
+    if (cached && now - cached.timestamp < 300000) {
       return cached.data;
     }
 
-    const institution = await this.getInstitutionBySlug(cleanSlug);
-    if (!institution) return [];
-
-    const isDb = this.isDatabaseAvailable();
-    if (isDb) {
-      try {
-        const rows = await prisma.membership.findMany({
-          where: {
-            OR: [
-              { institutionId: institution.id },
-              { institutionId: institution.slug },
-              { institutionId: `inst-${cleanSlug}` },
-            ],
-          },
-          include: { user: true, position: true },
-          orderBy: { joinedAt: "asc" },
-        });
-        if (rows.length > 0) {
-          const result = rows.map((r) => ({
-            id: r.id,
-            userId: r.userId,
-            institutionId: r.institutionId,
-            positionName: r.position?.name || (cleanSlug.includes("med") ? "Medis" : cleanSlug.includes("mech") || cleanSlug.includes("bengkel") ? "Mekanik" : cleanSlug.includes("resto") ? "Server Resto" : cleanSlug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
-            permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
-            status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
-            joinedAt: r.joinedAt.toISOString(),
-            user: {
-              id: r.user.id,
-              discordId: r.user.discordId,
-              discordUsername: r.user.discordUsername,
-              displayName: r.user.displayName || r.user.discordUsername,
-              discordAvatar: r.user.discordAvatar,
-            },
-          }));
-          this.membershipsCache.set(cleanSlug, { data: result, timestamp: now });
-          return result;
-        }
-      } catch (err) {
-        console.warn("DB getMemberships fallback to memory:", err);
-      }
+    const inFlight = this.inFlightMemberships.get(cleanSlug);
+    if (inFlight) {
+      return inFlight;
     }
 
-    const memoryMembers = memoryStore.memberships.filter(
-      (m) => m.institutionId === institution.id || m.institutionId === institutionSlug
-    );
-    this.membershipsCache.set(cleanSlug, { data: memoryMembers, timestamp: now });
-    return memoryMembers;
+    const fetchPromise = (async () => {
+      const institution = await this.getInstitutionBySlug(cleanSlug);
+      if (!institution) return [];
+
+      const isDb = this.isDatabaseAvailable();
+      if (isDb) {
+        try {
+          const rows = await prisma.membership.findMany({
+            where: {
+              OR: [
+                { institutionId: institution.id },
+                { institutionId: institution.slug },
+                { institutionId: `inst-${cleanSlug}` },
+              ],
+            },
+            include: { user: true, position: true },
+            orderBy: { joinedAt: "asc" },
+          });
+          if (rows.length > 0) {
+            const result = rows.map((r) => ({
+              id: r.id,
+              userId: r.userId,
+              institutionId: r.institutionId,
+              positionName: r.position?.name || (cleanSlug.includes("med") ? "Medis" : cleanSlug.includes("mech") || cleanSlug.includes("bengkel") ? "Mekanik" : cleanSlug.includes("resto") ? "Server Resto" : cleanSlug.includes("pemerintah") ? "Staff Sipil" : "Officer"),
+              permissionLevel: (r.position?.permissionLevel || "MEMBER") as PermissionLevel,
+              status: r.status as "ACTIVE" | "INACTIVE" | "SUSPENDED",
+              joinedAt: r.joinedAt.toISOString(),
+              user: {
+                id: r.user.id,
+                discordId: r.user.discordId,
+                discordUsername: r.user.discordUsername,
+                displayName: r.user.displayName || r.user.discordUsername,
+                discordAvatar: r.user.discordAvatar,
+              },
+            }));
+            this.membershipsCache.set(cleanSlug, { data: result, timestamp: Date.now() });
+            return result;
+          }
+        } catch (err) {
+          console.warn("DB getMemberships fallback to memory:", err);
+        }
+      }
+
+      const memoryMembers = memoryStore.memberships.filter(
+        (m) => normalizeInstSlug(m.institutionId) === cleanSlug || m.institutionId === institution.id || m.institutionId === institutionSlug
+      );
+      this.membershipsCache.set(cleanSlug, { data: memoryMembers, timestamp: Date.now() });
+      return memoryMembers;
+    })();
+
+    this.inFlightMemberships.set(cleanSlug, fetchPromise);
+    try {
+      return await fetchPromise;
+    } finally {
+      this.inFlightMemberships.delete(cleanSlug);
+    }
   }
 
   /**

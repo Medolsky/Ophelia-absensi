@@ -98,7 +98,7 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
 ): Promise<{ allowed: boolean; permissionLevel: PermissionLevel; reason?: string }> {
   const cleanSlug = normalizeInstSlug(institutionSlug);
 
-  // 1. Super Admin or Discord Admin always has full access
+  // 1. Super Admin or Discord Admin always has full access (0ms)
   if (user.isSuperAdmin || isDiscordAdmin(user)) {
     return { allowed: true, permissionLevel: "SUPER_ADMIN" };
   }
@@ -112,7 +112,68 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
       .replace(/\s+/g, " ")
       .trim();
 
-  // 3. Fast targeted check for user's membership in this institution
+  // Fast Leader role calculation
+  const isLeader = userRoles.some((role) => {
+    const norm = normalize(role);
+    return (
+      norm.includes("petinggi") ||
+      norm.includes("chief") ||
+      norm.includes("director") ||
+      norm.includes("pimpinan") ||
+      norm.includes("admin") ||
+      norm.includes("owner") ||
+      norm.includes("manager") ||
+      norm.includes("lead")
+    );
+  });
+
+  // 2. Fast Path: In-Memory Discord role matching against institution roles (0ms, 0 DB roundtrips)
+  const institution = DEFAULT_INSTITUTIONS.find(
+    (i) => i.slug === cleanSlug || i.slug === institutionSlug || i.id === institutionSlug
+  );
+
+  if (institution) {
+    const requiredRoles = institution.discordRoleNames || [institution.name];
+    const roleMatched = userRoles.some((role) => {
+      const normRole = normalize(role);
+      return requiredRoles.some((req) => {
+        const normReq = normalize(req);
+        return (
+          normRole === normReq ||
+          normRole.includes(normReq) ||
+          normReq.includes(normRole)
+        );
+      });
+    });
+
+    if (roleMatched) {
+      return {
+        allowed: true,
+        permissionLevel: isLeader ? "LEADER" : "MEMBER",
+      };
+    }
+  }
+
+  // 3. Check Demo Persona mappings (only if dev demo enabled)
+  if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
+    const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
+    if (demoPersona) {
+      const hasRole = demoPersona.institutionSlugs.includes(cleanSlug);
+      if (!hasRole) {
+        return {
+          allowed: false,
+          permissionLevel: "MEMBER",
+          reason: `Discord ID Anda tidak memiliki role Discord untuk instansi '${institutionSlug}'.`,
+        };
+      }
+      return {
+        allowed: true,
+        permissionLevel: demoPersona.roleLevels[cleanSlug] || "MEMBER",
+      };
+    }
+  }
+
+  // 4. Fallback: Check manual/database membership if user has custom DB permissions
   try {
     const userMembership = await DataService.getUserMembership(user.id, cleanSlug);
 
@@ -140,71 +201,15 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
     console.warn("verifyInstitutionAccess membership check error:", err);
   }
 
-  // 4. Check Demo Persona mappings (only if dev demo enabled)
-  if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
-    const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
-    if (demoPersona) {
-      const hasRole = demoPersona.institutionSlugs.includes(cleanSlug);
-      if (!hasRole) {
-        return {
-          allowed: false,
-          permissionLevel: "MEMBER",
-          reason: `Discord ID Anda tidak memiliki role Discord untuk instansi '${institutionSlug}'.`,
-        };
-      }
-      return {
-        allowed: true,
-        permissionLevel: demoPersona.roleLevels[cleanSlug] || "MEMBER",
-      };
-    }
-  }
-
-  // 5. Check Discord roles against institution mapped roles
-  const institution = DEFAULT_INSTITUTIONS.find((i) => i.slug === cleanSlug || i.slug === institutionSlug);
   if (!institution) {
     return { allowed: false, permissionLevel: "MEMBER", reason: "Instansi tidak valid." };
   }
 
   const requiredRoles = institution.discordRoleNames || [institution.name];
-
-  const matched = userRoles.some((role) => {
-    const normRole = normalize(role);
-    return requiredRoles.some((req) => {
-      const normReq = normalize(req);
-      return (
-        normRole === normReq ||
-        normRole.includes(normReq) ||
-        normReq.includes(normRole)
-      );
-    });
-  });
-
-  if (!matched) {
-    return {
-      allowed: false,
-      permissionLevel: "MEMBER",
-      reason: `Discord ID Anda (${user.discordId}) tidak memiliki salah satu role yang diperlukan: ${requiredRoles.join(", ")}`,
-    };
-  }
-
-  // 6. Determine Leader role
-  const isLeader = userRoles.some((role) => {
-    const norm = normalize(role);
-    return (
-      norm.includes("petinggi") ||
-      norm.includes("chief") ||
-      norm.includes("director") ||
-      norm.includes("pimpinan") ||
-      norm.includes("admin") ||
-      norm.includes("owner") ||
-      norm.includes("manager") ||
-      norm.includes("lead")
-    );
-  });
-
   return {
-    allowed: true,
-    permissionLevel: isLeader ? "LEADER" : "MEMBER",
+    allowed: false,
+    permissionLevel: "MEMBER",
+    reason: `Discord ID Anda (${user.discordId}) tidak memiliki salah satu role yang diperlukan: ${requiredRoles.join(", ")}`,
   };
 });
 
@@ -219,14 +224,6 @@ export const getAllowedInstitutions = cache(async function getAllowedInstitution
     return DEFAULT_INSTITUTIONS;
   }
 
-  // Single fast query for all memberships of this user
-  const userMemberships = await DataService.getUserMemberships(user.id, user.discordId);
-  const activeInstIdsOrSlugs = new Set(
-    userMemberships
-      .filter((m) => m.status === "ACTIVE")
-      .flatMap((m) => [m.institutionId, (m as any).institutionSlug].filter(Boolean))
-  );
-
   const userRoles = user.discordRoles || [];
   const normalize = (str: string) =>
     str
@@ -235,13 +232,8 @@ export const getAllowedInstitutions = cache(async function getAllowedInstitution
       .replace(/\s+/g, " ")
       .trim();
 
-  return DEFAULT_INSTITUTIONS.filter((inst) => {
-    // 1. Direct active membership
-    if (activeInstIdsOrSlugs.has(inst.id) || activeInstIdsOrSlugs.has(inst.slug)) {
-      return true;
-    }
-
-    // 2. Demo Persona check (if enabled)
+  // 1. Fast Path: In-memory Discord role matching (0ms)
+  const roleMatchedInstitutions = DEFAULT_INSTITUTIONS.filter((inst) => {
     if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
       const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
       if (demoPersona && demoPersona.institutionSlugs.includes(inst.slug)) {
@@ -249,7 +241,6 @@ export const getAllowedInstitutions = cache(async function getAllowedInstitution
       }
     }
 
-    // 3. Discord role matching
     const requiredRoles = inst.discordRoleNames || [inst.name];
     return userRoles.some((role) => {
       const normRole = normalize(role);
@@ -263,4 +254,25 @@ export const getAllowedInstitutions = cache(async function getAllowedInstitution
       });
     });
   });
+
+  // If user has matched institutions by Discord roles, return immediately without touching DB!
+  if (roleMatchedInstitutions.length > 0) {
+    return roleMatchedInstitutions;
+  }
+
+  // 2. Fallback: Check direct database memberships for users without standard role names
+  try {
+    const userMemberships = await DataService.getUserMemberships(user.id, user.discordId);
+    const activeInstIdsOrSlugs = new Set(
+      userMemberships
+        .filter((m) => m.status === "ACTIVE")
+        .flatMap((m) => [m.institutionId, (m as any).institutionSlug].filter(Boolean))
+    );
+
+    return DEFAULT_INSTITUTIONS.filter((inst) =>
+      activeInstIdsOrSlugs.has(inst.id) || activeInstIdsOrSlugs.has(inst.slug)
+    );
+  } catch {
+    return [];
+  }
 });

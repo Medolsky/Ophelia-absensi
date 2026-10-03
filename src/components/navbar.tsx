@@ -143,6 +143,7 @@ export function Navbar({
                         <Link
                           key={inst.id}
                           href={`/institution/${inst.slug}/duty`}
+                          prefetch={false}
                           onClick={() => setInstMenuOpen(false)}
                           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
                             inst.slug === currentInstitution?.slug
@@ -159,6 +160,7 @@ export function Navbar({
                     <div className="mt-2 pt-2 border-t border-[#252525]">
                       <Link
                         href="/select-institution"
+                        prefetch={false}
                         onClick={() => setInstMenuOpen(false)}
                         className="block text-center text-xs text-[#FF1E2D] hover:underline py-1"
                       >

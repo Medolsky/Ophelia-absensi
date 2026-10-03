@@ -150,7 +150,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={true}
+                prefetch={false}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition ${
                   isActive
                     ? "bg-[#E50914] text-white shadow-md glow-red-sm"
@@ -179,7 +179,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      prefetch={true}
+                      prefetch={false}
                       onClick={() => setMobileMenuOpen(false)}
                       className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold transition ${
                         isActive
@@ -208,7 +208,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                       <Link
                         key={item.href}
                         href={item.href}
-                        prefetch={true}
+                        prefetch={false}
                         onClick={() => setMobileMenuOpen(false)}
                         className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold transition ${
                           isActive
@@ -238,7 +238,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                       <Link
                         key={item.href}
                         href={item.href}
-                        prefetch={true}
+                        prefetch={false}
                         onClick={() => setMobileMenuOpen(false)}
                         className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold transition ${
                           isActive
@@ -274,7 +274,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    prefetch={true}
+                    prefetch={false}
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                       isActive
                         ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
@@ -306,7 +306,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      prefetch={true}
+                      prefetch={false}
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                         isActive
                           ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
@@ -339,7 +339,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      prefetch={true}
+                      prefetch={false}
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
                         isActive
                           ? "bg-amber-600 text-white shadow-lg"

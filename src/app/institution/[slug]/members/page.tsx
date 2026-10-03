@@ -39,8 +39,10 @@ export default async function MembersPage({
     );
   }
 
-  // Auto-sync Discord members if role added on Discord
-  await DataService.autoSyncDiscordMembersIfNeeded(slug);
+  // Auto-sync Discord members in the background so page load is instant
+  DataService.autoSyncDiscordMembersIfNeeded(slug).catch((err) => {
+    console.warn("Background autoSync error:", err);
+  });
   const memberships = await DataService.getMemberships(slug);
 
   return (

@@ -179,6 +179,7 @@ export default async function SelectInstitutionPage() {
                   {hasAccess ? (
                     <Link
                       href={`/institution/${inst.slug}/duty`}
+                      prefetch={false}
                       className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm group-hover:translate-x-0.5 self-start sm:self-auto"
                     >
                       <span>Masuk Instansi</span>
