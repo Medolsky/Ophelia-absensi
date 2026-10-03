@@ -9,7 +9,6 @@ import {
   Info,
   CheckCircle2,
 } from "lucide-react";
-import { FiveMHandoffCard } from "@/components/fivem-download-card";
 
 export const metadata: Metadata = {
   title: "Ophelia FiveM API Documentation",
@@ -44,16 +43,13 @@ export default function FiveMDocsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">
-                Ophelia × FiveM Integration Kit & API
+                Ophelia × FiveM Integration & API
               </h1>
               <p className="text-xs text-neutral-400">
-                Resource FiveM, panduan setup untuk developer, dan dokumentasi API lengkap
+                Panduan integrasi dan dokumentasi REST API lengkap untuk FiveM
               </p>
             </div>
           </div>
-
-          {/* Developer Handoff Card */}
-          <FiveMHandoffCard baseUrl={baseUrl} apiSecret={apiSecret} />
         </div>
 
         {/* Auth */}
