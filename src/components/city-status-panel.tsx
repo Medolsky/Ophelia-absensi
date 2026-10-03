@@ -377,17 +377,17 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                 </span>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[#202020] grid grid-cols-2 gap-2 text-xs">
+              <div className="mt-4 pt-3 border-t border-[#202020] flex items-center justify-between text-xs">
                 <div>
                   <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
-                    DI KOTA
+                    SERVER ID
                   </div>
-                  <div className="font-mono text-neutral-300 mt-0.5 truncate whitespace-nowrap">
-                    {formatElapsed(entry.joinedAt)}
+                  <div className="font-mono text-neutral-300 mt-0.5">
+                    #{entry.serverId}
                   </div>
                 </div>
 
-                {entry.isOnDuty && entry.dutyStartedAt ? (
+                {entry.isOnDuty && entry.dutyStartedAt && (
                   <div className="text-right">
                     <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
                       DURASI DUTY
@@ -397,15 +397,6 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                       style={{ color: accentColor }}
                     >
                       {formatElapsed(entry.dutyStartedAt)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-right">
-                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
-                      SERVER ID
-                    </div>
-                    <div className="font-mono text-neutral-300 mt-0.5">
-                      #{entry.serverId}
                     </div>
                   </div>
                 )}
