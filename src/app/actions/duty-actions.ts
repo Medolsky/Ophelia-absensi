@@ -1,7 +1,7 @@
 "use server";
 
-import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
-import { DataService } from "@/lib/data-service";
+import { getCurrentUser, verifyInstitutionAccess, isDiscordAdmin } from "@/lib/auth";
+import { DataService, normalizeInstSlug } from "@/lib/data-service";
 import { revalidatePath } from "next/cache";
 
 import { cookies } from "next/headers";
@@ -114,17 +114,20 @@ export async function correctAttendanceAction(params: {
     return { success: false, error: "Harap login terlebih dahulu." };
   }
 
-  // PRD Section 22: Must be LEADER or SUPER_ADMIN to correct attendance
-  const access = await verifyInstitutionAccess(user, params.institutionSlug);
-  if (access.permissionLevel !== "LEADER" && access.permissionLevel !== "SUPER_ADMIN") {
+  const cleanSlug = normalizeInstSlug(params.institutionSlug);
+  const access = await verifyInstitutionAccess(user, cleanSlug);
+  const isAdmin = isDiscordAdmin(user);
+  const isLeader = access.permissionLevel === "LEADER" || access.permissionLevel === "SUPER_ADMIN";
+
+  if (!isAdmin && !isLeader) {
     return {
       success: false,
-      error: "Hanya Petinggi (Leader) atau Super Admin yang dapat melakukan koreksi absensi.",
+      error: "Hanya Admin Discord atau Petinggi instansi yang dapat melakukan koreksi absensi.",
     };
   }
 
-  if (!params.reason || params.reason.trim().length < 5) {
-    return { success: false, error: "Alasan koreksi absensi wajib diisi (minimal 5 karakter)." };
+  if (!params.reason || params.reason.trim().length < 3) {
+    return { success: false, error: "Alasan koreksi absensi wajib diisi (minimal 3 karakter)." };
   }
 
   const result = await DataService.correctAttendance({
@@ -137,8 +140,13 @@ export async function correctAttendanceAction(params: {
   });
 
   if (result.success) {
-    revalidatePath(`/institution/${params.institutionSlug}/attendance`);
-    revalidatePath(`/institution/${params.institutionSlug}/members`);
+    revalidatePath(`/institution/${cleanSlug}`);
+    revalidatePath(`/institution/${cleanSlug}/attendance`);
+    revalidatePath(`/institution/${cleanSlug}/history`);
+    revalidatePath(`/institution/${cleanSlug}/live`);
+    revalidatePath(`/institution/${cleanSlug}/members`);
+    revalidatePath(`/institution/${cleanSlug}/statistics`);
+    revalidatePath("/", "layout");
   }
 
   return result;

@@ -2373,51 +2373,167 @@ export class DataService {
     newEnd: string;
     reason: string;
   }): Promise<{ success: boolean; session?: DutySessionData; error?: string }> {
-    const targetSession = memoryStore.dutySessions.find((s) => s.id === params.dutySessionId);
-    if (!targetSession) {
-      return { success: false, error: "Sesi absensi tidak ditemukan." };
-    }
-
-    const oldStart = targetSession.startedAt;
-    const oldEnd = targetSession.endedAt;
-
+    const isDb = await this.isDatabaseAvailable();
     const startDate = new Date(params.newStart);
     const endDate = new Date(params.newEnd);
     const durationSeconds = Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 1000));
 
-    targetSession.startedAt = params.newStart;
-    targetSession.endedAt = params.newEnd;
-    targetSession.durationSeconds = durationSeconds;
-    targetSession.status = "CORRECTED";
+    let updatedSession: DutySessionData | null = null;
+    let targetInstSlug: string | undefined;
 
-    // Attendance edit log
-    memoryStore.attendanceEdits.unshift({
-      id: `edit-${Date.now()}`,
-      dutySessionId: params.dutySessionId,
-      editedById: params.editorId,
-      editedByName: params.editorName,
-      oldStart,
-      oldEnd,
-      newStart: params.newStart,
-      newEnd: params.newEnd,
-      reason: params.reason,
-      createdAt: new Date().toISOString(),
-    });
+    if (isDb) {
+      try {
+        const existing = await prisma.dutySession.findUnique({
+          where: { id: params.dutySessionId },
+          include: { institution: true, user: true },
+        });
 
-    // Audit log
-    memoryStore.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
-      actorId: params.editorId,
-      actorName: params.editorName,
-      action: "CORRECT_ATTENDANCE",
-      targetType: "DUTY_SESSION",
-      targetId: params.dutySessionId,
-      oldData: JSON.stringify({ oldStart, oldEnd }),
-      newData: JSON.stringify({ newStart: params.newStart, newEnd: params.newEnd, reason: params.reason }),
-      createdAt: new Date().toISOString(),
-    });
+        if (existing) {
+          targetInstSlug = existing.institution.slug;
+          const oldStart = existing.startedAt.toISOString();
+          const oldEnd = existing.endedAt ? existing.endedAt.toISOString() : null;
 
-    return { success: true, session: targetSession };
+          const updated = await prisma.dutySession.update({
+            where: { id: params.dutySessionId },
+            data: {
+              startedAt: startDate,
+              endedAt: endDate,
+              durationSeconds,
+              status: "CORRECTED",
+              notes: params.reason ? `Koreksi: ${params.reason}` : existing.notes,
+            },
+            include: { institution: true, user: true },
+          });
+
+          // Log attendance edit in DB
+          try {
+            const cleanEditorId = params.editorId.replace("discord-", "");
+            const editorUser = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { id: params.editorId },
+                  { discordId: cleanEditorId },
+                  { discordId: params.editorId },
+                ],
+              },
+            });
+
+            if (editorUser) {
+              await prisma.attendanceEdit.create({
+                data: {
+                  dutySessionId: params.dutySessionId,
+                  editedById: editorUser.id,
+                  oldStart: new Date(oldStart),
+                  oldEnd: oldEnd ? new Date(oldEnd) : null,
+                  newStart: startDate,
+                  newEnd: endDate,
+                  reason: params.reason,
+                },
+              });
+
+              await prisma.auditLog.create({
+                data: {
+                  actorId: editorUser.id,
+                  action: "CORRECT_ATTENDANCE",
+                  targetType: "DUTY_SESSION",
+                  targetId: params.dutySessionId,
+                  oldData: JSON.stringify({ oldStart, oldEnd }),
+                  newData: JSON.stringify({
+                    newStart: params.newStart,
+                    newEnd: params.newEnd,
+                    reason: params.reason,
+                  }),
+                },
+              });
+            }
+          } catch (logErr) {
+            console.warn("DB attendanceEdit log error:", logErr);
+          }
+
+          updatedSession = {
+            id: updated.id,
+            userId: updated.userId,
+            userName: updated.user.displayName || updated.user.discordUsername,
+            userAvatar: updated.user.discordAvatar,
+            institutionId: updated.institutionId,
+            institutionSlug: updated.institution.slug,
+            institutionName: updated.institution.name,
+            startedAt: updated.startedAt.toISOString(),
+            endedAt: updated.endedAt ? updated.endedAt.toISOString() : null,
+            durationSeconds: updated.durationSeconds,
+            status: "CORRECTED",
+            notes: updated.notes,
+            createdAt: updated.createdAt.toISOString(),
+          };
+        }
+      } catch (err) {
+        console.warn("DB correctAttendance error:", err);
+      }
+    }
+
+    // Memory Store update and fallback
+    reloadPersistedSessions();
+    const memSession = memoryStore.dutySessions.find((s) => s.id === params.dutySessionId);
+    if (memSession) {
+      targetInstSlug = memSession.institutionSlug || targetInstSlug;
+      const oldStart = memSession.startedAt;
+      const oldEnd = memSession.endedAt;
+
+      memSession.startedAt = params.newStart;
+      memSession.endedAt = params.newEnd;
+      memSession.durationSeconds = durationSeconds;
+      memSession.status = "CORRECTED";
+      if (params.reason) {
+        memSession.notes = `Koreksi: ${params.reason}`;
+      }
+
+      memoryStore.attendanceEdits.unshift({
+        id: `edit-${Date.now()}`,
+        dutySessionId: params.dutySessionId,
+        editedById: params.editorId,
+        editedByName: params.editorName,
+        oldStart,
+        oldEnd,
+        newStart: params.newStart,
+        newEnd: params.newEnd,
+        reason: params.reason,
+        createdAt: new Date().toISOString(),
+      });
+
+      memoryStore.auditLogs.unshift({
+        id: `audit-${Date.now()}`,
+        actorId: params.editorId,
+        actorName: params.editorName,
+        action: "CORRECT_ATTENDANCE",
+        targetType: "DUTY_SESSION",
+        targetId: params.dutySessionId,
+        oldData: JSON.stringify({ oldStart, oldEnd }),
+        newData: JSON.stringify({ newStart: params.newStart, newEnd: params.newEnd, reason: params.reason }),
+        createdAt: new Date().toISOString(),
+      });
+
+      persistStore();
+      if (!updatedSession) {
+        updatedSession = memSession;
+      }
+    } else if (updatedSession) {
+      memoryStore.dutySessions.unshift(updatedSession);
+      persistStore();
+    }
+
+    if (!updatedSession) {
+      return { success: false, error: "Sesi absensi tidak ditemukan." };
+    }
+
+    // Invalidate caches across the board
+    if (targetInstSlug) {
+      this.invalidateDutySessionsCache(targetInstSlug);
+    }
+    this.activeSessionsCache.delete(updatedSession.userId);
+    this.activeSessionsCache.delete(updatedSession.userId.replace("discord-", ""));
+    this.liveSessionsCache.clear();
+
+    return { success: true, session: updatedSession };
   }
 
   // --- SALARY & PAYROLL SYSTEM ---

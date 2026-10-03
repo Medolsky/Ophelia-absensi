@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
 import { DataService, normalizeInstSlug } from "@/lib/data-service";
 import { History, Calendar, Clock, ChevronRight, Users, Shield, ArrowUpRight, Award, BarChart3 } from "lucide-react";
 import Link from "next/link";
@@ -32,6 +32,7 @@ export default async function HistoryPage({
     redirect("/");
   }
 
+  const access = await verifyInstitutionAccess(currentUser, slug);
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) {
     redirect("/select-institution");
@@ -309,6 +310,8 @@ export default async function HistoryPage({
           currentUserId={currentUser.id}
           currentUserDiscordId={currentUser.discordId}
           institutionSlug={slug}
+          userPermission={access.permissionLevel}
+          currentUserRoles={currentUser.discordRoles}
         />
       </div>
     </div>

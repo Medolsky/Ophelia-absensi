@@ -24,6 +24,7 @@ interface AttendanceTableProps {
   institutionSlug: string;
   userPermission: PermissionLevel;
   currentUserId?: string;
+  currentUserRoles?: string[];
   initialMonth?: string;
 }
 
@@ -32,6 +33,7 @@ export function AttendanceTable({
   institutionSlug,
   userPermission,
   currentUserId,
+  currentUserRoles,
   initialMonth,
 }: AttendanceTableProps) {
   const router = useRouter();
@@ -69,7 +71,24 @@ export function AttendanceTable({
     setCurrentPage(1);
   }, [viewMode, searchTerm, statusFilter, startDate, endDate, pageSize]);
 
-  const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN";
+  const hasAdminRole = (currentUserRoles || []).some((r) => {
+    const raw = String(r).trim();
+    if (raw === "1482622396954312809" || raw === "1482622396954312808") return true;
+    const norm = raw.toLowerCase().replace(/[^\w\s]/gi, "").trim();
+    return (
+      norm.includes("admin") ||
+      norm.includes("administrator") ||
+      norm.includes("pimpinan") ||
+      norm.includes("owner") ||
+      norm.includes("founder") ||
+      norm.includes("management") ||
+      norm.includes("atasan") ||
+      norm.includes("chief") ||
+      norm.includes("leader")
+    );
+  });
+
+  const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN" || hasAdminRole;
 
   const filteredSessions = useMemo(() => {
     const cleanId = currentUserId ? currentUserId.replace("discord-", "") : "";

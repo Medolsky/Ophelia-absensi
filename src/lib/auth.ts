@@ -61,6 +61,32 @@ export async function logoutUser(): Promise<void> {
   cookieStore.delete(COOKIE_NAME);
 }
 
+export function isDiscordAdmin(user: SessionUser | null | undefined): boolean {
+  if (!user) return false;
+  if (user.isSuperAdmin) return true;
+  const userRoles = user.discordRoles || [];
+  return userRoles.some((r) => {
+    const raw = String(r).trim();
+    if (raw === "1482622396954312809" || raw === "1482622396954312808") return true;
+    const norm = raw
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return (
+      norm.includes("admin") ||
+      norm.includes("administrator") ||
+      norm.includes("pimpinan") ||
+      norm.includes("owner") ||
+      norm.includes("founder") ||
+      norm.includes("management") ||
+      norm.includes("atasan") ||
+      norm.includes("chief") ||
+      norm.includes("leader")
+    );
+  });
+}
+
 /**
  * Validate whether the user possesses the Discord role required for an institution.
  * Enforces PRD Section 6 & 29 (Server-side Discord Role Verification)
@@ -72,8 +98,8 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
 ): Promise<{ allowed: boolean; permissionLevel: PermissionLevel; reason?: string }> {
   const cleanSlug = normalizeInstSlug(institutionSlug);
 
-  // 1. Super Admin always has full access
-  if (user.isSuperAdmin) {
+  // 1. Super Admin or Discord Admin always has full access
+  if (user.isSuperAdmin || isDiscordAdmin(user)) {
     return { allowed: true, permissionLevel: "SUPER_ADMIN" };
   }
 
@@ -85,16 +111,6 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
       .replace(/[^\w\s]/gi, "")
       .replace(/\s+/g, " ")
       .trim();
-
-  // 2. Check if user has server-wide Admin / Pimpinan Discord roles
-  const hasAdminRole = userRoles.some((r) => {
-    const norm = normalize(r);
-    return norm === "admin" || norm === "pimpinan" || norm.includes("admin") || norm.includes("owner");
-  });
-
-  if (hasAdminRole) {
-    return { allowed: true, permissionLevel: "SUPER_ADMIN" };
-  }
 
   // 3. Fast targeted check for user's membership in this institution
   try {
@@ -199,24 +215,7 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
 export const getAllowedInstitutions = cache(async function getAllowedInstitutions(
   user: SessionUser
 ): Promise<typeof DEFAULT_INSTITUTIONS> {
-  if (user.isSuperAdmin) {
-    return DEFAULT_INSTITUTIONS;
-  }
-
-  const userRoles = user.discordRoles || [];
-  const normalize = (str: string) =>
-    str
-      .toLowerCase()
-      .replace(/[^\w\s]/gi, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  const hasAdminRole = userRoles.some((r) => {
-    const norm = normalize(r);
-    return norm === "admin" || norm === "pimpinan" || norm.includes("admin") || norm.includes("owner");
-  });
-
-  if (hasAdminRole) {
+  if (user.isSuperAdmin || isDiscordAdmin(user)) {
     return DEFAULT_INSTITUTIONS;
   }
 
@@ -227,6 +226,14 @@ export const getAllowedInstitutions = cache(async function getAllowedInstitution
       .filter((m) => m.status === "ACTIVE")
       .flatMap((m) => [m.institutionId, (m as any).institutionSlug].filter(Boolean))
   );
+
+  const userRoles = user.discordRoles || [];
+  const normalize = (str: string) =>
+    str
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
   return DEFAULT_INSTITUTIONS.filter((inst) => {
     // 1. Direct active membership

@@ -50,7 +50,12 @@ export default async function LiveDutyPage({
         </h1>
       </div>
 
-      <LiveDutyList initialSessions={liveSessions} institutionSlug={slug} />
+      <LiveDutyList
+        initialSessions={liveSessions}
+        institutionSlug={slug}
+        userPermission={access.permissionLevel}
+        currentUserRoles={currentUser.discordRoles}
+      />
     </div>
   );
 }

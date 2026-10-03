@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { DutySessionData } from "@/types";
+import { useState, useMemo, useEffect } from "react";
+import { DutySessionData, PermissionLevel } from "@/types";
 import { UserAvatar } from "./user-avatar";
-import { Search, Clock, ChevronLeft, ChevronRight, User, Users, Filter } from "lucide-react";
+import { AttendanceEditModal } from "./attendance-edit-modal";
+import { Search, Clock, ChevronLeft, ChevronRight, User, Users, Filter, Edit3 } from "lucide-react";
 
 interface HistoryTableProps {
   sessions: DutySessionData[];
   currentUserId: string;
   currentUserDiscordId?: string;
   institutionSlug: string;
+  userPermission?: PermissionLevel;
+  currentUserRoles?: string[];
 }
 
 function formatDuration(seconds: number): string {
@@ -61,12 +64,39 @@ export function HistoryTable({
   currentUserId,
   currentUserDiscordId,
   institutionSlug,
+  userPermission,
+  currentUserRoles,
 }: HistoryTableProps) {
+  const [sessionsList, setSessionsList] = useState<DutySessionData[]>(sessions);
   const [filterMode, setFilterMode] = useState<"ALL" | "MINE">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
   const pageSize = 15;
+
+  useEffect(() => {
+    setSessionsList(sessions);
+  }, [sessions]);
+
+  // Check if admin or leader can edit attendance
+  const hasAdminRole = (currentUserRoles || []).some((r) => {
+    const raw = String(r).trim();
+    if (raw === "1482622396954312809" || raw === "1482622396954312808") return true;
+    const norm = raw.toLowerCase().replace(/[^\w\s]/gi, "").trim();
+    return (
+      norm.includes("admin") ||
+      norm.includes("administrator") ||
+      norm.includes("pimpinan") ||
+      norm.includes("owner") ||
+      norm.includes("founder") ||
+      norm.includes("management") ||
+      norm.includes("atasan") ||
+      norm.includes("chief") ||
+      norm.includes("leader")
+    );
+  });
+  const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN" || hasAdminRole;
 
   const cleanUserId = currentUserId.replace("discord-", "");
   const cleanDiscordId = currentUserDiscordId?.replace("discord-", "");
@@ -81,7 +111,7 @@ export function HistoryTable({
   };
 
   const filteredSessions = useMemo(() => {
-    return sessions.filter((s) => {
+    return sessionsList.filter((s) => {
       // 1. Filter by user mode
       if (filterMode === "MINE" && !isUserSession(s)) {
         return false;
@@ -109,7 +139,7 @@ export function HistoryTable({
 
       return true;
     });
-  }, [sessions, filterMode, statusFilter, searchTerm, currentUserId, currentUserDiscordId]);
+  }, [sessionsList, filterMode, statusFilter, searchTerm, currentUserId, currentUserDiscordId]);
 
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(filteredSessions.length / pageSize));
@@ -120,8 +150,8 @@ export function HistoryTable({
   }, [filteredSessions, validPage, pageSize]);
 
   const mySessionsCount = useMemo(() => {
-    return sessions.filter(isUserSession).length;
-  }, [sessions, currentUserId, currentUserDiscordId]);
+    return sessionsList.filter(isUserSession).length;
+  }, [sessionsList, currentUserId, currentUserDiscordId]);
 
   return (
     <div className="space-y-4">
@@ -135,7 +165,7 @@ export function HistoryTable({
               setFilterMode("ALL");
               setCurrentPage(1);
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               filterMode === "ALL"
                 ? "bg-[#E50914] text-white shadow-md"
                 : "text-neutral-400 hover:text-white"
@@ -143,7 +173,7 @@ export function HistoryTable({
           >
             <Users className="h-3.5 w-3.5" />
             <span>Semua Anggota</span>
-            <span className="text-[10px] opacity-75 font-mono">({sessions.length})</span>
+            <span className="text-[10px] opacity-75 font-mono">({sessionsList.length})</span>
           </button>
           <button
             type="button"
@@ -151,7 +181,7 @@ export function HistoryTable({
               setFilterMode("MINE");
               setCurrentPage(1);
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               filterMode === "MINE"
                 ? "bg-[#E50914] text-white shadow-md"
                 : "text-neutral-400 hover:text-white"
@@ -169,7 +199,7 @@ export function HistoryTable({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
             <input
               type="text"
-              placeholder="Cari nama, jabatan..."
+              placeholder="Cari nama, jabatan, catatan..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -216,7 +246,7 @@ export function HistoryTable({
                 setStatusFilter("ALL");
                 setFilterMode("ALL");
               }}
-              className="mt-4 px-3.5 py-1.5 rounded-xl text-xs font-bold text-neutral-300 bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition"
+              className="mt-4 px-3.5 py-1.5 rounded-xl text-xs font-bold text-neutral-300 bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition cursor-pointer"
             >
               Reset Filter
             </button>
@@ -225,7 +255,7 @@ export function HistoryTable({
       ) : (
         <div className="rounded-2xl border border-[#222] bg-[#111111] overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-neutral-300 min-w-[650px]">
+            <table className="w-full text-left text-sm text-neutral-300 min-w-[700px]">
               <thead className="bg-[#161616] text-[11px] uppercase tracking-wider text-neutral-400 font-semibold border-b border-[#252525]">
                 <tr>
                   <th scope="col" className="py-3 px-4">Petugas</th>
@@ -235,6 +265,7 @@ export function HistoryTable({
                   <th scope="col" className="py-3 px-4">Durasi</th>
                   <th scope="col" className="py-3 px-4">Status</th>
                   <th scope="col" className="py-3 px-4">Catatan</th>
+                  {canEdit && <th scope="col" className="py-3 px-4 text-right">Aksi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e1e1e] text-xs">
@@ -315,6 +346,19 @@ export function HistoryTable({
                       <td className="py-3 px-4 whitespace-nowrap text-neutral-400 max-w-[200px] truncate">
                         {session.notes || "—"}
                       </td>
+                      {canEdit && (
+                        <td className="py-3 px-4 whitespace-nowrap text-right">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSessionToEdit(session)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#E50914] border border-[#2c2c2c] hover:border-[#E50914] transition cursor-pointer shadow-sm"
+                            title="Koreksi / Edit Jam Dinas Petugas"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                            <span>Koreksi</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -335,7 +379,7 @@ export function HistoryTable({
                   type="button"
                   disabled={validPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="p-1.5 rounded-lg border border-[#2b2b2b] bg-[#1a1a1a] hover:bg-[#252525] disabled:opacity-40 disabled:cursor-not-allowed transition text-neutral-300"
+                  className="p-1.5 rounded-lg border border-[#2b2b2b] bg-[#1a1a1a] hover:bg-[#252525] disabled:opacity-40 disabled:cursor-not-allowed transition text-neutral-300 cursor-pointer"
                   aria-label="Previous Page"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -347,7 +391,7 @@ export function HistoryTable({
                   type="button"
                   disabled={validPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1.5 rounded-lg border border-[#2b2b2b] bg-[#1a1a1a] hover:bg-[#252525] disabled:opacity-40 disabled:cursor-not-allowed transition text-neutral-300"
+                  className="p-1.5 rounded-lg border border-[#2b2b2b] bg-[#1a1a1a] hover:bg-[#252525] disabled:opacity-40 disabled:cursor-not-allowed transition text-neutral-300 cursor-pointer"
                   aria-label="Next Page"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -356,6 +400,21 @@ export function HistoryTable({
             </div>
           )}
         </div>
+      )}
+
+      {/* Edit Attendance Modal */}
+      {selectedSessionToEdit && (
+        <AttendanceEditModal
+          session={selectedSessionToEdit}
+          institutionSlug={institutionSlug}
+          isOpen={!!selectedSessionToEdit}
+          onClose={() => setSelectedSessionToEdit(null)}
+          onSessionUpdated={(updated) => {
+            setSessionsList((prev) =>
+              prev.map((s) => (s.id === updated.id ? updated : s))
+            );
+          }}
+        />
       )}
     </div>
   );

@@ -1,16 +1,23 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import { DutySessionData } from "@/types";
-import { getDiscordAvatarUrl } from "@/lib/discord-sync";
-import { Radio, Clock, Shield, Search } from "lucide-react";
+import { DutySessionData, PermissionLevel } from "@/types";
+import { UserAvatar } from "@/components/user-avatar";
+import { Radio, Clock, Search, Pencil } from "lucide-react";
+import { AttendanceEditModal } from "@/components/attendance-edit-modal";
 
 interface LiveDutyListProps {
   initialSessions: DutySessionData[];
   institutionSlug?: string;
+  userPermission?: PermissionLevel;
+  currentUserRoles?: string[];
 }
 
-export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListProps) {
+export function LiveDutyList({
+  initialSessions,
+  institutionSlug,
+  userPermission,
+  currentUserRoles,
+}: LiveDutyListProps) {
   const getMergedWithLocal = (incoming: DutySessionData[]): DutySessionData[] => {
     if (typeof window === "undefined") return incoming;
     try {
@@ -59,6 +66,26 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
   );
   const [search, setSearch] = useState("");
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
+
+  const hasAdminRole = (currentUserRoles || []).some((r) => {
+    const raw = String(r).trim();
+    if (raw === "1482622396954312809" || raw === "1482622396954312808") return true;
+    const norm = raw.toLowerCase().replace(/[^\w\s]/gi, "").trim();
+    return (
+      norm.includes("admin") ||
+      norm.includes("administrator") ||
+      norm.includes("pimpinan") ||
+      norm.includes("owner") ||
+      norm.includes("founder") ||
+      norm.includes("management") ||
+      norm.includes("atasan") ||
+      norm.includes("chief") ||
+      norm.includes("leader")
+    );
+  });
+
+  const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN" || hasAdminRole;
 
   // Sync with prop updates
   useEffect(() => {
@@ -178,20 +205,11 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <img
-                    src={getDiscordAvatarUrl(
-                      session.userId?.replace("discord-", ""),
-                      session.userAvatar
-                    )}
-                    alt={session.userName || "Officer"}
+                  <UserAvatar
+                    userId={session.userId}
+                    userAvatar={session.userAvatar}
+                    name={session.userName}
                     className="h-12 w-12 rounded-xl object-cover border border-[#333] shrink-0"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const fallback = getDiscordAvatarUrl(session.userId?.replace("discord-", ""), null);
-                      if (target.src !== fallback) {
-                        target.src = fallback;
-                      }
-                    }}
                   />
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-bold text-white group-hover:text-[#FF1E2D] transition-colors truncate">
@@ -238,9 +256,39 @@ export function LiveDutyList({ initialSessions, institutionSlug }: LiveDutyListP
                   <span className="truncate">{session.notes}</span>
                 </div>
               )}
+
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedSessionToEdit(session)}
+                  className="mt-3.5 w-full py-2 px-3 rounded-xl bg-[#1f1214] hover:bg-[#E50914] text-[#FF5B65] hover:text-white border border-[#E50914]/30 hover:border-[#E50914] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm group/btn"
+                >
+                  <Pencil className="h-3.5 w-3.5 group-hover/btn:scale-110 transition-transform" />
+                  <span>Koreksi / Akhiri Sesi</span>
+                </button>
+              )}
             </div>
           ))}
         </div>
+      )}
+
+      {/* Edit Attendance Modal */}
+      {selectedSessionToEdit && (
+        <AttendanceEditModal
+          session={selectedSessionToEdit}
+          institutionSlug={institutionSlug || selectedSessionToEdit.institutionSlug || ""}
+          isOpen={!!selectedSessionToEdit}
+          onClose={() => setSelectedSessionToEdit(null)}
+          onSessionUpdated={(updated) => {
+            if (updated.endedAt || (updated.status as string) === "OFF_DUTY") {
+              setSessions((prev) => prev.filter((s) => s.id !== updated.id));
+            } else {
+              setSessions((prev) =>
+                prev.map((s) => (s.id === updated.id ? updated : s))
+              );
+            }
+          }}
+        />
       )}
     </div>
   );

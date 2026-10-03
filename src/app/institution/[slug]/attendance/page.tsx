@@ -61,6 +61,7 @@ export default async function AttendancePage({
         institutionSlug={slug}
         userPermission={access.permissionLevel}
         currentUserId={currentUser.id}
+        currentUserRoles={currentUser.discordRoles}
         initialMonth={month}
       />
     </div>
