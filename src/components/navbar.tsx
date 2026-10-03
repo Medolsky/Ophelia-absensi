@@ -101,9 +101,9 @@ export function Navbar({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-[#252525] bg-[#0c0c0c]/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
           {/* Brand Logo & Current Institution */}
-          <div className="flex items-center gap-2.5 sm:gap-6 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-6 min-w-0 flex-1 sm:flex-none">
             <Link href="/" className="flex items-center gap-2 group shrink-0">
               <img
                 src="/logos/ophelia-logo.png"
@@ -119,13 +119,13 @@ export function Navbar({
             <div className="relative min-w-0">
               <button
                 onClick={() => setInstMenuOpen(!instMenuOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#1f1f1f] border border-[#252525] text-xs font-semibold text-white transition max-w-[170px] sm:max-w-none"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-[#161616] hover:bg-[#1f1f1f] border border-[#252525] text-xs font-semibold text-white transition max-w-[130px] xs:max-w-[160px] sm:max-w-none"
               >
                 <InstitutionLogo logo={currentInstitution?.logo} name={currentInstitution?.name} size="sm" />
-                <span className="truncate max-w-[90px] sm:max-w-[180px]">
+                <span className="truncate max-w-[70px] xs:max-w-[110px] sm:max-w-[180px]">
                   {currentInstitution?.name || "Pilih Instansi"}
                 </span>
-                <ChevronDown className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neutral-400 shrink-0" />
               </button>
 
               {instMenuOpen && (
@@ -134,11 +134,11 @@ export function Navbar({
                     className="fixed inset-0 z-40"
                     onClick={() => setInstMenuOpen(false)}
                   />
-                  <div className="absolute left-0 mt-2 w-64 rounded-xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-2 z-50">
+                  <div className="absolute left-0 mt-2 w-64 max-w-[90vw] rounded-xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-2 z-50">
                     <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
                       Instansi Tersedia Untuk Anda
                     </div>
-                    <div className="space-y-1 mt-1">
+                    <div className="space-y-1 mt-1 max-h-60 overflow-y-auto">
                       {allowedInstitutions.map((inst) => (
                         <Link
                           key={inst.id}
@@ -151,7 +151,7 @@ export function Navbar({
                           }`}
                         >
                           <InstitutionLogo logo={inst.logo} name={inst.name} size="sm" />
-                          <span>{inst.name}</span>
+                          <span className="truncate">{inst.name}</span>
                         </Link>
                       ))}
                     </div>
@@ -172,38 +172,39 @@ export function Navbar({
           </div>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Live Duty Status Badge & Quick End Duty Button */}
             {isOnDuty ? (
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#E50914]/15 text-[#FF1E2D] border border-[#E50914]/40 glow-red-sm">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#E50914]/15 text-[#FF1E2D] border border-[#E50914]/40 glow-red-sm">
                   <Radio className="h-3.5 w-3.5 text-[#FF1E2D] animate-pulse" />
-                  <span>ON DUTY: {activeSession.institutionName || "Aktif"}</span>
+                  <span className="truncate max-w-[120px]">ON DUTY: {activeSession.institutionName || "Aktif"}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowNavbarEndModal(true)}
-                  className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-red-700/80 border border-neutral-700 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  className="px-2 sm:px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-red-700/80 border border-neutral-700 text-white text-[10px] sm:text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
                   title="Selesaikan Dinas (OFF DUTY)"
                 >
                   <Square className="h-3 w-3 fill-white" />
-                  <span>OFF DUTY</span>
+                  <span className="hidden xs:inline">OFF DUTY</span>
+                  <span className="xs:hidden">OFF</span>
                 </button>
               </div>
             ) : (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-neutral-900 text-neutral-400 border border-neutral-800">
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-neutral-900 text-neutral-400 border border-neutral-800">
                 <Radio className="h-3.5 w-3.5 text-neutral-500" />
                 <span>OFF DUTY</span>
               </div>
             )}
 
             {/* User Profile, Sync Roles & Logout */}
-            <div className="flex items-center gap-1.5 pl-2 border-l border-[#252525]">
+            <div className="flex items-center gap-1 sm:gap-1.5 pl-1.5 sm:pl-2 border-l border-[#252525]">
               <SyncDiscordRolesButton discordId={currentUser.discordId} variant="navbar" />
               <img
                 src={getDiscordAvatarUrl(currentUser.discordId, currentUser.discordAvatar)}
                 alt={currentUser.displayName}
-                className="h-8 w-8 rounded-full object-cover border border-[#333]"
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover border border-[#333]"
                 onError={(e) => {
                   const target = e.currentTarget;
                   const fallback = getDiscordAvatarUrl(currentUser.discordId, null);
@@ -214,10 +215,10 @@ export function Navbar({
               />
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition cursor-pointer"
+                className="p-1 sm:p-1.5 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition cursor-pointer"
                 title="Keluar / Logout"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             </div>
           </div>
@@ -226,8 +227,8 @@ export function Navbar({
 
       {/* Navbar Quick End Duty Confirmation Modal */}
       {showNavbarEndModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setShowNavbarEndModal(false)}
               className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"

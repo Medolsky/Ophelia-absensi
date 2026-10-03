@@ -201,7 +201,7 @@ export function LiveDutyList({
           {filtered.map((session) => (
             <div
               key={session.id}
-              className="rounded-2xl bg-[#141414] border border-[#252525] hover:border-[#E50914]/60 p-5 shadow-xl relative overflow-hidden transition-all group"
+              className="rounded-2xl bg-[#141414] border border-[#252525] hover:border-[#E50914]/60 p-4 sm:p-5 shadow-xl relative overflow-hidden transition-all group"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">

@@ -254,7 +254,7 @@ export function DutyTimer({
               </span>
             </div>
 
-            <h2 className="text-2xl lg:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white flex flex-wrap items-center gap-2">
               {isOnDuty ? (
                 <>
                   Duty Aktif: <span className="text-[#FF1E2D]">{institutionName}</span>
@@ -264,7 +264,7 @@ export function DutyTimer({
               )}
             </h2>
 
-            <p className="text-sm text-neutral-400 mt-1">
+            <p className="text-xs sm:text-sm text-neutral-400 mt-1">
               {isOnDuty ? (
                 <>
                   Mulai duty pada{" "}
@@ -283,12 +283,12 @@ export function DutyTimer({
 
           {/* Realtime Digital Clock Display */}
           <div className="w-full md:w-auto shrink-0 flex flex-col items-center md:items-end justify-center">
-            <div className="w-full sm:w-auto bg-[#080808] border border-[#252525] rounded-xl px-4 sm:px-6 py-3.5 sm:py-4 shadow-inner min-w-full sm:min-w-[240px] md:min-w-[270px]">
-              <span className="text-xs text-neutral-500 font-medium uppercase tracking-wider block text-center md:text-right mb-1">
+            <div className="w-full sm:w-auto bg-[#080808] border border-[#252525] rounded-xl px-3.5 sm:px-6 py-3 sm:py-4 shadow-inner min-w-0 sm:min-w-[240px]">
+              <span className="text-[11px] sm:text-xs text-neutral-500 font-medium uppercase tracking-wider block text-center md:text-right mb-1">
                 {isOnDuty ? "DURASI REALTIME" : "STANDBY TIME"}
               </span>
-              <div className="font-mono text-2xl sm:text-3xl lg:text-4xl font-black tracking-normal sm:tracking-wider text-white flex items-center justify-center md:justify-end gap-2 sm:gap-2.5 select-none">
-                <Clock className={`h-5 w-5 sm:h-6 sm:w-6 shrink-0 ${isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"}`} />
+              <div className="font-mono text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight sm:tracking-wider text-white flex items-center justify-center md:justify-end gap-1.5 sm:gap-2.5 select-none">
+                <Clock className={`h-4 w-4 sm:h-6 sm:w-6 shrink-0 ${isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"}`} />
                 <span className={`whitespace-nowrap tabular-nums font-mono ${isOnDuty ? "text-white text-glow" : "text-neutral-400"}`}>
                   {formatTimer(elapsedSeconds)}
                 </span>
@@ -329,7 +329,7 @@ export function DutyTimer({
                   type="button"
                   onClick={handleStartDuty}
                   disabled={loading}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] active:scale-95 shadow-lg glow-red transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#E50914] hover:bg-[#FF1E2D] active:scale-95 shadow-lg glow-red transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                 >
                   <Play className="h-4 w-4 fill-white shrink-0" />
                   <span>{loading ? "Menghubungkan Server..." : "START DUTY"}</span>
@@ -352,26 +352,26 @@ export function DutyTimer({
 
       {/* In-App Confirmation Modal (No native popup blocker issues) */}
       {showEndConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setShowEndConfirmModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 rounded-xl bg-red-950/60 border border-red-800/80 flex items-center justify-center text-[#FF1E2D]">
+            <div className="flex items-center gap-3 mb-3 pr-8">
+              <div className="h-10 w-10 rounded-xl bg-red-950/60 border border-red-800/80 flex items-center justify-center text-[#FF1E2D] shrink-0">
                 <Square className="h-5 w-5 fill-[#FF1E2D]" />
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Selesaikan Sesi Dinas?</h3>
-                <p className="text-xs text-neutral-400">Instansi: {institutionName}</p>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white truncate">Selesaikan Sesi Dinas?</h3>
+                <p className="text-xs text-neutral-400 truncate">Instansi: {institutionName}</p>
               </div>
             </div>
 
-            <div className="bg-[#0a0a0a] border border-[#222] p-4 rounded-xl my-4 space-y-2 text-xs">
+            <div className="bg-[#0a0a0a] border border-[#222] p-3.5 sm:p-4 rounded-xl my-4 space-y-2 text-xs">
               <div className="flex justify-between text-neutral-400">
                 <span>Waktu Mulai:</span>
                 <span className="font-mono text-white">
@@ -394,11 +394,11 @@ export function DutyTimer({
               Apakah Anda yakin ingin menyelesaikan sesi dinas ini?
             </p>
 
-            <div className="flex items-center justify-end gap-2.5">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowEndConfirmModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-[#1f1f1f] transition"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-[#1f1f1f] transition text-center"
               >
                 Batal
               </button>
@@ -406,7 +406,7 @@ export function DutyTimer({
                 type="button"
                 onClick={handleConfirmEndDuty}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-lg glow-red-sm disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-lg glow-red-sm disabled:opacity-50 text-center"
               >
                 <Check className="h-3.5 w-3.5" />
                 <span>{loading ? "Menyimpan Data..." : "Ya, Selesaikan Dinas"}</span>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NavigationProgress } from "@/components/navigation-progress";
@@ -14,6 +14,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#080808",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://ophelia-absensi.vercel.app"),
@@ -52,7 +59,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable} dark h-full`}>
-      <body className="min-h-screen bg-[#080808] text-white selection:bg-[#E50914] selection:text-white flex flex-col font-sans antialiased">
+      <body className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#080808] text-white selection:bg-[#E50914] selection:text-white flex flex-col font-sans antialiased">
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>

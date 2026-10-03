@@ -30,6 +30,15 @@ html, body {
   max-width: 100vw;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+  min-width: 0;
+}
+
+/* Responsive Table & Container Scrolling */
+.table-scroll-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .scrollbar-none::-webkit-scrollbar {

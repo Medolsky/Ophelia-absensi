@@ -240,7 +240,7 @@ export default async function HistoryPage({
           {historyArchives.map((archive) => (
             <div
               key={archive.monthKey}
-              className="rounded-2xl bg-[#111111] border border-[#222] hover:border-[#E50914]/60 p-5 lg:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all group"
+              className="rounded-2xl bg-[#111111] border border-[#222] hover:border-[#E50914]/60 p-4 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all group"
             >
               <div className="flex items-center gap-4 min-w-0">
                 <div className="h-12 w-12 rounded-xl bg-[#181818] border border-[#262626] flex items-center justify-center text-[#FF1E2D] group-hover:scale-105 transition-transform shrink-0">

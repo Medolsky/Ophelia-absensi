@@ -84,28 +84,28 @@ export default async function DutyDashboardPage({
     <div className="space-y-6">
       {/* Top Greeting & Instansi Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#202020] pb-5">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
           <InstitutionLogo
             logo={institution.logo}
             name={institution.name}
             size="lg"
-            className="p-1 rounded-xl bg-[#161616] border border-[#2c2c2c] shadow-lg"
+            className="p-1 rounded-xl bg-[#161616] border border-[#2c2c2c] shadow-lg shrink-0"
           />
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          <div className="min-w-0">
+            <div className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 truncate">
               Selamat Datang di Portal Dinas
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-0.5">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white mt-0.5 truncate">
               {currentUser.displayName || currentUser.discordUsername}
             </h1>
-            <p className="text-xs text-neutral-400 mt-1 flex items-center gap-1.5">
+            <p className="text-xs text-neutral-400 mt-1 flex flex-wrap items-center gap-1.5">
               <span
-                className="h-2 w-2 rounded-full"
+                className="h-2 w-2 rounded-full shrink-0"
                 style={{ backgroundColor: institution.primaryColor || "#E50914" }}
               />
               <span>Divisi: {institution.name}</span>
-              <span className="text-neutral-600">•</span>
-              <span>Discord: @{currentUser.discordUsername}</span>
+              <span className="text-neutral-600 hidden xs:inline">•</span>
+              <span className="truncate">Discord: @{currentUser.discordUsername}</span>
             </p>
           </div>
         </div>
@@ -113,7 +113,7 @@ export default async function DutyDashboardPage({
         <div className="flex items-center gap-2">
           <Link
             href={`/institution/${slug}/attendance`}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 bg-[#141414] hover:bg-[#1c1c1c] border border-[#252525] hover:text-white transition"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 bg-[#141414] hover:bg-[#1c1c1c] border border-[#252525] hover:text-white transition text-center"
           >
             Lihat Rekap Absensi
           </Link>
@@ -209,11 +209,11 @@ export default async function DutyDashboardPage({
       </div>
 
       {/* Today's Duty Sessions Log (PRD Section 9 & 10) */}
-      <div className="rounded-2xl bg-[#111111] border border-[#222] p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-6 shadow-xl">
+        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 mb-4">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-[#FF1E2D]" />
-            <h3 className="text-base font-bold text-white">Sesi Dinas Hari Ini</h3>
+            <h3 className="text-sm sm:text-base font-bold text-white">Sesi Dinas Hari Ini</h3>
           </div>
           <span className="text-xs font-mono text-neutral-400">
             {new Date().toLocaleDateString("id-ID", {
@@ -226,7 +226,7 @@ export default async function DutyDashboardPage({
         </div>
 
         {todaySessions.length === 0 ? (
-          <div className="p-8 text-center rounded-xl bg-[#0a0a0a] border border-[#1f1f1f]">
+          <div className="p-6 sm:p-8 text-center rounded-xl bg-[#0a0a0a] border border-[#1f1f1f]">
             <Clock className="h-8 w-8 text-neutral-600 mx-auto mb-2" />
             <div className="text-sm font-semibold text-neutral-300">Belum Ada Sesi Duty Hari Ini</div>
             <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
@@ -242,18 +242,18 @@ export default async function DutyDashboardPage({
               return (
                 <div
                   key={session.id}
-                  className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                  className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
                     isSessionActive
                       ? "bg-[#E50914]/10 border-[#E50914]/40"
                       : "bg-[#141414] border-[#222] hover:border-[#333]"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#202020] text-xs font-mono font-bold text-white shrink-0">
                       #{sessionNumber}
                     </span>
-                    <div>
-                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white flex flex-wrap items-center gap-2">
                         <span>Sesi Duty #{sessionNumber}</span>
                         {isSessionActive ? (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono border border-[#E50914]/40 animate-pulse">
@@ -265,7 +265,7 @@ export default async function DutyDashboardPage({
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-neutral-400 font-mono mt-0.5">
+                      <div className="text-[11px] text-neutral-400 font-mono mt-0.5 truncate">
                         {new Date(session.startedAt).toLocaleTimeString("id-ID", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -282,11 +282,11 @@ export default async function DutyDashboardPage({
                     </div>
                   </div>
 
-                  <div className="text-right sm:border-l sm:border-[#222] sm:pl-4">
+                  <div className="text-left sm:text-right sm:border-l sm:border-[#222] sm:pl-4 shrink-0">
                     <div className="text-[10px] text-neutral-500 uppercase tracking-wider font-semibold">
                       DURASI
                     </div>
-                    <div className="text-base font-mono font-bold text-white whitespace-nowrap">
+                    <div className="text-sm sm:text-base font-mono font-bold text-white whitespace-nowrap">
                       {isSessionActive
                         ? "Realtime..."
                         : formatHoursMinutes(session.durationSeconds)}

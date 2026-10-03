@@ -18,6 +18,7 @@ import {
   Filter,
 } from "lucide-react";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
+import { UserAvatar } from "./user-avatar";
 
 interface AttendanceTableProps {
   sessions: DutySessionData[];
@@ -197,11 +198,11 @@ export function AttendanceTable({
           </div>
 
           {/* Status & Date Range Filters */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-[#080808] border border-[#252525] text-xs text-neutral-300 px-3 py-2 rounded-xl outline-none"
+              className="bg-[#080808] border border-[#252525] text-xs text-neutral-300 px-3 py-2 rounded-xl outline-none flex-1 sm:flex-none"
             >
               <option value="ALL">Semua Status</option>
               <option value="ON_DUTY">ON DUTY</option>
@@ -209,23 +210,23 @@ export function AttendanceTable({
               <option value="CORRECTED">CORRECTED</option>
             </select>
 
-            <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1 rounded-xl">
+            <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1.5 rounded-xl flex-1 sm:flex-none min-w-[130px]">
               <span className="text-[10px] text-neutral-500 font-bold uppercase">DARI:</span>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-xs text-neutral-300 outline-none"
+                className="bg-transparent text-xs text-neutral-300 outline-none w-full"
               />
             </div>
 
-            <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1 rounded-xl">
+            <div className="flex items-center gap-1.5 bg-[#080808] border border-[#252525] px-2.5 py-1.5 rounded-xl flex-1 sm:flex-none min-w-[130px]">
               <span className="text-[10px] text-neutral-500 font-bold uppercase">SAMPAI:</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-xs text-neutral-300 outline-none"
+                className="bg-transparent text-xs text-neutral-300 outline-none w-full"
               />
             </div>
 
@@ -237,7 +238,7 @@ export function AttendanceTable({
                   setSearchTerm("");
                   setStatusFilter("ALL");
                 }}
-                className="text-xs text-neutral-400 hover:text-white px-2.5 py-2 rounded-lg border border-[#252525] hover:bg-[#1f1f1f] transition cursor-pointer"
+                className="text-xs text-neutral-400 hover:text-white px-2.5 py-2 rounded-xl border border-[#252525] hover:bg-[#1f1f1f] transition cursor-pointer"
               >
                 Reset
               </button>
@@ -259,10 +260,14 @@ export function AttendanceTable({
         </div>
       </div>
 
-      {/* Sessions Table with Horizontal Scroll Guard */}
+      {/* Sessions Table with Horizontal Scroll Guard & Swipe indicator */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full min-w-[700px] text-left text-xs">
+        <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
+          <span>👉 Geser tabel ke samping untuk melihat detail</span>
+          <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+        </div>
+        <div className="overflow-x-auto w-full table-scroll-container">
+          <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3.5 px-4 whitespace-nowrap">Petugas</th>
@@ -295,20 +300,11 @@ export function AttendanceTable({
                     >
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
-                          <img
-                            src={getDiscordAvatarUrl(
-                              session.userId?.replace("discord-", ""),
-                              session.userAvatar
-                            )}
-                            alt={session.userName || "Petugas"}
+                          <UserAvatar
+                            userId={session.userId}
+                            userAvatar={session.userAvatar}
+                            name={session.userName}
                             className="h-8 w-8 rounded-lg object-cover border border-[#333] shrink-0"
-                            onError={(e) => {
-                              const target = e.currentTarget;
-                              const fallback = getDiscordAvatarUrl(session.userId?.replace("discord-", ""), null);
-                              if (target.src !== fallback) {
-                                target.src = fallback;
-                              }
-                            }}
                           />
                           <div>
                             <div className="font-bold text-white text-xs">{session.userName || "Petugas"}</div>

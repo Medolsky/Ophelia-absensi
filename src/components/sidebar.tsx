@@ -171,7 +171,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
               <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1.5">
                 Main Portal
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {memberNav.map((item) => {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
@@ -200,7 +200,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[#FF1E2D] mb-1.5">
                   Leader & Petinggi
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {leaderNav.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
@@ -230,7 +230,7 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
                 <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1.5">
                   Super Admin
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {adminNav.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;

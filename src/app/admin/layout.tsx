@@ -68,24 +68,24 @@ export default async function AdminLayout({
 
       {/* Admin Navigation Tabs */}
       <div className="border-b border-[#202020] bg-[#101010]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2 py-2 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 flex items-center gap-1.5 sm:gap-2 py-2 overflow-x-auto no-scrollbar">
           <Link
             href="/admin/institutions"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 hover:text-white hover:bg-[#1c1c1c] transition"
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 hover:text-white hover:bg-[#1c1c1c] transition whitespace-nowrap shrink-0"
           >
             <Building className="h-4 w-4" />
             <span>Manajemen Instansi</span>
           </Link>
           <Link
             href="/admin/discord-mapping"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 hover:text-white hover:bg-[#1c1c1c] transition"
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 hover:text-white hover:bg-[#1c1c1c] transition whitespace-nowrap shrink-0"
           >
             <Sliders className="h-4 w-4" />
             <span>Mapping Role Discord</span>
           </Link>
           <Link
             href="/admin/audit-log"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 hover:text-white hover:bg-[#1c1c1c] transition"
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-neutral-300 hover:text-white hover:bg-[#1c1c1c] transition whitespace-nowrap shrink-0"
           >
             <History className="h-4 w-4" />
             <span>Audit Log Sistem</span>
@@ -93,7 +93,7 @@ export default async function AdminLayout({
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+      <main className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 flex-1 w-full min-w-0">
         {children}
       </main>
     </div>

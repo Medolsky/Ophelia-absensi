@@ -44,30 +44,31 @@ export default async function SelectInstitutionPage() {
     <div className="min-h-screen bg-[#080808] flex flex-col justify-between selection:bg-[#E50914] selection:text-white">
       {/* Header */}
       <header className="border-b border-[#202020] bg-[#0c0c0c]/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
             <img
               src="/logos/ophelia-logo.png"
               alt="Ophelia Roleplay"
-              className="h-8 sm:h-9 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_12px_rgba(229,9,20,0.35)]"
+              className="h-7 sm:h-9 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_0_12px_rgba(229,9,20,0.35)]"
             />
-            <span className="text-xs text-[#FF1E2D] font-bold px-2 py-0.5 rounded-full bg-[#E50914]/15 border border-[#E50914]/30 hidden sm:inline-block">
+            <span className="text-[11px] sm:text-xs text-[#FF1E2D] font-bold px-2 py-0.5 rounded-full bg-[#E50914]/15 border border-[#E50914]/30 hidden sm:inline-block">
               PILIH INSTANSI
             </span>
           </Link>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <SyncDiscordRolesButton discordId={currentUser.discordId} variant="compact" />
             <a
               href="/api/auth/discord?prompt=consent"
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition"
               title="Ganti ke akun Discord lain"
             >
-              Ganti Akun
+              <span className="hidden xs:inline">Ganti Akun</span>
+              <span className="xs:hidden">Ganti</span>
             </a>
             <a
               href="/api/auth/logout"
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#282828] transition"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white bg-[#141414] hover:bg-[#202020] border border-[#282828] transition"
               title="Keluar dari akun ini"
             >
               Keluar
@@ -77,34 +78,34 @@ export default async function SelectInstitutionPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-1 flex flex-col justify-center">
-        <div className="text-center max-w-xl mx-auto mb-10">
+      <main className="max-w-5xl mx-auto px-3.5 sm:px-6 lg:px-8 py-8 sm:py-12 flex-1 flex flex-col justify-center w-full">
+        <div className="text-center max-w-xl mx-auto mb-8 sm:mb-10">
           <div className="inline-flex flex-wrap items-center justify-center gap-2 mb-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181818] border border-[#262626] text-xs font-semibold text-neutral-300">
               <CheckCircle className="h-3.5 w-3.5 text-[#FF1E2D]" />
-              <span>{currentUser.displayName || currentUser.discordUsername}</span>
+              <span className="truncate max-w-[150px] sm:max-w-none">{currentUser.displayName || currentUser.discordUsername}</span>
             </div>
             {currentUser.discordRoles && currentUser.discordRoles.length > 0 && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-[11px] font-semibold text-emerald-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{currentUser.discordRoles.slice(0, 3).join(", ")}{currentUser.discordRoles.length > 3 ? "..." : ""}</span>
+                <span className="truncate max-w-[160px] sm:max-w-none">{currentUser.discordRoles.slice(0, 3).join(", ")}{currentUser.discordRoles.length > 3 ? "..." : ""}</span>
               </div>
             )}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
             PILIH INSTANSI DINAS
           </h1>
-          <p className="text-sm text-neutral-400 mt-2">
+          <p className="text-xs sm:text-sm text-neutral-400 mt-2">
             Pilih instansi untuk memulai absensi dan memantau tugas kedinasan Anda.
           </p>
         </div>
 
         {/* Warning if no roles found */}
         {allowedInstitutions.length === 0 && (
-          <div className="mb-8 p-5 rounded-2xl bg-amber-950/30 border border-amber-800/50 shadow-xl text-center max-w-2xl mx-auto">
+          <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-amber-950/30 border border-amber-800/50 shadow-xl text-center max-w-2xl mx-auto">
             <div className="flex items-center justify-center gap-2 text-amber-400 font-bold text-sm mb-1.5">
-              <ShieldAlert className="h-5 w-5" />
+              <ShieldAlert className="h-5 w-5 shrink-0" />
               <span>Role Kedinasan Belum Terdeteksi</span>
             </div>
             <p className="text-xs text-neutral-300 leading-relaxed max-w-lg mx-auto">
@@ -123,7 +124,7 @@ export default async function SelectInstitutionPage() {
         )}
 
         {/* Institutions Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
           {institutionsWithAccess.map((inst) => {
             const hasAccess = inst.access.allowed;
             const permissionLevel = inst.access.permissionLevel;
@@ -131,19 +132,19 @@ export default async function SelectInstitutionPage() {
             return (
               <div
                 key={inst.id}
-                className={`relative rounded-2xl border p-6 transition-all ${
+                className={`relative rounded-2xl border p-4 sm:p-6 transition-all ${
                   hasAccess
                     ? "bg-[#111111] border-[#292929] hover:border-[#E50914] shadow-xl group hover:glow-red-sm"
                     : "bg-[#0d0d0d] border-[#1f1f1f] opacity-60"
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
                     <InstitutionLogo
                       logo={inst.logo}
                       name={inst.name}
                       size="lg"
-                      className="p-1.5 rounded-xl bg-[#181818] border border-[#262626]"
+                      className="p-1 sm:p-1.5 rounded-xl bg-[#181818] border border-[#262626] shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <h2 className="text-lg font-bold text-white group-hover:text-[#FF1E2D] transition-colors truncate">

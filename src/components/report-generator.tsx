@@ -69,15 +69,15 @@ export function ReportGenerator({
   return (
     <div className="space-y-6">
       {/* Parameter Selection Card */}
-      <div className="rounded-2xl bg-[#111111] border border-[#222] p-6 shadow-xl">
-        <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+      <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-6 shadow-xl">
+        <h3 className="text-sm sm:text-base font-bold text-white mb-4 flex items-center gap-2">
           <Calendar className="h-4 w-4 text-[#FF1E2D]" />
           <span>Konfigurasi Periode Laporan</span>
         </h3>
 
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
           <div>
-            <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+            <label className="block text-[11px] sm:text-xs font-semibold text-neutral-400 mb-1.5">
               DARI TANGGAL (START)
             </label>
             <input
@@ -89,7 +89,7 @@ export function ReportGenerator({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+            <label className="block text-[11px] sm:text-xs font-semibold text-neutral-400 mb-1.5">
               HINGGA TANGGAL (END)
             </label>
             <input
@@ -103,7 +103,7 @@ export function ReportGenerator({
           <div className="flex items-end">
             <button
               onClick={handleExportCSV}
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-lg glow-red-sm"
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-lg glow-red-sm cursor-pointer"
             >
               <Download className="h-4 w-4" />
               <span>EXPORT KE CSV (EXCEL)</span>
@@ -114,7 +114,7 @@ export function ReportGenerator({
 
       {/* Generated Report Table */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="p-4 bg-[#161616] border-b border-[#252525] flex items-center justify-between">
+        <div className="p-3.5 sm:p-4 bg-[#161616] border-b border-[#252525] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="text-xs font-bold text-white uppercase tracking-wider">
             Hasil Rekapitulasi Presensi: {startDate} s/d {endDate}
           </div>
@@ -123,8 +123,14 @@ export function ReportGenerator({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        {/* Mobile Swipe Cue */}
+        <div className="sm:hidden px-3.5 py-1.5 bg-[#141414] border-b border-[#222] text-[10px] text-neutral-400 flex items-center justify-between">
+          <span>Geser tabel ke samping untuk melihat detail</span>
+          <span className="font-mono text-neutral-500">SWIPE ➔</span>
+        </div>
+
+        <div className="overflow-x-auto table-scroll-container">
+          <table className="w-full text-left text-xs min-w-[550px]">
             <thead className="bg-[#121212] border-b border-[#222] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3 px-4 whitespace-nowrap">Nama Anggota</th>

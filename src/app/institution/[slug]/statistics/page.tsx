@@ -80,7 +80,7 @@ export default async function StatisticsPage({
 
       {/* Monthly Highlight Stats (PRD Section 12) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
             <span>TOTAL DUTY BULAN INI</span>
             <Award className="h-4 w-4 text-[#FF1E2D]" />
@@ -90,7 +90,7 @@ export default async function StatisticsPage({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
             <span>RATA-RATA / HARI</span>
             <Zap className="h-4 w-4 text-amber-400" />
@@ -100,7 +100,7 @@ export default async function StatisticsPage({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
             <span>SESI TERPANJANG</span>
             <Flame className="h-4 w-4 text-[#FF1E2D]" />
@@ -110,7 +110,7 @@ export default async function StatisticsPage({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-[#111111] border border-[#222] p-5 shadow-lg">
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-semibold uppercase tracking-wider">
             <span>JUMLAH HARI DINAS</span>
             <Calendar className="h-4 w-4 text-emerald-400" />
@@ -122,13 +122,13 @@ export default async function StatisticsPage({
       </div>
 
       {/* Weekly Breakdown with Visual Bar Chart (PRD Section 11) */}
-      <div className="rounded-2xl bg-[#111111] border border-[#222] p-6 shadow-xl overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-6 shadow-xl overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div>
             <div className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">
               REKAPITULASI MINGGUAN
             </div>
-            <h3 className="text-lg font-bold text-white mt-0.5">
+            <h3 className="text-base sm:text-lg font-bold text-white mt-0.5">
               Distribusi Jam Kerja Mingguan
             </h3>
           </div>
@@ -137,43 +137,43 @@ export default async function StatisticsPage({
             <span className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">
               TOTAL MINGGU INI
             </span>
-            <div className="text-2xl font-mono font-black text-[#FF1E2D] whitespace-nowrap">
+            <div className="text-xl sm:text-2xl font-mono font-black text-[#FF1E2D] whitespace-nowrap">
               {formatHoursMinutes(weekTotalSeconds)}
             </div>
           </div>
         </div>
 
         {/* Visual Bar Chart */}
-        <div className="overflow-x-auto pb-2">
-          <div className="grid grid-cols-7 gap-3 items-end h-56 min-w-[420px] pt-8 pb-4 border-b border-[#222]">
-          {weekData.map((d) => {
-            const heightPercent = Math.max(10, Math.round((d.hours / maxWeeklyHours) * 100));
-            const isOff = d.hours === 0;
+        <div className="overflow-x-auto table-scroll-container pb-2">
+          <div className="grid grid-cols-7 gap-2 sm:gap-3 items-end h-48 sm:h-56 min-w-[340px] sm:min-w-[420px] pt-6 sm:pt-8 pb-3 sm:pb-4 border-b border-[#222]">
+            {weekData.map((d) => {
+              const heightPercent = Math.max(10, Math.round((d.hours / maxWeeklyHours) * 100));
+              const isOff = d.hours === 0;
 
-            return (
-              <div key={d.day} className="flex flex-col items-center h-full justify-end group">
-                <span className="text-[11px] font-mono text-neutral-400 mb-2 opacity-80 group-hover:opacity-100 group-hover:text-white transition whitespace-nowrap">
-                  {d.label}
-                </span>
-                <div className="w-full max-w-[48px] bg-[#1a1a1a] rounded-t-xl overflow-hidden flex items-end justify-center h-full">
-                  <div
-                    style={{ height: `${isOff ? 6 : heightPercent}%` }}
-                    className={`w-full rounded-t-xl transition-all duration-500 ${
-                      isOff
-                        ? "bg-neutral-800"
-                        : "bg-gradient-to-t from-[#8A060D] via-[#E50914] to-[#FF1E2D] shadow-lg glow-red-sm group-hover:brightness-110"
-                    }`}
-                  />
+              return (
+                <div key={d.day} className="flex flex-col items-center h-full justify-end group">
+                  <span className="text-[10px] sm:text-[11px] font-mono text-neutral-400 mb-1.5 opacity-80 group-hover:opacity-100 group-hover:text-white transition whitespace-nowrap">
+                    {d.label}
+                  </span>
+                  <div className="w-full max-w-[36px] sm:max-w-[48px] bg-[#1a1a1a] rounded-t-xl overflow-hidden flex items-end justify-center h-full">
+                    <div
+                      style={{ height: `${isOff ? 6 : heightPercent}%` }}
+                      className={`w-full rounded-t-xl transition-all duration-500 ${
+                        isOff
+                          ? "bg-neutral-800"
+                          : "bg-gradient-to-t from-[#8A060D] via-[#E50914] to-[#FF1E2D] shadow-lg glow-red-sm group-hover:brightness-110"
+                      }`}
+                    />
+                  </div>
+                  <span className="text-[11px] sm:text-xs font-bold text-neutral-400 mt-2 sm:mt-3 group-hover:text-white transition">
+                    {d.day}
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-neutral-400 mt-3 group-hover:text-white transition">
-                  {d.day}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Monthly Calendar View with Badges (PRD Section 13) */}
       <DutyCalendar sessions={sessions} />

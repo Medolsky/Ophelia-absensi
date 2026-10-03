@@ -271,18 +271,18 @@ export function PayrollManagement({
           </select>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full md:w-auto">
           <button
             onClick={() => setShowConfigModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#333] transition cursor-pointer"
           >
             <Settings2 className="h-4 w-4 text-amber-400" />
-            <span>Atur Tarif Gaji Jabatan</span>
+            <span>Atur Tarif Gaji</span>
           </button>
 
           <button
             onClick={handleExportPayrollCSV}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm cursor-pointer"
           >
             <Download className="h-4 w-4" />
             <span>Export Slip Gaji (CSV)</span>
@@ -292,7 +292,11 @@ export function PayrollManagement({
 
       {/* Payroll Table */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
+          <span>👉 Geser tabel ke samping untuk melihat detail gaji</span>
+          <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+        </div>
+        <div className="overflow-x-auto w-full table-scroll-container">
           <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
@@ -396,22 +400,22 @@ export function PayrollManagement({
 
       {/* Salary Config Modal for Leaders & Super Admins */}
       {showConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setShowConfigModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white"
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <div className="flex items-center gap-3 mb-2 pr-8">
+              <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
                 <Coins className="h-5 w-5" />
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Atur Tarif Gaji per Jam Dinas</h3>
-                <p className="text-xs text-neutral-400">Instansi: {institutionName}</p>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-white truncate">Atur Tarif Gaji per Jam Dinas</h3>
+                <p className="text-xs text-neutral-400 truncate">Instansi: {institutionName}</p>
               </div>
             </div>
 
@@ -420,13 +424,13 @@ export function PayrollManagement({
             </p>
 
             {/* Position Picker Tabs */}
-            <div className="flex gap-1.5 overflow-x-auto py-1 mb-4 border-b border-[#252525]">
+            <div className="flex gap-1.5 overflow-x-auto py-1 mb-4 border-b border-[#252525] no-scrollbar">
               {Object.keys(configs).map((pos) => (
                 <button
                   key={pos}
                   type="button"
                   onClick={() => handleSelectPositionToEdit(pos)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                     selectedPosition === pos
                       ? "bg-amber-500 text-black font-bold shadow-md"
                       : "text-neutral-400 hover:text-white hover:bg-[#202020]"
@@ -492,18 +496,18 @@ export function PayrollManagement({
                 </span>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-[#252525]">
+              <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-[#252525]">
                 <button
                   type="button"
                   onClick={() => setShowConfigModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white border border-transparent hover:border-neutral-800 text-center transition"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={configLoading}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 transition shadow-lg disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 transition shadow-lg disabled:opacity-50 text-center cursor-pointer"
                 >
                   {configLoading ? "Menyimpan..." : "Simpan Tarif Jabatan"}
                 </button>

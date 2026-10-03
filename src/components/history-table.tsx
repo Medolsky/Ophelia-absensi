@@ -194,8 +194,8 @@ export function HistoryTable({
         </div>
 
         {/* Right: Search & Status Filter */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
             <input
               type="text"
@@ -205,19 +205,18 @@ export function HistoryTable({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full sm:w-56 pl-9 pr-3 py-1.5 rounded-xl bg-[#171717] border border-[#282828] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#E50914] transition"
+              className="w-full sm:w-56 pl-9 pr-3 py-2 sm:py-1.5 rounded-xl bg-[#171717] border border-[#282828] text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#E50914] transition"
             />
           </div>
 
           <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-neutral-500 shrink-0 hidden sm:block" />
             <select
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-1.5 rounded-xl bg-[#171717] border border-[#282828] text-xs text-neutral-300 focus:outline-none focus:border-[#E50914] transition"
+              className="w-full sm:w-auto px-3 py-2 sm:py-1.5 rounded-xl bg-[#171717] border border-[#282828] text-xs text-neutral-300 focus:outline-none focus:border-[#E50914] transition"
             >
               <option value="ALL">Semua Status</option>
               <option value="ON_DUTY">On Duty (Aktif)</option>
@@ -254,8 +253,12 @@ export function HistoryTable({
         </div>
       ) : (
         <div className="rounded-2xl border border-[#222] bg-[#111111] overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-neutral-300 min-w-[700px]">
+          <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
+            <span>👉 Geser tabel ke samping untuk melihat detail & aksi</span>
+            <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+          </div>
+          <div className="overflow-x-auto w-full table-scroll-container">
+            <table className="w-full text-left text-sm text-neutral-300 min-w-[720px]">
               <thead className="bg-[#161616] text-[11px] uppercase tracking-wider text-neutral-400 font-semibold border-b border-[#252525]">
                 <tr>
                   <th scope="col" className="py-3 px-4">Petugas</th>

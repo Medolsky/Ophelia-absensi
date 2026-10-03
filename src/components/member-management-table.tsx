@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MembershipData } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   Users,
   Search,
@@ -309,7 +310,7 @@ export function MemberManagementTable({
 
       {/* Top action bar */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 w-full max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
           <input
             type="text"
@@ -323,24 +324,24 @@ export function MemberManagementTable({
           />
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
           {/* Sync Discord Button */}
           <button
             onClick={handleSyncDiscord}
             disabled={isSyncing}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#333] transition shadow-md disabled:opacity-50"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#333] transition shadow-md disabled:opacity-50 cursor-pointer"
             title="Tarik otomatis seluruh anggota yang memiliki role instansi ini dari Discord server"
           >
             <RefreshCw
               className={`h-3.5 w-3.5 text-blue-400 ${isSyncing ? "animate-spin" : ""}`}
             />
-            <span>{isSyncing ? "Menyinkronkan..." : "Sinkronisasi Discord"}</span>
+            <span>{isSyncing ? "Menyinkronkan..." : "Sinkron Discord"}</span>
           </button>
 
           {/* Add Member Button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm cursor-pointer"
           >
             <UserPlus className="h-4 w-4" />
             <span>+ Tambah Anggota</span>
@@ -350,7 +351,11 @@ export function MemberManagementTable({
 
       {/* Members Table */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
+          <span>👉 Geser tabel ke samping untuk melihat detail & aksi</span>
+          <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+        </div>
+        <div className="overflow-x-auto w-full table-scroll-container">
           <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
@@ -389,23 +394,17 @@ export function MemberManagementTable({
                     <tr key={mem.id} className="hover:bg-[#161616] transition-colors">
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={getDiscordAvatarUrl(mem.user?.discordId, mem.user?.discordAvatar)}
-                            alt={mem.user?.displayName || "Member"}
+                          <UserAvatar
+                            userId={mem.user?.discordId}
+                            userAvatar={mem.user?.discordAvatar}
+                            name={mem.user?.displayName || "Member"}
                             className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
-                            onError={(e) => {
-                              const target = e.currentTarget;
-                              const fallback = getDiscordAvatarUrl(mem.user?.discordId, null);
-                              if (target.src !== fallback) {
-                                target.src = fallback;
-                              }
-                            }}
                           />
                           <div className="min-w-0">
-                            <div className="font-bold text-white truncate max-w-[160px] sm:max-w-[220px]">
+                            <div className="font-bold text-white truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[220px]">
                               {mem.user?.displayName || "Anggota"}
                             </div>
-                            <div className="text-[11px] text-neutral-400 truncate max-w-[160px] sm:max-w-[220px]">
+                            <div className="text-[11px] text-neutral-400 truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[220px]">
                               @{mem.user?.discordUsername}
                             </div>
                           </div>
@@ -534,8 +533,8 @@ export function MemberManagementTable({
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#252525] shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#252525] shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setShowAddModal(false)}
               className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white"
@@ -595,18 +594,18 @@ export function MemberManagementTable({
                 </select>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white text-center"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm disabled:opacity-50 text-center"
                 >
                   {isSubmitting ? "Menyimpan..." : "Simpan Anggota"}
                 </button>
@@ -618,8 +617,8 @@ export function MemberManagementTable({
 
       {/* Edit Member Modal */}
       {editingMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#252525] shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#252525] shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setEditingMember(null)}
               className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white"
@@ -628,17 +627,11 @@ export function MemberManagementTable({
             </button>
 
             <div className="flex items-center gap-3 mb-4 pr-8">
-              <img
-                src={getDiscordAvatarUrl(editingMember.user?.discordId, editingMember.user?.discordAvatar)}
-                alt={editingMember.user?.displayName || "Member"}
+              <UserAvatar
+                userId={editingMember.user?.discordId}
+                userAvatar={editingMember.user?.discordAvatar}
+                name={editingMember.user?.displayName || "Member"}
                 className="h-10 w-10 rounded-xl object-cover border border-[#333] shrink-0"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  const fallback = getDiscordAvatarUrl(editingMember.user?.discordId, null);
-                  if (target.src !== fallback) {
-                    target.src = fallback;
-                  }
-                }}
               />
               <div className="min-w-0">
                 <h3 className="text-base font-bold text-white truncate">
@@ -687,18 +680,18 @@ export function MemberManagementTable({
                 </select>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setEditingMember(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white text-center"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#E50914] hover:bg-[#FF1E2D] shadow-lg glow-red-sm disabled:opacity-50 text-center"
                 >
                   {isSubmitting ? "Menyimpan..." : "Update Data"}
                 </button>
@@ -710,8 +703,8 @@ export function MemberManagementTable({
 
       {/* Delete Member Confirmation Modal */}
       {confirmDeleteMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-red-900/50 shadow-2xl p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-red-900/50 shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setConfirmDeleteMember(null)}
               className="absolute top-4 right-4 p-1.5 rounded-lg text-neutral-400 hover:text-white"
@@ -739,12 +732,12 @@ export function MemberManagementTable({
               (ID: <span className="font-mono text-neutral-400">{confirmDeleteMember.user?.discordId}</span>) dari daftar keanggotaan instansi?
             </p>
 
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmDeleteMember(null)}
                 disabled={isDeleting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white text-center"
               >
                 Batal
               </button>
@@ -752,7 +745,7 @@ export function MemberManagementTable({
                 type="button"
                 onClick={handleDeleteMember}
                 disabled={isDeleting}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-950/50 transition disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-950/50 transition disabled:opacity-50 text-center"
               >
                 <Trash2 className="h-4 w-4" />
                 <span>{isDeleting ? "Mengeluarkan..." : "Ya, Keluarkan Anggota"}</span>
