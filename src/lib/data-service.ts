@@ -779,9 +779,15 @@ function reloadPersistedSessions(): void {
   } catch {}
 }
 
-function normalizeInstSlug(slugOrId?: string): string {
+export function normalizeInstSlug(slugOrId?: string): string {
   if (!slugOrId) return "";
-  return slugOrId.replace(/^inst-/, "").toLowerCase().trim();
+  const cleaned = slugOrId.replace(/^inst-/, "").toLowerCase().trim();
+  if (cleaned === "polisi") return "police";
+  if (cleaned === "medis") return "medical";
+  if (cleaned === "mekanik" || cleaned === "bengkel") return "mechanic";
+  if (cleaned === "resto" || cleaned === "restoran") return "restaurant";
+  if (cleaned === "pemerintah" || cleaned === "pemkot") return "government";
+  return cleaned;
 }
 
 function matchesInstitution(
@@ -924,8 +930,18 @@ export class DataService {
   }
 
   static async getInstitutionBySlug(slug: string): Promise<InstitutionData | null> {
+    const cleanSlug = normalizeInstSlug(slug);
     const institutions = await this.getInstitutions();
-    return institutions.find((i) => i.slug === slug) || null;
+    return (
+      institutions.find(
+        (i) =>
+          i.slug === cleanSlug ||
+          i.slug === slug ||
+          i.id === slug ||
+          i.id === `inst-${cleanSlug}` ||
+          normalizeInstSlug(i.slug) === cleanSlug
+      ) || null
+    );
   }
 
   static async createInstitution(data: {
@@ -1487,14 +1503,14 @@ export class DataService {
    * Get all duty sessions for an institution (all officers/members)
    */
   static async getInstitutionDutySessions(institutionSlug: string): Promise<DutySessionData[]> {
-    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+    const cleanSlug = normalizeInstSlug(institutionSlug);
     const now = Date.now();
     const cached = this.institutionSessionsCache.get(cleanSlug);
     if (cached && now - cached.timestamp < 30000) {
       return cached.data;
     }
 
-    const institution = await this.getInstitutionBySlug(institutionSlug);
+    const institution = await this.getInstitutionBySlug(cleanSlug);
     const isDb = await this.isDatabaseAvailable();
     if (isDb && institution) {
       try {
@@ -1877,14 +1893,14 @@ export class DataService {
   }
 
   static async getMemberships(institutionSlug: string): Promise<MembershipData[]> {
-    const cleanSlug = institutionSlug.replace("inst-", "").toLowerCase();
+    const cleanSlug = normalizeInstSlug(institutionSlug);
     const now = Date.now();
     const cached = this.membershipsCache.get(cleanSlug);
     if (cached && now - cached.timestamp < 60000) {
       return cached.data;
     }
 
-    const institution = await this.getInstitutionBySlug(institutionSlug);
+    const institution = await this.getInstitutionBySlug(cleanSlug);
     if (!institution) return [];
 
     const isDb = this.isDatabaseAvailable();

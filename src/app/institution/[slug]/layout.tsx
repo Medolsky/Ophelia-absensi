@@ -1,5 +1,5 @@
 import { getCurrentUser, verifyInstitutionAccess, getAllowedInstitutions } from "@/lib/auth";
-import { DataService } from "@/lib/data-service";
+import { DataService, normalizeInstSlug } from "@/lib/data-service";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { Navbar } from "@/components/navbar";
 import { Sidebar } from "@/components/sidebar";
@@ -18,7 +18,8 @@ export default async function InstitutionLayout({
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = normalizeInstSlug(rawSlug);
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {

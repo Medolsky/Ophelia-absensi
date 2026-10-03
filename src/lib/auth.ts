@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { SessionUser, PermissionLevel } from "@/types";
 import { DEMO_PERSONAS, DEFAULT_INSTITUTIONS } from "./constants";
-import { DataService } from "./data-service";
+import { DataService, normalizeInstSlug } from "./data-service";
 
 const COOKIE_NAME = "ophelia_session";
 
@@ -70,6 +70,8 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
   user: SessionUser,
   institutionSlug: string
 ): Promise<{ allowed: boolean; permissionLevel: PermissionLevel; reason?: string }> {
+  const cleanSlug = normalizeInstSlug(institutionSlug);
+
   // 1. Super Admin always has full access
   if (user.isSuperAdmin) {
     return { allowed: true, permissionLevel: "SUPER_ADMIN" };
@@ -96,7 +98,7 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
 
   // 3. Fast targeted check for user's membership in this institution
   try {
-    const userMembership = await DataService.getUserMembership(user.id, institutionSlug);
+    const userMembership = await DataService.getUserMembership(user.id, cleanSlug);
 
     if (userMembership) {
       if (userMembership.status === "SUSPENDED") {
@@ -126,7 +128,7 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
   if (process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true") {
     const demoPersona = DEMO_PERSONAS.find((p) => p.discordId === user.discordId || p.id === user.id);
     if (demoPersona) {
-      const hasRole = demoPersona.institutionSlugs.includes(institutionSlug);
+      const hasRole = demoPersona.institutionSlugs.includes(cleanSlug);
       if (!hasRole) {
         return {
           allowed: false,
@@ -136,13 +138,13 @@ export const verifyInstitutionAccess = cache(async function verifyInstitutionAcc
       }
       return {
         allowed: true,
-        permissionLevel: demoPersona.roleLevels[institutionSlug] || "MEMBER",
+        permissionLevel: demoPersona.roleLevels[cleanSlug] || "MEMBER",
       };
     }
   }
 
   // 5. Check Discord roles against institution mapped roles
-  const institution = DEFAULT_INSTITUTIONS.find((i) => i.slug === institutionSlug);
+  const institution = DEFAULT_INSTITUTIONS.find((i) => i.slug === cleanSlug || i.slug === institutionSlug);
   if (!institution) {
     return { allowed: false, permissionLevel: "MEMBER", reason: "Instansi tidak valid." };
   }

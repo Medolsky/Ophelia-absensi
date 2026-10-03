@@ -24,6 +24,7 @@ interface AttendanceTableProps {
   institutionSlug: string;
   userPermission: PermissionLevel;
   currentUserId?: string;
+  initialMonth?: string;
 }
 
 export function AttendanceTable({
@@ -31,14 +32,27 @@ export function AttendanceTable({
   institutionSlug,
   userPermission,
   currentUserId,
+  initialMonth,
 }: AttendanceTableProps) {
   const router = useRouter();
   const [sessionsList, setSessionsList] = useState<DutySessionData[]>(sessions);
   const [viewMode, setViewMode] = useState<"ALL" | "MINE">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(() => {
+    if (initialMonth && /^\d{4}-\d{2}$/.test(initialMonth)) {
+      return `${initialMonth}-01`;
+    }
+    return "";
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    if (initialMonth && /^\d{4}-\d{2}$/.test(initialMonth)) {
+      const [year, month] = initialMonth.split("-").map(Number);
+      const lastDay = new Date(year, month, 0).getDate();
+      return `${initialMonth}-${String(lastDay).padStart(2, "0")}`;
+    }
+    return "";
+  });
   const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
 
   // Pagination states

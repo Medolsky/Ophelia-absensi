@@ -1,7 +1,8 @@
 import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
-import { DataService } from "@/lib/data-service";
+import { DataService, normalizeInstSlug } from "@/lib/data-service";
 import { AttendanceTable } from "@/components/attendance-table";
 import { CalendarCheck, ShieldAlert } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { cookies } from "next/headers";
 
@@ -10,10 +11,15 @@ export const revalidate = 0;
 
 export default async function AttendancePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ month?: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = normalizeInstSlug(rawSlug);
+  const { month } = (await searchParams) || {};
+
   const currentUser = await getCurrentUser();
   if (!currentUser) return null;
 
@@ -55,6 +61,7 @@ export default async function AttendancePage({
         institutionSlug={slug}
         userPermission={access.permissionLevel}
         currentUserId={currentUser.id}
+        initialMonth={month}
       />
     </div>
   );

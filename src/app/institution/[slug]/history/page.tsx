@@ -1,39 +1,41 @@
 import { getCurrentUser } from "@/lib/auth";
-import { DataService } from "@/lib/data-service";
-import { History, Calendar, Clock, ChevronRight, CheckCircle2, User, Users, Shield, ArrowUpRight } from "lucide-react";
+import { DataService, normalizeInstSlug } from "@/lib/data-service";
+import { History, Calendar, Clock, ChevronRight, Users, Shield, ArrowUpRight, Award, BarChart3 } from "lucide-react";
 import Link from "next/link";
-import { getDiscordAvatarUrl } from "@/lib/discord-sync";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { HistoryTable } from "@/components/history-table";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0) return "0s";
+  if (!seconds || seconds <= 0 || isNaN(seconds)) return "0j 00m";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
   if (h > 0) {
-    return `${h}h\u00A0${m.toString().padStart(2, "0")}m`;
+    return `${h}j\u00A0${m.toString().padStart(2, "0")}m`;
   }
-  if (m > 0) {
-    return `${m}m\u00A0${s.toString().padStart(2, "0")}s`;
-  }
-  return `${s}s`;
+  return `${m}m`;
 }
-
-import { cookies } from "next/headers";
 
 export default async function HistoryPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = normalizeInstSlug(rawSlug);
+
   const currentUser = await getCurrentUser();
-  if (!currentUser) return null;
+  if (!currentUser) {
+    redirect("/");
+  }
 
   const institution = await DataService.getInstitutionBySlug(slug);
-  if (!institution) return null;
+  if (!institution) {
+    redirect("/select-institution");
+  }
 
   // Inject active duty from cookie if present
   const cookieStore = await cookies();
@@ -49,16 +51,25 @@ export default async function HistoryPage({
     } catch {}
   }
 
-  // Query institution-wide sessions once, derive personal sessions in memory
+  // Query institution-wide sessions once
   const allSessions = await DataService.getInstitutionDutySessions(slug);
+
   const cleanId = currentUser.id.replace("discord-", "");
-  const mySessions = allSessions.filter(
-    (s) =>
+  const cleanDiscordId = currentUser.discordId?.replace("discord-", "");
+
+  const mySessions = allSessions.filter((s) => {
+    const sId = s.userId?.replace("discord-", "");
+    return (
       s.userId === currentUser.id ||
-      s.userId === cleanId ||
-      s.userId === `discord-${cleanId}` ||
-      (currentUser.discordId && s.userId === currentUser.discordId)
-  );
+      sId === cleanId ||
+      (cleanDiscordId && sId === cleanDiscordId)
+    );
+  });
+
+  // Calculate High-End Summary KPI Metrics
+  const totalInstitutionSeconds = allSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+  const totalMySeconds = mySessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+  const uniqueOfficersCount = new Set(allSessions.map((s) => s.userId?.replace("discord-", ""))).size;
 
   // Group duty sessions by month key (YYYY-MM)
   const now = new Date();
@@ -66,7 +77,17 @@ export default async function HistoryPage({
 
   const monthGroups: Record<string, typeof allSessions> = {};
   for (const s of allSessions) {
-    const key = s.startedAt.slice(0, 7);
+    if (!s.startedAt) continue;
+    const rawVal = s.startedAt as unknown;
+    let iso = "";
+    if (typeof rawVal === "string") {
+      iso = rawVal;
+    } else if (rawVal instanceof Date) {
+      iso = rawVal.toISOString();
+    }
+    const key = iso.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(key)) continue;
+
     if (!monthGroups[key]) monthGroups[key] = [];
     monthGroups[key].push(s);
   }
@@ -81,20 +102,47 @@ export default async function HistoryPage({
   const historyArchives = sortedMonthKeys.map((mKey) => {
     const mSessions = monthGroups[mKey] || [];
     const totalSecs = mSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
-    const activeDaysSet = new Set(mSessions.map((s) => s.startedAt.slice(0, 10)));
-    const uniqueOfficers = new Set(mSessions.map((s) => s.userId)).size;
+    const activeDaysSet = new Set(
+      mSessions
+        .map((s) => {
+          if (!s.startedAt) return "";
+          const raw = s.startedAt as unknown;
+          return typeof raw === "string"
+            ? raw.slice(0, 10)
+            : raw instanceof Date
+            ? raw.toISOString().slice(0, 10)
+            : "";
+        })
+        .filter(Boolean)
+    );
+    const uniqueOfficers = new Set(mSessions.map((s) => s.userId?.replace("discord-", ""))).size;
 
     // User's own contribution in this month
-    const myMSessions = mySessions.filter((s) => s.startedAt.slice(0, 7) === mKey);
+    const myMSessions = mySessions.filter((s) => {
+      if (!s.startedAt) return false;
+      const raw = s.startedAt as unknown;
+      const k = typeof raw === "string"
+        ? raw.slice(0, 7)
+        : raw instanceof Date
+        ? raw.toISOString().slice(0, 7)
+        : "";
+      return k === mKey;
+    });
     const myTotalSecs = myMSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
 
     const [year, month] = mKey.split("-");
     const dateObj = new Date(Number(year), Number(month) - 1, 1);
-    const monthName = dateObj.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    let monthName = mKey;
+    try {
+      const formatted = dateObj.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+      if (formatted && formatted !== "Invalid Date") {
+        monthName = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+      }
+    } catch {}
 
     return {
       monthKey: mKey,
-      monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      monthName,
       totalDuration: formatDuration(totalSecs),
       myTotalDuration: formatDuration(myTotalSecs),
       activeDays: activeDaysSet.size,
@@ -105,30 +153,79 @@ export default async function HistoryPage({
     };
   });
 
-  // Recent 15 completed or active duty sessions
-  const recentSessions = allSessions.slice(0, 15);
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="border-b border-[#202020] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="border-b border-[#202020] pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400">
             <History className="h-4 w-4 text-[#FF1E2D]" />
-            <span>Arsip Histori Kehadiran</span>
+            <span>Arsip Histori Kehadiran & Jam Dinas</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
             Histori Absensi — {institution.name}
           </h1>
+          <p className="text-xs text-neutral-400 mt-1">
+            Arsip lengkap sesi kedinasan seluruh petugas dan ringkasan bulanan instansi.
+          </p>
         </div>
 
         <Link
           href={`/institution/${slug}/attendance`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#181818] hover:bg-[#E50914] border border-[#2b2b2b] hover:border-[#E50914] transition shadow-md self-start sm:self-auto shrink-0"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#181818] hover:bg-[#E50914] border border-[#2b2b2b] hover:border-[#E50914] transition shadow-md self-start sm:self-auto shrink-0"
         >
           <span>Tabel Absensi Lengkap</span>
           <ArrowUpRight className="h-4 w-4" />
         </Link>
+      </div>
+
+      {/* Overview Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+            <span>Total Jam Instansi</span>
+            <Clock className="h-4 w-4 text-[#FF1E2D]" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            {formatDuration(totalInstitutionSeconds)}
+          </div>
+          <div className="text-[11px] text-neutral-500 mt-1">Akumulasi seluruh sesi</div>
+        </div>
+
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+            <span>Jam Dinas Saya</span>
+            <Award className="h-4 w-4 text-emerald-400" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 tracking-tight">
+            {formatDuration(totalMySeconds)}
+          </div>
+          <div className="text-[11px] text-neutral-500 mt-1">Total kontribusi Anda</div>
+        </div>
+
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+            <span>Total Sesi Terdata</span>
+            <BarChart3 className="h-4 w-4 text-neutral-400" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            {allSessions.length}
+          </div>
+          <div className="text-[11px] text-neutral-500 mt-1">
+            <span className="text-emerald-400 font-bold">{mySessions.length}</span> sesi milik Anda
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 sm:p-5 shadow-lg">
+          <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+            <span>Petugas Terdata</span>
+            <Users className="h-4 w-4 text-neutral-400" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            {uniqueOfficersCount}
+          </div>
+          <div className="text-[11px] text-neutral-500 mt-1">Personel pernah on duty</div>
+        </div>
       </div>
 
       {/* Monthly Archive Cards */}
@@ -154,7 +251,7 @@ export default async function HistoryPage({
                       {archive.monthName}
                     </h3>
                     {archive.status === "CURRENT" && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono border border-[#E50914]/40 shrink-0">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono border border-[#E50914]/40 font-bold shrink-0">
                         PERIODE AKTIF
                       </span>
                     )}
@@ -164,7 +261,7 @@ export default async function HistoryPage({
                     <span>•</span>
                     <span>{archive.sessionsCount} Sesi Total</span>
                     <span>•</span>
-                    <span className="text-emerald-400">{archive.mySessionsCount} Sesi Saya</span>
+                    <span className="text-emerald-400 font-semibold">{archive.mySessionsCount} Sesi Saya</span>
                   </div>
                 </div>
               </div>
@@ -195,146 +292,24 @@ export default async function HistoryPage({
         </div>
       </div>
 
-      {/* Recent Duty Activity Section */}
+      {/* History Log Section with Interactive Client Table */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
             <Clock className="h-4 w-4 text-[#FF1E2D]" />
-            <span>Aktivitas Sesi Dinas Terakhir (Semua Anggota)</span>
+            <span>Riwayat Aktivitas Sesi Dinas</span>
           </h2>
           <span className="text-xs font-mono text-neutral-500">
-            {recentSessions.length} Sesi Terdata
+            {allSessions.length} Total Sesi
           </span>
         </div>
 
-        {recentSessions.length === 0 ? (
-          <div className="rounded-2xl bg-[#111111] border border-[#222] p-10 text-center text-neutral-500">
-            <Clock className="h-8 w-8 mx-auto text-neutral-600 mb-2" />
-            <div className="text-sm font-semibold text-neutral-300">Belum Ada Sesi Duty</div>
-            <p className="text-xs text-neutral-500 mt-1">
-              Sesi on/off duty yang telah dilakukan akan otomatis tercatat dan muncul di sini.
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-[#222] bg-[#111111] overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-neutral-300 min-w-[650px]">
-                <thead className="bg-[#161616] text-[11px] uppercase tracking-wider text-neutral-400 font-semibold border-b border-[#252525]">
-                  <tr>
-                    <th scope="col" className="py-3 px-4">Petugas</th>
-                    <th scope="col" className="py-3 px-4">Tanggal</th>
-                    <th scope="col" className="py-3 px-4">Jam Mulai</th>
-                    <th scope="col" className="py-3 px-4">Jam Selesai</th>
-                    <th scope="col" className="py-3 px-4">Durasi</th>
-                    <th scope="col" className="py-3 px-4">Status</th>
-                    <th scope="col" className="py-3 px-4">Catatan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1e1e1e] text-xs">
-                  {recentSessions.map((session) => {
-                    const startObj = new Date(session.startedAt);
-                    const isLive = !session.endedAt && session.status === "ON_DUTY";
-                    const isMe =
-                      session.userId === currentUser.id ||
-                      session.userId === currentUser.id.replace("discord-", "") ||
-                      session.userId === `discord-${currentUser.discordId}` ||
-                      session.userId === currentUser.discordId;
-
-                    return (
-                      <tr
-                        key={session.id}
-                        className={`hover:bg-[#161616] transition-colors ${isMe ? "bg-[#E50914]/5" : ""}`}
-                      >
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              src={getDiscordAvatarUrl(
-                                session.userId?.replace("discord-", ""),
-                                session.userAvatar
-                              )}
-                              alt={session.userName || "Petugas"}
-                              className="h-8 w-8 rounded-lg object-cover border border-[#333] shrink-0"
-                              onError={(e) => {
-                                const target = e.currentTarget;
-                                const fallback = getDiscordAvatarUrl(session.userId?.replace("discord-", ""), null);
-                                if (target.src !== fallback) {
-                                  target.src = fallback;
-                                }
-                              }}
-                            />
-                            <div>
-                              <div className="font-bold text-white text-xs flex items-center gap-1.5">
-                                <span>{session.userName || "Petugas"}</span>
-                                {isMe && (
-                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-mono">
-                                    SAYA
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-neutral-400 font-medium">
-                                {session.positionName || "Anggota"}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap font-medium text-white">
-                          {startObj.toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap font-mono text-neutral-300">
-                          {startObj.toLocaleTimeString("id-ID", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          })}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap font-mono text-neutral-300">
-                          {session.endedAt
-                            ? new Date(session.endedAt).toLocaleTimeString("id-ID", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              })
-                            : <span className="text-[#FF1E2D] font-bold animate-pulse">SEDANG DINAS</span>}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap font-mono font-bold text-white">
-                          {isLive ? (
-                            <span className="text-[#FF1E2D] animate-pulse">Running...</span>
-                          ) : (
-                            formatDuration(session.durationSeconds)
-                          )}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          {session.status === "ON_DUTY" && (
-                            <span className="px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono text-[10px] border border-[#E50914]/40">
-                              ON DUTY
-                            </span>
-                          )}
-                          {session.status === "COMPLETED" && (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px] border border-emerald-500/30">
-                              COMPLETED
-                            </span>
-                          )}
-                          {session.status === "CORRECTED" && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono text-[10px] border border-amber-500/30">
-                              CORRECTED
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap text-neutral-400 max-w-[200px] truncate">
-                          {session.notes || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <HistoryTable
+          sessions={allSessions}
+          currentUserId={currentUser.id}
+          currentUserDiscordId={currentUser.discordId}
+          institutionSlug={slug}
+        />
       </div>
     </div>
   );
