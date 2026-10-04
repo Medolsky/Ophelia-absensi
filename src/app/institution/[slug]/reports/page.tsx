@@ -36,9 +36,9 @@ export default async function ReportsPage({
     );
   }
 
-  const [memberships, payrollRecords] = await Promise.all([
+  const [memberships, allSessions] = await Promise.all([
     DataService.getMemberships(slug),
-    DataService.getPayrollRecords(slug),
+    DataService.getInstitutionDutySessions(slug),
   ]);
 
   return (
@@ -55,7 +55,7 @@ export default async function ReportsPage({
 
       <ReportGenerator
         memberships={memberships}
-        payrollRecords={payrollRecords}
+        sessions={allSessions}
         institutionName={institution.name}
         institutionSlug={slug}
       />

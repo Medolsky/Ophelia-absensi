@@ -1,45 +1,71 @@
 "use client";
 
-import { useState } from "react";
-import { MembershipData, DutySessionData, PayrollRecord } from "@/types";
+import { useState, useMemo } from "react";
+import { MembershipData, DutySessionData } from "@/types";
 import { FileSpreadsheet, Download, Calendar, Filter } from "lucide-react";
 
 interface ReportGeneratorProps {
   memberships: MembershipData[];
-  payrollRecords?: PayrollRecord[];
+  sessions?: DutySessionData[];
   institutionName: string;
   institutionSlug: string;
 }
 
 export function ReportGenerator({
   memberships,
-  payrollRecords = [],
+  sessions = [],
   institutionName,
   institutionSlug,
 }: ReportGeneratorProps) {
-  const [startDate, setStartDate] = useState("2026-09-01");
-  const [endDate, setEndDate] = useState("2026-09-30");
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = String(today.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(currentYear, today.getMonth() + 1, 0).getDate();
 
-  // Dynamic duty summary per member calculated from real records
-  const memberReportData = memberships.map((m) => {
-    const pRecord = payrollRecords.find(
-      (r) => r.membershipId === m.id || r.userId === m.userId
-    );
-    const totalSeconds = pRecord?.totalDutySeconds || 0;
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const [startDate, setStartDate] = useState(`${currentYear}-${currentMonth}-01`);
+  const [endDate, setEndDate] = useState(`${currentYear}-${currentMonth}-${String(lastDay).padStart(2, "0")}`);
 
-    return {
-      memberId: m.id,
-      name: m.user?.displayName || m.user?.discordUsername || "Member",
-      discordId: m.user?.discordId || "",
-      position: m.positionName || "Officer",
-      sessions: totalSeconds > 0 ? 1 : 0,
-      activeDays: totalSeconds > 0 ? 1 : 0,
-      totalHoursStr: `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`,
-      totalHoursNum: pRecord?.totalDutyHours || 0,
-    };
-  });
+  // Dynamic duty summary per member calculated from real duty sessions within selected date range
+  const memberReportData = useMemo(() => {
+    return memberships.map((m) => {
+      const cleanUserId = m.userId?.replace("discord-", "");
+      const discordId = m.user?.discordId || "";
+
+      // Match member sessions within date range
+      const memberSessions = sessions.filter((s) => {
+        const sUserId = s.userId?.replace("discord-", "");
+        const matchesUser =
+          s.userId === m.userId ||
+          sUserId === cleanUserId ||
+          (discordId && sUserId === discordId);
+        if (!matchesUser) return false;
+
+        const sessionDate = (s.startedAt || "").slice(0, 10);
+        if (startDate && sessionDate < startDate) return false;
+        if (endDate && sessionDate > endDate) return false;
+        return true;
+      });
+
+      const totalSeconds = memberSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+      const uniqueActiveDays = new Set(
+        memberSessions.map((s) => (s.startedAt || "").slice(0, 10)).filter(Boolean)
+      ).size;
+
+      return {
+        memberId: m.id,
+        name: m.user?.displayName || m.user?.discordUsername || "Member",
+        discordId: m.user?.discordId || "",
+        position: m.positionName || "Officer",
+        sessions: memberSessions.length,
+        activeDays: uniqueActiveDays,
+        totalHoursStr: `${hours}h\u00A0${minutes.toString().padStart(2, "0")}m`,
+        totalSeconds,
+      };
+    });
+  }, [memberships, sessions, startDate, endDate]);
 
   const handleExportCSV = () => {
     const headers = ["Member Name", "Discord ID", "Position", "Sessions", "Active Days", "Total Duty Hours"];

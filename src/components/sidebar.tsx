@@ -12,7 +12,6 @@ import {
   Users,
   Radio,
   FileSpreadsheet,
-  Banknote,
   ShieldAlert,
   Sliders,
   Building,
@@ -72,11 +71,6 @@ export function Sidebar({ institutionSlug, permissionLevel }: SidebarProps) {
       name: "Kelola Anggota",
       href: `/institution/${institutionSlug}/members`,
       icon: Users,
-    },
-    {
-      name: "Payroll",
-      href: `/institution/${institutionSlug}/payroll`,
-      icon: Banknote,
     },
     {
       name: "Laporan",

@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { DutyTimer } from "@/components/duty-timer";
 import { InstitutionLogo } from "@/components/institution-logo";
-import { Clock, Calendar, CheckCircle2, Award, Zap, Layers, Banknote } from "lucide-react";
+import { Clock, Calendar, CheckCircle2, Award, Zap, Layers } from "lucide-react";
 import Link from "next/link";
 
 import { cookies } from "next/headers";
@@ -43,12 +43,6 @@ export default async function DutyDashboardPage({
     DataService.getActiveDutySession(currentUser.id),
     DataService.getUserDutySessions(currentUser.id, slug),
   ]);
-
-  const userSalary = await DataService.getUserEstimatedSalary(
-    currentUser.id,
-    slug,
-    userSessions
-  );
 
   const activeSession = dbActiveSession || cookieActiveSession;
 
@@ -134,8 +128,8 @@ export default async function DutyDashboardPage({
         userDisplayName={currentUser.displayName || currentUser.discordUsername}
       />
 
-      {/* Metric Cards (PRD Section 42 & Payroll) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+      {/* Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-[#E50914]/50 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
@@ -193,26 +187,6 @@ export default async function DutyDashboardPage({
           </div>
           <div className="text-[11px] text-neutral-500 mt-1">
             Akumulasi sesi bertugas
-          </div>
-        </div>
-
-        <div className="col-span-1 sm:col-span-2 md:col-span-1 xl:col-span-1 rounded-2xl bg-gradient-to-br from-[#121c15] to-[#111111] border border-emerald-900/40 p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-              ESTIMASI GAJI
-            </span>
-            <Banknote className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="text-xl sm:text-2xl font-mono font-black text-emerald-400 mt-2 whitespace-nowrap">
-            {userSalary.currencySymbol} {userSalary.estimatedSalary.toLocaleString("id-ID")}
-          </div>
-          <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between gap-1">
-            <span className="truncate">{userSalary.currencySymbol} {userSalary.hourlyRate.toLocaleString("id-ID")}/jam</span>
-            {userSalary.isEligible ? (
-              <span className="text-[10px] text-emerald-400 font-bold shrink-0">Target OK</span>
-            ) : (
-              <span className="text-[10px] text-amber-400 shrink-0">Min {userSalary.minDutyHours}j</span>
-            )}
           </div>
         </div>
       </div>

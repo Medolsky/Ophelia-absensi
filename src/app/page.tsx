@@ -160,7 +160,7 @@ export default async function HomePage({
 
             <p className="text-base sm:text-lg text-neutral-400 max-w-xl leading-relaxed">
               Platform pencatatan jam dinas real-time dengan sinkronisasi role Discord terintegrasi,
-              pemantauan kehadiran live, rekap bulanan, dan sistem penggajian transparan.
+              pemantauan kehadiran live, rekap bulanan, dan audit kehadiran instansi yang transparan.
             </p>
 
             {/* CTA Buttons */}
