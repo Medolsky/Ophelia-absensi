@@ -290,13 +290,113 @@ export function PayrollManagement({
         </div>
       </div>
 
-      {/* Payroll Table */}
+      {/* Payroll Records Container */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
-          <span>👉 Geser tabel ke samping untuk melihat detail gaji</span>
-          <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+        {/* MOBILE CARD LIST VIEW (< sm) */}
+        <div className="sm:hidden">
+          {filteredRecords.length === 0 ? (
+            <div className="py-12 px-4 text-center text-xs text-neutral-500">
+              Tidak ada data payroll yang sesuai filter.
+            </div>
+          ) : (
+            <div className="divide-y divide-[#1e1e1e]">
+              {filteredRecords.map((record) => {
+                const isPaid = record.status === "PAID";
+                const isToggling = togglingId === record.membershipId;
+
+                return (
+                  <div key={record.membershipId} className="p-4 space-y-3 hover:bg-[#141414] transition-colors">
+                    {/* Header: Member avatar + name + status */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={getDiscordAvatarUrl(record.discordId, record.userAvatar)}
+                          alt={record.memberName}
+                          className="h-10 w-10 rounded-xl object-cover border border-[#333] shrink-0"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const fallback = getDiscordAvatarUrl(record.discordId, null);
+                            if (target.src !== fallback) {
+                              target.src = fallback;
+                            }
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-white truncate">
+                            {record.memberName}
+                          </div>
+                          <div className="text-xs text-neutral-400 truncate">
+                            {record.positionName}
+                          </div>
+                          <div className="text-[10px] font-mono text-neutral-500 truncate">
+                            ID: {record.discordId}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full border shrink-0 ${
+                          isPaid
+                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold"
+                            : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                        }`}
+                      >
+                        {isPaid ? "SUDAH DIBAYAR" : "BELUM CAIR"}
+                      </span>
+                    </div>
+
+                    {/* Stats summary row */}
+                    <div className="grid grid-cols-3 gap-2 text-xs bg-[#0c0c0c] p-2.5 rounded-xl border border-[#1c1c1c] font-mono">
+                      <div>
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          TOTAL JAM
+                        </div>
+                        <div className="text-white font-bold mt-0.5 text-[11px]">
+                          {record.totalDutyHours}j
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          TARIF / JAM
+                        </div>
+                        <div className="text-neutral-300 mt-0.5 text-[10px]">
+                          {formatMoney(record.hourlyRate)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          TOTAL GAJI
+                        </div>
+                        <div className="text-emerald-400 font-black mt-0.5 text-[11px]">
+                          {formatMoney(record.totalSalary)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action button */}
+                    <div className="pt-1">
+                      <button
+                        onClick={() => handleToggleStatus(record)}
+                        disabled={isToggling}
+                        className={`w-full py-2 px-3 rounded-xl text-xs font-semibold transition cursor-pointer border flex items-center justify-center gap-1.5 ${
+                          isPaid
+                            ? "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-700"
+                            : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-950/40"
+                        }`}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>{isToggling ? "Menyimpan..." : isPaid ? "Tandai Belum Dibayar" : "Bayar Gaji Sekarang"}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-        <div className="overflow-x-auto w-full table-scroll-container">
+
+        {/* DESKTOP & TABLET TABLE VIEW (>= sm) */}
+        <div className="hidden sm:block overflow-x-auto w-full table-scroll-container">
           <table className="w-full text-left text-xs min-w-[750px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
@@ -306,7 +406,7 @@ export function PayrollManagement({
                 <th className="py-3.5 px-4 text-right whitespace-nowrap">Tarif / Jam</th>
                 <th className="py-3.5 px-4 text-right whitespace-nowrap">Total Gaji</th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Status Pembayaran</th>
-                <th className="py-3.5 px-4 text-right whitespace-nowrap">Aksi Petinggi</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap sticky right-0 bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#252525]">Aksi Petinggi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
@@ -322,7 +422,7 @@ export function PayrollManagement({
                   const isToggling = togglingId === record.membershipId;
 
                   return (
-                    <tr key={record.membershipId} className="hover:bg-[#161616] transition-colors">
+                    <tr key={record.membershipId} className="hover:bg-[#161616] transition-colors group">
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
                           <img
@@ -376,7 +476,7 @@ export function PayrollManagement({
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap sticky right-0 bg-[#111111] group-hover:bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#202020] transition-colors">
                         <button
                           onClick={() => handleToggleStatus(record)}
                           disabled={isToggling}

@@ -155,7 +155,7 @@ export default async function HistoryPage({
   });
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 w-full">
       {/* Page Header */}
       <div className="border-b border-[#202020] pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

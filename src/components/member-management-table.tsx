@@ -329,7 +329,7 @@ export function MemberManagementTable({
           <button
             onClick={handleSyncDiscord}
             disabled={isSyncing}
-            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#333] transition shadow-md disabled:opacity-50 cursor-pointer"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-xs text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#333] transition shadow-md disabled:opacity-50 cursor-pointer whitespace-nowrap shrink-0"
             title="Tarik otomatis seluruh anggota yang memiliki role instansi ini dari Discord server"
           >
             <RefreshCw
@@ -341,7 +341,7 @@ export function MemberManagementTable({
           {/* Add Member Button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm cursor-pointer"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-[#E50914] hover:bg-[#FF1E2D] transition shadow-md glow-red-sm cursor-pointer whitespace-nowrap shrink-0"
           >
             <UserPlus className="h-4 w-4" />
             <span>+ Tambah Anggota</span>
@@ -349,23 +349,120 @@ export function MemberManagementTable({
         </div>
       </div>
 
-      {/* Members Table */}
+      {/* Members Container */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
-          <span>👉 Geser tabel ke samping untuk melihat detail & aksi</span>
-          <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+        {/* MOBILE CARD LIST VIEW (< sm) */}
+        <div className="sm:hidden">
+          {filteredMembers.length === 0 ? (
+            <div className="p-8 text-center text-xs text-neutral-400">
+              Tidak ada anggota yang ditemukan. Klik tombol{" "}
+              <span className="font-semibold text-white">Sinkron Discord</span>{" "}
+              untuk menarik data otomatis dari server Discord.
+            </div>
+          ) : (
+            <div className="divide-y divide-[#1e1e1e]">
+              {paginatedMembers.map((mem) => {
+                const statusColor =
+                  mem.status === "ACTIVE"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                    : mem.status === "SUSPENDED"
+                    ? "bg-red-500/15 text-red-400 border-red-500/30"
+                    : "bg-neutral-800 text-neutral-400 border-neutral-700";
+
+                const isLeader =
+                  mem.permissionLevel === "LEADER" ||
+                  mem.permissionLevel === "SUPER_ADMIN";
+
+                return (
+                  <div key={mem.id} className="p-4 space-y-3 hover:bg-[#141414] transition-colors">
+                    {/* User profile row */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <UserAvatar
+                          userId={mem.user?.discordId}
+                          userAvatar={mem.user?.discordAvatar}
+                          name={mem.user?.displayName || "Member"}
+                          className="h-10 w-10 rounded-xl object-cover border border-[#333] shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-white truncate">
+                            {mem.user?.displayName || "Anggota"}
+                          </div>
+                          <div className="text-xs text-neutral-400 truncate">
+                            @{mem.user?.discordUsername}
+                          </div>
+                          <div className="text-[10px] font-mono text-neutral-500 truncate">
+                            ID: {mem.user?.discordId}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full border shrink-0 ${statusColor}`}
+                      >
+                        {mem.status}
+                      </span>
+                    </div>
+
+                    {/* Meta info tags */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
+                      <span className="font-semibold text-neutral-200 bg-[#1c1c1c] px-2.5 py-1 rounded-lg border border-[#2a2a2a]">
+                        {mem.positionName || "Officer"}
+                      </span>
+                      <span
+                        className={`text-[10px] font-mono px-2 py-1 rounded-lg border ${
+                          isLeader
+                            ? "bg-amber-500/15 text-amber-400 border-amber-500/30 font-bold"
+                            : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                        }`}
+                      >
+                        {mem.permissionLevel}
+                      </span>
+                      <span className="text-[11px] font-mono text-neutral-500 ml-auto">
+                        Gabung: {new Date(mem.joinedAt).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="pt-2 flex items-center gap-2 border-t border-[#1c1c1c]">
+                      <button
+                        onClick={() => setEditingMember(mem)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold text-neutral-200 bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
+                      >
+                        <Edit2 className="h-3.5 w-3.5 text-amber-400" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteMember(mem)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-semibold text-red-400 bg-red-950/20 hover:bg-red-900/40 border border-red-800/30 transition"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-        <div className="overflow-x-auto w-full table-scroll-container">
+
+        {/* DESKTOP & TABLET TABLE VIEW (>= sm) */}
+        <div className="hidden sm:block overflow-x-auto w-full table-scroll-container">
           <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3.5 px-4 whitespace-nowrap">Anggota</th>
-                <th className="py-3.5 px-4 whitespace-nowrap">Discord ID</th>
+                <th className="py-3.5 px-4 whitespace-nowrap hidden xl:table-cell">Discord ID</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Jabatan / Pangkat</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Tingkat Akses</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Bergabung</th>
-                <th className="py-3.5 px-4 whitespace-nowrap text-right">Aksi</th>
+                <th className="py-3.5 px-4 whitespace-nowrap text-right sticky right-0 bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#252525]">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
@@ -373,7 +470,7 @@ export function MemberManagementTable({
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-neutral-400">
                     Tidak ada anggota yang ditemukan. Klik tombol{" "}
-                    <span className="font-semibold text-white">Sinkronisasi Discord</span>{" "}
+                    <span className="font-semibold text-white">Sinkron Discord</span>{" "}
                     untuk menarik data otomatis dari server Discord.
                   </td>
                 </tr>
@@ -391,7 +488,7 @@ export function MemberManagementTable({
                     mem.permissionLevel === "SUPER_ADMIN";
 
                   return (
-                    <tr key={mem.id} className="hover:bg-[#161616] transition-colors">
+                    <tr key={mem.id} className="hover:bg-[#161616] transition-colors group">
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-3 min-w-0">
                           <UserAvatar
@@ -401,16 +498,19 @@ export function MemberManagementTable({
                             className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
                           />
                           <div className="min-w-0">
-                            <div className="font-bold text-white truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[220px]">
+                            <div className="font-bold text-white truncate max-w-[160px] md:max-w-[200px]">
                               {mem.user?.displayName || "Anggota"}
                             </div>
-                            <div className="text-[11px] text-neutral-400 truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[220px]">
+                            <div className="text-[11px] text-neutral-400 truncate max-w-[160px] md:max-w-[200px]">
                               @{mem.user?.discordUsername}
+                            </div>
+                            <div className="text-[10px] font-mono text-neutral-500 xl:hidden">
+                              ID: {mem.user?.discordId}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-neutral-300 whitespace-nowrap">
+                      <td className="py-3.5 px-4 font-mono text-neutral-300 whitespace-nowrap hidden xl:table-cell">
                         {mem.user?.discordId}
                       </td>
                       <td className="py-3.5 px-4 font-medium text-white whitespace-nowrap">
@@ -443,11 +543,11 @@ export function MemberManagementTable({
                           year: "numeric",
                         })}
                       </td>
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap sticky right-0 bg-[#111111] group-hover:bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#202020] transition-colors">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setEditingMember(mem)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1c1c1c] hover:bg-[#252525] border border-[#2e2e2e] transition cursor-pointer"
                             title="Edit Jabatan atau Status"
                           >
                             <Edit2 className="h-3 w-3 text-amber-400" />
@@ -455,7 +555,7 @@ export function MemberManagementTable({
                           </button>
                           <button
                             onClick={() => setConfirmDeleteMember(mem)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-400 hover:text-white bg-red-950/20 hover:bg-red-900/40 border border-red-800/30 transition"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-red-400 hover:text-white bg-red-950/20 hover:bg-red-900/40 border border-red-800/30 transition cursor-pointer"
                             title="Keluarkan anggota dari instansi"
                           >
                             <Trash2 className="h-3 w-3" />

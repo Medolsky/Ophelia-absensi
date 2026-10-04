@@ -260,13 +260,111 @@ export function AttendanceTable({
         </div>
       </div>
 
-      {/* Sessions Table with Horizontal Scroll Guard & Swipe indicator */}
+      {/* Sessions Container */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
-          <span>👉 Geser tabel ke samping untuk melihat detail</span>
-          <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+        {/* MOBILE CARD LIST VIEW (< sm) */}
+        <div className="sm:hidden">
+          {paginatedSessions.length === 0 ? (
+            <div className="py-10 px-4 text-center text-neutral-500">
+              <Clock className="h-8 w-8 mx-auto text-neutral-600 mb-2" />
+              <div className="text-xs">Tidak ada catatan absensi yang sesuai dengan filter.</div>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#1e1e1e]">
+              {paginatedSessions.map((session) => {
+                const startDateObj = new Date(session.startedAt);
+                const isLive = !session.endedAt && session.status === "ON_DUTY";
+
+                return (
+                  <div key={session.id} className="p-4 space-y-3 hover:bg-[#141414] transition-colors">
+                    {/* Header: User avatar + info + status badge */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <UserAvatar
+                          userId={session.userId}
+                          userAvatar={session.userAvatar}
+                          name={session.userName}
+                          className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-bold text-white text-xs truncate">
+                            {session.userName || "Petugas"}
+                          </div>
+                          <div className="text-[10px] text-neutral-400 font-medium truncate">
+                            {session.positionName || "Anggota"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {session.status === "ON_DUTY" && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono text-[10px] border border-[#E50914]/40 shrink-0">
+                          ON DUTY
+                        </span>
+                      )}
+                      {session.status === "COMPLETED" && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px] border border-emerald-500/30 shrink-0">
+                          COMPLETED
+                        </span>
+                      )}
+                      {session.status === "CORRECTED" && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono text-[10px] border border-amber-500/30 shrink-0">
+                          CORRECTED
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Duty details row */}
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-[#0c0c0c] p-2.5 rounded-xl border border-[#1c1c1c] font-mono">
+                      <div>
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          TANGGAL & WAKTU
+                        </div>
+                        <div className="text-neutral-200 mt-0.5 text-[11px]">
+                          {startDateObj.toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                          })}{" "}
+                          • {startDateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          DURASI TUGAS
+                        </div>
+                        <div className="text-[#FF1E2D] font-bold mt-0.5 text-[11px]">
+                          {isLive ? "Running..." : formatHoursMinutes(session.durationSeconds)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {session.notes && (
+                      <div className="text-[11px] text-neutral-400 bg-[#161616] p-2 rounded-lg border border-[#222]">
+                        <span className="text-neutral-500 text-[10px] block mb-0.5">KETERANGAN:</span>
+                        <span>{session.notes}</span>
+                      </div>
+                    )}
+
+                    {canEdit && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSessionToEdit(session)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#2c2c2c] transition cursor-pointer"
+                        >
+                          <Edit2 className="h-3 w-3 text-amber-400" />
+                          <span>Koreksi Sesi Absensi</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-        <div className="overflow-x-auto w-full table-scroll-container">
+
+        {/* DESKTOP & TABLET TABLE VIEW (>= sm) */}
+        <div className="hidden sm:block overflow-x-auto w-full table-scroll-container">
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
@@ -277,7 +375,11 @@ export function AttendanceTable({
                 <th className="py-3.5 px-4 whitespace-nowrap">Durasi</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Keterangan</th>
-                {canEdit && <th className="py-3.5 px-4 whitespace-nowrap text-right">Aksi</th>}
+                {canEdit && (
+                  <th className="py-3.5 px-4 whitespace-nowrap text-right sticky right-0 bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#252525]">
+                    Aksi
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
@@ -361,13 +463,13 @@ export function AttendanceTable({
                         {session.notes || "-"}
                       </td>
                       {canEdit && (
-                        <td className="py-3.5 px-4 whitespace-nowrap text-right">
+                        <td className="py-3.5 px-4 whitespace-nowrap text-right sticky right-0 bg-[#111111] group-hover:bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#202020] transition-colors">
                           <button
                             type="button"
                             onClick={() => setSelectedSessionToEdit(session)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#252525] border border-[#2c2c2c] transition cursor-pointer"
                           >
-                            <Edit2 className="h-3 w-3" />
+                            <Edit2 className="h-3 w-3 text-amber-400" />
                             <span>Koreksi</span>
                           </button>
                         </td>

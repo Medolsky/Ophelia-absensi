@@ -123,13 +123,39 @@ export function ReportGenerator({
           </span>
         </div>
 
-        {/* Mobile Swipe Cue */}
-        <div className="sm:hidden px-3.5 py-1.5 bg-[#141414] border-b border-[#222] text-[10px] text-neutral-400 flex items-center justify-between">
-          <span>Geser tabel ke samping untuk melihat detail</span>
-          <span className="font-mono text-neutral-500">SWIPE ➔</span>
+        {/* MOBILE CARD LIST VIEW (< sm) */}
+        <div className="sm:hidden">
+          {memberReportData.length === 0 ? (
+            <div className="py-8 px-4 text-center text-xs text-neutral-500">
+              Tidak ada data absensi untuk rentang tanggal yang dipilih.
+            </div>
+          ) : (
+            <div className="divide-y divide-[#1e1e1e]">
+              {memberReportData.map((d) => (
+                <div key={d.memberId} className="p-4 space-y-2 hover:bg-[#141414] transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-white text-xs">{d.name}</div>
+                      <div className="text-[10px] text-neutral-400">{d.position}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[9px] uppercase tracking-wider text-neutral-500">TOTAL JAM</div>
+                      <div className="text-sm font-mono font-bold text-[#FF1E2D]">{d.totalHoursStr}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] font-mono text-neutral-400 bg-[#0c0c0c] p-2 rounded-lg border border-[#1a1a1a]">
+                    <span>{d.sessions} Sesi Dinas</span>
+                    <span>•</span>
+                    <span>{d.activeDays} Hari Aktif</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="overflow-x-auto table-scroll-container">
+        {/* DESKTOP & TABLET TABLE VIEW (>= sm) */}
+        <div className="hidden sm:block overflow-x-auto table-scroll-container">
           <table className="w-full text-left text-xs min-w-[550px]">
             <thead className="bg-[#121212] border-b border-[#222] text-neutral-400 uppercase font-semibold">
               <tr>

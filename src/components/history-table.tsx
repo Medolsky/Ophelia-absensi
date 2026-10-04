@@ -253,11 +253,115 @@ export function HistoryTable({
         </div>
       ) : (
         <div className="rounded-2xl border border-[#222] bg-[#111111] overflow-hidden shadow-xl">
-          <div className="sm:hidden px-3.5 py-1.5 bg-[#161616] border-b border-[#242424] text-[10px] text-neutral-400 flex items-center justify-between font-mono">
-            <span>👉 Geser tabel ke samping untuk melihat detail & aksi</span>
-            <span className="text-[#FF1E2D] font-bold">SWIPE</span>
+          {/* MOBILE CARD LIST VIEW (< sm) */}
+          <div className="sm:hidden">
+            <div className="divide-y divide-[#1e1e1e]">
+              {paginatedSessions.map((session) => {
+                const isLive = !session.endedAt && session.status === "ON_DUTY";
+                const isMe = isUserSession(session);
+
+                return (
+                  <div
+                    key={session.id}
+                    className={`p-4 space-y-3 hover:bg-[#141414] transition-colors ${
+                      isMe ? "bg-[#E50914]/5" : ""
+                    }`}
+                  >
+                    {/* User profile row & status */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <UserAvatar
+                          userId={session.userId}
+                          userAvatar={session.userAvatar}
+                          name={session.userName}
+                          className="h-9 w-9 rounded-xl object-cover border border-[#333] shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-bold text-white text-xs flex items-center gap-1.5 truncate">
+                            <span className="truncate">{session.userName || "Petugas"}</span>
+                            {isMe && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-mono font-bold shrink-0">
+                                SAYA
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-neutral-400 font-medium truncate">
+                            {session.positionName || "Anggota"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {session.status === "ON_DUTY" && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#FF1E2D] font-mono text-[10px] border border-[#E50914]/40 font-semibold shrink-0">
+                          ON DUTY
+                        </span>
+                      )}
+                      {session.status === "COMPLETED" && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px] border border-emerald-500/30 font-semibold shrink-0">
+                          COMPLETED
+                        </span>
+                      )}
+                      {session.status === "CORRECTED" && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono text-[10px] border border-amber-500/30 font-semibold shrink-0">
+                          CORRECTED
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Duty details row */}
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-[#0c0c0c] p-2.5 rounded-xl border border-[#1c1c1c] font-mono">
+                      <div>
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          TANGGAL & WAKTU
+                        </div>
+                        <div className="text-neutral-200 mt-0.5 text-[11px]">
+                          {formatSafeDate(session.startedAt)}
+                        </div>
+                        <div className="text-neutral-400 text-[10px]">
+                          {formatSafeTime(session.startedAt)} ─ {session.endedAt ? formatSafeTime(session.endedAt) : "SEKARANG"}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] uppercase tracking-wider text-neutral-500 font-sans">
+                          DURASI TUGAS
+                        </div>
+                        <div className="text-white font-bold mt-0.5 text-[12px]">
+                          {isLive ? (
+                            <span className="text-[#FF1E2D] animate-pulse">Running...</span>
+                          ) : (
+                            formatDuration(session.durationSeconds)
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {session.notes && (
+                      <div className="text-[11px] text-neutral-400 bg-[#161616] p-2 rounded-lg border border-[#222]">
+                        <span className="text-neutral-500 text-[10px] block mb-0.5 font-mono">CATATAN:</span>
+                        <span>{session.notes}</span>
+                      </div>
+                    )}
+
+                    {canEdit && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSessionToEdit(session)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold text-neutral-300 hover:text-white bg-[#1a1a1a] hover:bg-[#E50914] border border-[#2c2c2c] hover:border-[#E50914] transition cursor-pointer shadow-sm"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          <span>Koreksi Jam Dinas</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="overflow-x-auto w-full table-scroll-container">
+
+          {/* DESKTOP & TABLET TABLE VIEW (>= sm) */}
+          <div className="hidden sm:block overflow-x-auto w-full table-scroll-container">
             <table className="w-full text-left text-sm text-neutral-300 min-w-[720px]">
               <thead className="bg-[#161616] text-[11px] uppercase tracking-wider text-neutral-400 font-semibold border-b border-[#252525]">
                 <tr>
@@ -268,7 +372,11 @@ export function HistoryTable({
                   <th scope="col" className="py-3 px-4">Durasi</th>
                   <th scope="col" className="py-3 px-4">Status</th>
                   <th scope="col" className="py-3 px-4">Catatan</th>
-                  {canEdit && <th scope="col" className="py-3 px-4 text-right">Aksi</th>}
+                  {canEdit && (
+                    <th scope="col" className="py-3 px-4 text-right sticky right-0 bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#252525]">
+                      Aksi
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e1e1e] text-xs">
@@ -279,7 +387,7 @@ export function HistoryTable({
                   return (
                     <tr
                       key={session.id}
-                      className={`hover:bg-[#161616] transition-colors ${
+                      className={`hover:bg-[#161616] transition-colors group ${
                         isMe ? "bg-[#E50914]/5" : ""
                       }`}
                     >
@@ -350,7 +458,7 @@ export function HistoryTable({
                         {session.notes || "—"}
                       </td>
                       {canEdit && (
-                        <td className="py-3 px-4 whitespace-nowrap text-right">
+                        <td className="py-3 px-4 whitespace-nowrap text-right sticky right-0 bg-[#111111] group-hover:bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#202020] transition-colors">
                           <button
                             type="button"
                             onClick={() => setSelectedSessionToEdit(session)}

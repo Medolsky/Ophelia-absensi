@@ -325,8 +325,8 @@ export function RoleMappingsManager({
 
       {/* Mappings Table */}
       <div className="rounded-2xl bg-[#111111] border border-[#222] shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto w-full table-scroll-container">
+          <table className="w-full text-left text-xs min-w-[700px]">
             <thead className="bg-[#161616] border-b border-[#252525] text-neutral-400 uppercase font-semibold">
               <tr>
                 <th className="py-3.5 px-4 whitespace-nowrap">Nama Role Discord</th>
@@ -334,7 +334,7 @@ export function RoleMappingsManager({
                 <th className="py-3.5 px-4 whitespace-nowrap">Instansi Target</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Level Permission</th>
                 <th className="py-3.5 px-4 whitespace-nowrap">Keterangan</th>
-                <th className="py-3.5 px-4 whitespace-nowrap text-right">Aksi</th>
+                <th className="py-3.5 px-4 whitespace-nowrap text-right sticky right-0 bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#252525]">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e1e]">
@@ -346,7 +346,7 @@ export function RoleMappingsManager({
                 </tr>
               ) : (
                 filteredMappings.map((m) => (
-                  <tr key={m.id} className="hover:bg-[#161616] transition-colors">
+                  <tr key={m.id} className="hover:bg-[#161616] transition-colors group">
                     <td className="py-3.5 px-4 font-bold text-white whitespace-nowrap flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-[#5865F2] shrink-0" />
                       <span>{m.discordRole}</span>
@@ -373,7 +373,7 @@ export function RoleMappingsManager({
                     <td className="py-3.5 px-4 text-neutral-400 max-w-xs truncate">
                       {m.description}
                     </td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap sticky right-0 bg-[#111111] group-hover:bg-[#161616] z-10 shadow-[-6px_0_12px_rgba(0,0,0,0.5)] border-l border-[#202020] transition-colors">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => openEditModal(m)}
