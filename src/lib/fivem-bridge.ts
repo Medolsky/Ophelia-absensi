@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { FiveMPlayerData, CityStatusEntry } from "@/types";
 import { DataService } from "./data-service";
+import { DEFAULT_INSTITUTIONS, FIVEM_JOB_TO_INSTITUTION_MAP } from "./constants";
 
 /**
  * In-memory fallback store for FiveM player state.
@@ -32,7 +33,18 @@ export class FiveMBridge {
    * Marks players not in the list as offline.
    */
   static async syncPlayers(
-    players: { discordId: string; serverId: number; name: string }[]
+    players: {
+      discordId: string;
+      serverId: number;
+      name: string;
+      citizenid?: string;
+      job?: {
+        name: string;
+        label: string;
+        onduty: boolean;
+        grade?: { name: string; level: number };
+      };
+    }[]
   ): Promise<{ synced: number; wentOffline: number }> {
     const now = new Date();
     const incomingIds = new Set(players.map((p) => p.discordId));
@@ -99,6 +111,8 @@ export class FiveMBridge {
         existing.playerName = p.name;
         existing.isOnline = true;
         existing.lastSeenAt = now.toISOString();
+        if (p.citizenid) existing.citizenid = p.citizenid;
+        if (p.job) existing.job = p.job;
       } else {
         playerStore.set(p.discordId, {
           discordId: p.discordId,
@@ -107,6 +121,8 @@ export class FiveMBridge {
           isOnline: true,
           joinedAt: now.toISOString(),
           lastSeenAt: now.toISOString(),
+          citizenid: p.citizenid,
+          job: p.job,
         });
       }
     }
@@ -228,17 +244,37 @@ export class FiveMBridge {
         [];
       const memberUser = memberships[0]?.user;
 
+      // Check if player is on-duty reported directly from FiveM QBCore job data
+      const fivemJobName = player.job?.name?.toLowerCase();
+      const mappedSlug = fivemJobName ? FIVEM_JOB_TO_INSTITUTION_MAP[fivemJobName] : undefined;
+      const isFivemOnDuty = !!(player.job?.onduty && mappedSlug);
+      const matchedInst = mappedSlug
+        ? DEFAULT_INSTITUTIONS.find((i) => i.slug === mappedSlug)
+        : null;
+
+      const effectiveOnDuty = !!duty || isFivemOnDuty;
+      const dutyInstName =
+        duty?.institutionName || (isFivemOnDuty ? matchedInst?.name : undefined);
+      const dutyInstSlug =
+        duty?.institutionSlug || (isFivemOnDuty ? mappedSlug : undefined);
+      const dutyStartedAt = duty?.startedAt || (isFivemOnDuty ? player.joinedAt : undefined);
+      const positionName =
+        duty?.positionName ||
+        (isFivemOnDuty ? player.job?.grade?.name : undefined) ||
+        memberships[0]?.positionName;
+
       entriesMap.set(cleanDid, {
         discordId: player.discordId,
         playerName: player.playerName,
+        citizenid: player.citizenid,
         serverId: player.serverId,
         isOnline: player.isOnline,
         joinedAt: player.joinedAt,
         lastSeenAt: player.lastSeenAt,
-        isOnDuty: !!duty,
-        dutyInstitutionName: duty?.institutionName,
-        dutyInstitutionSlug: duty?.institutionSlug,
-        dutyStartedAt: duty?.startedAt,
+        isOnDuty: effectiveOnDuty,
+        dutyInstitutionName: dutyInstName,
+        dutyInstitutionSlug: dutyInstSlug,
+        dutyStartedAt: dutyStartedAt,
         memberInstitutions: memberships.map((m) => {
           const inst = allInstitutionSlugs.find((s) => {
             const prefix = `inst-${s.substring(0, 4)}`;
@@ -248,7 +284,7 @@ export class FiveMBridge {
         }),
         displayName: memberUser?.displayName || duty?.userName || player.playerName,
         avatar: memberUser?.discordAvatar || duty?.userAvatar || null,
-        positionName: duty?.positionName || memberships[0]?.positionName,
+        positionName,
       });
     }
 

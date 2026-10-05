@@ -269,3 +269,29 @@ export const DEMO_PERSONAS: (SessionUser & {
     },
   },
 ];
+
+/**
+ * Mapping from FiveM QBCore job name to Web App institution slug.
+ * Confirmed: pedagang = restaurant, resto = restaurant.
+ * Excluded: realestate & badside (gang/illegal).
+ */
+export const FIVEM_JOB_TO_INSTITUTION_MAP: Record<string, string> = {
+  police: "police",
+  ambulance: "medical",
+  mechanic: "mechanic",
+  pedagang: "restaurant",
+  resto: "restaurant",
+};
+
+/**
+ * Mapping for society bank accounts in bablo_bank_accounts
+ */
+export const FIVEM_SOCIETY_ACCOUNT_MAP: Record<
+  string,
+  { slug: string; name: string }
+> = {
+  society_police: { slug: "police", name: "Ophelia Police Department" },
+  society_ambulance: { slug: "medical", name: "Ophelia Medical Center" },
+  society_mechanic: { slug: "mechanic", name: "Ophelia Custom Garage" },
+  society_pedagang: { slug: "restaurant", name: "Ophelia Restaurant & Lounge" },
+};

@@ -7,6 +7,8 @@ import Link from "next/link";
 
 import { cookies } from "next/headers";
 import { DutySessionData } from "@/types";
+import { FiveMSocietyCard } from "@/components/fivem-society-card";
+import { FiveMDataService } from "@/lib/fivem-data-service";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -39,9 +41,13 @@ export default async function DutyDashboardPage({
     } catch {}
   }
 
-  const [dbActiveSession, userSessions] = await Promise.all([
+  const cleanSlug = slug.replace("inst-", "").toLowerCase();
+  const hasSociety = ["police", "medical", "mechanic", "restaurant"].includes(cleanSlug);
+
+  const [dbActiveSession, userSessions, societyAccount] = await Promise.all([
     DataService.getActiveDutySession(currentUser.id),
     DataService.getUserDutySessions(currentUser.id, slug),
+    hasSociety ? FiveMDataService.getInstitutionSocietyBalance(cleanSlug) : Promise.resolve(null),
   ]);
 
   const activeSession = dbActiveSession || cookieActiveSession;
@@ -128,8 +134,15 @@ export default async function DutyDashboardPage({
         userDisplayName={currentUser.displayName || currentUser.discordUsername}
       />
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Metric Cards & FiveM Society Kas */}
+      <div className={`grid grid-cols-2 ${hasSociety ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-3 sm:gap-4`}>
+        {hasSociety && (
+          <FiveMSocietyCard
+            institutionSlug={cleanSlug}
+            initialAccount={societyAccount}
+            accentColor={institution.primaryColor}
+          />
+        )}
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4 lg:p-5 shadow-lg relative overflow-hidden group hover:border-[#E50914]/50 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">

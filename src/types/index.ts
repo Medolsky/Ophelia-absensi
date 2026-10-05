@@ -147,11 +147,59 @@ export interface FiveMPlayerData {
   isOnline: boolean;
   joinedAt: string;
   lastSeenAt: string;
+  citizenid?: string;
+  job?: {
+    name: string;
+    label: string;
+    onduty: boolean;
+    grade?: {
+      name: string;
+      level: number;
+    };
+  };
+}
+
+export interface FiveMSocietyAccount {
+  accountNumber: string;
+  accountName: string;
+  institutionName: string;
+  institutionSlug: string | null;
+  balance: number;
+  currency: string;
+  type: string;
+  updatedAt: string;
+}
+
+export interface FiveMGamePlayer {
+  citizenid: string;
+  name: string;
+  fullname: string;
+  phone?: string | null;
+  gender?: "male" | "female";
+  job: {
+    name: string;
+    label: string;
+    onduty: boolean;
+    payment?: number;
+    grade: {
+      name: string;
+      level: number;
+    };
+    institutionSlug?: string | null;
+  };
+  money?: {
+    cash: number;
+    bank: number;
+  };
+  callsign?: string | null;
+  bloodtype?: string | null;
+  lastUpdated: string;
 }
 
 export interface CityStatusEntry {
   discordId: string;
   playerName: string;
+  citizenid?: string;
   serverId: number;
   isOnline: boolean;
   joinedAt: string;

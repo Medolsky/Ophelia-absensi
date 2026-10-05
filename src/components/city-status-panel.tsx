@@ -387,6 +387,17 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                   </div>
                 </div>
 
+                {entry.citizenid && (
+                  <div>
+                    <div className="text-[10px] text-neutral-500 uppercase tracking-wider text-center">
+                      CITIZEN ID
+                    </div>
+                    <div className="font-mono text-neutral-300 mt-0.5 text-xs text-center font-medium bg-[#1a1a1a] px-1.5 py-0.5 rounded border border-[#2a2a2a]">
+                      {entry.citizenid}
+                    </div>
+                  </div>
+                )}
+
                 {entry.isOnDuty && entry.dutyStartedAt && (
                   <div className="text-right">
                     <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
