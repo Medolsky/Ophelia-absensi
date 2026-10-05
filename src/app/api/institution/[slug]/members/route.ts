@@ -4,6 +4,7 @@ import { DataService } from "@/lib/data-service";
 import { MembershipData } from "@/types";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { getDiscordCredentials } from "@/lib/discord-credentials";
+import { formatInstitutionMemberName } from "@/lib/member-tag";
 
 export async function GET(
   req: NextRequest,
@@ -132,7 +133,7 @@ export async function POST(
         id: `discord-${discordId}`,
         discordId,
         discordUsername,
-        displayName,
+        displayName: formatInstitutionMemberName(displayName, slug),
         discordAvatar,
       },
     };

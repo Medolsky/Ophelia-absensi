@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { DutyTimer } from "@/components/duty-timer";
 import { InstitutionLogo } from "@/components/institution-logo";
+import { formatInstitutionMemberName } from "@/lib/member-tag";
 import { Clock, Calendar, CheckCircle2, Award, Zap, Layers } from "lucide-react";
 import Link from "next/link";
 
@@ -96,7 +97,7 @@ export default async function DutyDashboardPage({
               Selamat Datang di Portal Dinas
             </div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white mt-0.5 truncate">
-              {currentUser.displayName || currentUser.discordUsername}
+              {formatInstitutionMemberName(currentUser.displayName || currentUser.discordUsername, slug)}
             </h1>
             <p className="text-xs text-neutral-400 mt-1 flex flex-wrap items-center gap-1.5">
               <span
@@ -131,7 +132,7 @@ export default async function DutyDashboardPage({
             ? activeSession
             : null
         }
-        userDisplayName={currentUser.displayName || currentUser.discordUsername}
+        userDisplayName={formatInstitutionMemberName(currentUser.displayName || currentUser.discordUsername, slug)}
       />
 
       {/* Metric Cards & FiveM Society Kas */}

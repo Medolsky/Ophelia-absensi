@@ -1,5 +1,6 @@
 import { getCurrentUser, verifyInstitutionAccess, getAllowedInstitutions } from "@/lib/auth";
 import { DataService, normalizeInstSlug } from "@/lib/data-service";
+import { formatInstitutionMemberName } from "@/lib/member-tag";
 import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { Navbar } from "@/components/navbar";
 import { Sidebar } from "@/components/sidebar";
@@ -61,10 +62,15 @@ export default async function InstitutionLayout({
     );
   }
 
+  const institutionUser = {
+    ...currentUser,
+    displayName: formatInstitutionMemberName(currentUser.displayName, slug),
+  };
+
   return (
     <div className="min-h-screen bg-[#080808] flex flex-col selection:bg-[#E50914] selection:text-white">
       <Navbar
-        currentUser={currentUser}
+        currentUser={institutionUser}
         currentInstitution={currentInstitution}
         activeSession={activeSession}
         allowedInstitutions={allowedInstitutions}

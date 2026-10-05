@@ -3,6 +3,7 @@ import path from "path";
 import { prisma } from "./prisma";
 import { DEFAULT_INSTITUTIONS, DEMO_PERSONAS, DEFAULT_POSITION_SALARIES } from "./constants";
 import { fetchDiscordGuildMembers, mapDiscordRolesToInstitutions, getDiscordAvatarUrl, fetchDiscordMemberLive } from "./discord-sync";
+import { formatInstitutionMemberName } from "./member-tag";
 import {
   DutySessionData,
   InstitutionData,
@@ -45,7 +46,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1379103020490555433",
       discordId: "1379103020490555433",
       discordUsername: "ajiboyy00",
-      displayName: "OFFICER - Atong",
+      displayName: "OPD - Atong",
       discordAvatar: "https://cdn.discordapp.com/avatars/1379103020490555433/bae8bfb17bb812fb21dff07b2141e273.png",
     },
   },
@@ -61,7 +62,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1446900555699196025",
       discordId: "1446900555699196025",
       discordUsername: "jibrilmpruy2",
-      displayName: "OFFICER - Sean",
+      displayName: "OPD - Sean",
       discordAvatar: "https://cdn.discordapp.com/avatars/1446900555699196025/5c5b80ef1a70b90a3d4d3ea973b6339c.png",
     },
   },
@@ -77,7 +78,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1277313962664394897",
       discordId: "1277313962664394897",
       discordUsername: "bamshutagalung17",
-      displayName: "OFFICER - Yeye",
+      displayName: "OPD - Yeye",
       discordAvatar: "https://cdn.discordapp.com/avatars/1277313962664394897/8449d575a9237eac008dd8987636eb76.png",
     },
   },
@@ -93,7 +94,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1192699916326273094",
       discordId: "1192699916326273094",
       discordUsername: "cukii06",
-      displayName: "OFFICER - SUKI",
+      displayName: "OPD - SUKI",
       discordAvatar: "https://cdn.discordapp.com/avatars/1192699916326273094/351127afb282553e031c51a27bdff491.png",
     },
   },
@@ -109,7 +110,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1067083664116158595",
       discordId: "1067083664116158595",
       discordUsername: "ionnn_21",
-      displayName: "OFFICER - ION",
+      displayName: "OPD - ION",
       discordAvatar: "https://cdn.discordapp.com/avatars/1067083664116158595/760ec99acfcf4dac0504cf8ba7edb7db.png",
     },
   },
@@ -125,7 +126,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-252349909364113408",
       discordId: "252349909364113408",
       discordUsername: ".skyxd",
-      displayName: "OFFICER - SKY",
+      displayName: "OPD - SKY",
       discordAvatar: "https://cdn.discordapp.com/avatars/252349909364113408/b7e1098bc218443b4e5275bd758daa1b.png",
     },
   },
@@ -141,7 +142,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-983237484236374057",
       discordId: "983237484236374057",
       discordUsername: "athaa00",
-      displayName: "ORP | Nasaa",
+      displayName: "OPD - Nasaa",
       discordAvatar: "https://cdn.discordapp.com/avatars/983237484236374057/74ba611fe6b8ba7c10b747ae721ac8aa.png",
     },
   },
@@ -157,7 +158,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1036237050594209902",
       discordId: "1036237050594209902",
       discordUsername: "chainmokers",
-      displayName: "Nathan",
+      displayName: "OPD - Nathan",
       discordAvatar: "https://cdn.discordapp.com/avatars/1036237050594209902/e4c6836ad87229288f8a2da8e0b763ca.png",
     },
   },
@@ -173,7 +174,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-390376159696912395",
       discordId: "390376159696912395",
       discordUsername: "rapi0853",
-      displayName: "ORP - BAGUS",
+      displayName: "OPD - BAGUS",
       discordAvatar: "https://cdn.discordapp.com/avatars/390376159696912395/f53497e40bb8e89b8dd4c30924a5fc91.png",
     },
   },
@@ -191,7 +192,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1515016912030138433",
       discordId: "1515016912030138433",
       discordUsername: "angllvvxx",
-      displayName: "EMS - Angela Lee",
+      displayName: "OMC - Angela Lee",
       discordAvatar: "https://cdn.discordapp.com/avatars/1515016912030138433/77686f0158e57b004671dae529cddedd.png",
     },
   },
@@ -207,7 +208,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1130847993214537759",
       discordId: "1130847993214537759",
       discordUsername: "bangblackdragon",
-      displayName: "AdingUki",
+      displayName: "OMC - AdingUki",
       discordAvatar: "https://cdn.discordapp.com/avatars/1130847993214537759/1bfaae4d16f5408a0fca20dfdbf2b6bf.png",
     },
   },
@@ -223,7 +224,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1322937860717936766",
       discordId: "1322937860717936766",
       discordUsername: "aditya_wijaya25",
-      displayName: "Aditya Wijaya",
+      displayName: "OMC - Aditya Wijaya",
       discordAvatar: "https://cdn.discordapp.com/avatars/1322937860717936766/add0f21040ee83976a33853aa37757e5.png",
     },
   },
@@ -239,7 +240,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1059424472429498389",
       discordId: "1059424472429498389",
       discordUsername: "chisatochika",
-      displayName: "chisatochika",
+      displayName: "OMC - chisatochika",
       discordAvatar: "https://cdn.discordapp.com/avatars/1059424472429498389/c889bd1f1e716b9b842be2949d9fc747.png",
     },
   },
@@ -255,7 +256,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-383955833286950912",
       discordId: "383955833286950912",
       discordUsername: "damedamedamdam",
-      displayName: "Dam",
+      displayName: "OMC - Dam",
       discordAvatar: "https://cdn.discordapp.com/avatars/383955833286950912/9e3db3654337e5cdd6b20313fd1d362e.png",
     },
   },
@@ -271,7 +272,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1015341449212067861",
       discordId: "1015341449212067861",
       discordUsername: "iteng1501",
-      displayName: "zarrr$",
+      displayName: "OMC - zarrr$",
       discordAvatar: "https://cdn.discordapp.com/avatars/1015341449212067861/5f43dffb1c2e6887569cdd1dc9e7a7e6.png",
     },
   },
@@ -287,7 +288,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-717285672804810782",
       discordId: "717285672804810782",
       discordUsername: "sicksfeeling",
-      displayName: "January",
+      displayName: "OMC - January",
       discordAvatar: "https://cdn.discordapp.com/avatars/717285672804810782/016c941abb6e3f78b3c76ea107d90331.png",
     },
   },
@@ -303,7 +304,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-316192210230050816",
       discordId: "316192210230050816",
       discordUsername: ".kupluk",
-      displayName: "Kupluk",
+      displayName: "OMC - Kupluk",
       discordAvatar: "https://cdn.discordapp.com/avatars/316192210230050816/dd0e4e1d00985f83e4bcbc63ebb1a0c6.png",
     },
   },
@@ -319,7 +320,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-344834451811074050",
       discordId: "344834451811074050",
       discordUsername: ".m0f",
-      displayName: "M0F",
+      displayName: "OMC - M0F",
       discordAvatar: "https://cdn.discordapp.com/avatars/344834451811074050/a_ad851676733459fed9a7540147096164.png",
     },
   },
@@ -335,7 +336,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-715746033354801195",
       discordId: "715746033354801195",
       discordUsername: "panpaq",
-      displayName: "JustFriend",
+      displayName: "OMC - JustFriend",
       discordAvatar: "https://cdn.discordapp.com/avatars/715746033354801195/610b2b935009b4665803e9aa4493e559.png",
     },
   },
@@ -353,7 +354,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-682808386349432902",
       discordId: "682808386349432902",
       discordUsername: "mercifulmariner",
-      displayName: "Axton Gareth",
+      displayName: "OCG - Axton Gareth",
       discordAvatar: "https://cdn.discordapp.com/avatars/682808386349432902/946e602c0b23a837154371c8155e6974.png",
     },
   },
@@ -369,7 +370,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1342015505170432053",
       discordId: "1342015505170432053",
       discordUsername: "ataazahwa_29372",
-      displayName: "Ata Zahwa",
+      displayName: "OCG - Ata Zahwa",
       discordAvatar: "https://cdn.discordapp.com/avatars/1342015505170432053/660be92c49a2170a19774fee4b996080.png",
     },
   },
@@ -385,7 +386,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-461152817093148683",
       discordId: "461152817093148683",
       discordUsername: "bigguydelucas",
-      displayName: "Bigguy",
+      displayName: "OCG - Bigguy",
       discordAvatar: "https://cdn.discordapp.com/avatars/461152817093148683/cb09b64cf63e86b8c3f46ed2c3449c23.png",
     },
   },
@@ -401,7 +402,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-588554207888408577",
       discordId: "588554207888408577",
       discordUsername: "herjul4082",
-      displayName: "Dante",
+      displayName: "OCG - Dante",
       discordAvatar: "https://cdn.discordapp.com/avatars/588554207888408577/3d67d6a7f4b2143f46fb9d46b2fdf5f4.png",
     },
   },
@@ -417,7 +418,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1340644224588058664",
       discordId: "1340644224588058664",
       discordUsername: "devonrorr.",
-      displayName: "Devon",
+      displayName: "OCG - Devon",
       discordAvatar: "https://cdn.discordapp.com/avatars/1340644224588058664/4789252c57361b533131209eea1c06f8.png",
     },
   },
@@ -433,7 +434,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-673174173341712401",
       discordId: "673174173341712401",
       discordUsername: "dmzadty",
-      displayName: "dmzadty",
+      displayName: "OCG - dmzadty",
       discordAvatar: "https://cdn.discordapp.com/avatars/673174173341712401/fbd410c28983a850af58c4c932bef9b3.png",
     },
   },
@@ -449,7 +450,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-733280011758469140",
       discordId: "733280011758469140",
       discordUsername: "rasya2429",
-      displayName: "KOY GANTENG",
+      displayName: "OCG - KOY GANTENG",
       discordAvatar: "https://cdn.discordapp.com/avatars/733280011758469140/815966be40c10ca32060f9db3a063ec8.png",
     },
   },
@@ -465,7 +466,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1126001297011777536",
       discordId: "1126001297011777536",
       discordUsername: "novee3634",
-      displayName: "Fanzo",
+      displayName: "OCG - Fanzo",
       discordAvatar: "https://cdn.discordapp.com/avatars/1126001297011777536/980b1ff991553f3e84f9a44297ff3bb4.png",
     },
   },
@@ -481,7 +482,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-1013428728321278022",
       discordId: "1013428728321278022",
       discordUsername: "francescatwila",
-      displayName: "кєтн",
+      displayName: "OCG - кєтн",
       discordAvatar: "https://cdn.discordapp.com/avatars/1013428728321278022/ed152d76e12017378519b4035d763bab.png",
     },
   },
@@ -497,7 +498,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-330028417376452609",
       discordId: "330028417376452609",
       discordUsername: "yihaaaa.",
-      displayName: "POL - SIX RASCALS",
+      displayName: "OCG - SIX RASCALS",
       discordAvatar: "https://cdn.discordapp.com/avatars/330028417376452609/356ebb3d99f3a2fa549ff9787d520e82.png",
     },
   },
@@ -515,7 +516,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-944299382398939146",
       discordId: "944299382398939146",
       discordUsername: "afrizall9682",
-      displayName: "JASON2",
+      displayName: "RESTO - JASON2",
       discordAvatar: "https://cdn.discordapp.com/avatars/944299382398939146/f18c94d15c26076a27e9d635450f9d7b.png",
     },
   },
@@ -531,7 +532,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-964639348760936559",
       discordId: "964639348760936559",
       discordUsername: "chochieeeee",
-      displayName: "piyinaa",
+      displayName: "RESTO - piyinaa",
       discordAvatar: "https://cdn.discordapp.com/avatars/964639348760936559/f09a6622d646520b17dfab5742ff4e82.png",
     },
   },
@@ -547,7 +548,7 @@ const initialMemberships: MembershipData[] = [
       id: "discord-470863102531993600",
       discordId: "470863102531993600",
       discordUsername: "da.rk_123",
-      displayName: "Dark.bite",
+      displayName: "RESTO - Dark.bite",
       discordAvatar: "https://cdn.discordapp.com/avatars/470863102531993600/f23e390d5f3a43362b1f65fbebe23f1e.png",
     },
   },
@@ -713,10 +714,47 @@ function loadPersistedStore(): Partial<StoreState> | null {
 
 const savedData = loadPersistedStore();
 
+function mergeMemberships(base: MembershipData[], overlay: MembershipData[]): MembershipData[] {
+  const merged = new Map(base.map((m) => [m.id, { ...m }]));
+  for (const om of overlay) {
+    const existing = merged.get(om.id);
+    if (existing) {
+      if (om.user) {
+        existing.user = {
+          ...existing.user,
+          ...om.user,
+          displayName: formatInstitutionMemberName(
+            om.user.displayName || existing.user?.displayName,
+            existing.institutionId
+          ),
+        };
+      }
+      if (om.positionName) existing.positionName = om.positionName;
+      if (om.permissionLevel) existing.permissionLevel = om.permissionLevel;
+      if (om.status) existing.status = om.status;
+    } else {
+      const copy = { ...om };
+      if (copy.user) {
+        copy.user = {
+          ...copy.user,
+          displayName: formatInstitutionMemberName(copy.user.displayName, copy.institutionId),
+        };
+      }
+      merged.set(om.id, copy);
+    }
+  }
+  return Array.from(merged.values());
+}
+
 if (!globalMemoryStore.__ophelia_store) {
+  const baseMemberships = [...initialMemberships];
+  const mergedMemberships = savedData?.memberships?.length
+    ? mergeMemberships(baseMemberships, savedData.memberships)
+    : baseMemberships;
+
   globalMemoryStore.__ophelia_store = {
     institutions: savedData?.institutions?.length ? savedData.institutions : [...DEFAULT_INSTITUTIONS],
-    memberships: savedData?.memberships?.length ? savedData.memberships : [...initialMemberships],
+    memberships: mergedMemberships,
     dutySessions: savedData?.dutySessions || [],
     auditLogs: savedData?.auditLogs || [],
     attendanceEdits: savedData?.attendanceEdits || [],
@@ -725,12 +763,19 @@ if (!globalMemoryStore.__ophelia_store) {
     roleMappings: savedData?.roleMappings?.length ? savedData.roleMappings : [...DEFAULT_ROLE_MAPPINGS],
   };
 } else {
-  // Preserve state across hot-reloads and requests!
   if (!globalMemoryStore.__ophelia_store.institutions || globalMemoryStore.__ophelia_store.institutions.length === 0) {
     globalMemoryStore.__ophelia_store.institutions = savedData?.institutions?.length ? savedData.institutions : [...DEFAULT_INSTITUTIONS];
   }
   if (!globalMemoryStore.__ophelia_store.memberships || globalMemoryStore.__ophelia_store.memberships.length === 0) {
-    globalMemoryStore.__ophelia_store.memberships = savedData?.memberships?.length ? savedData.memberships : [...initialMemberships];
+    const baseMemberships = [...initialMemberships];
+    globalMemoryStore.__ophelia_store.memberships = savedData?.memberships?.length
+      ? mergeMemberships(baseMemberships, savedData.memberships)
+      : baseMemberships;
+  } else if (savedData?.memberships?.length) {
+    globalMemoryStore.__ophelia_store.memberships = mergeMemberships(
+      globalMemoryStore.__ophelia_store.memberships,
+      savedData.memberships
+    );
   }
   if (!globalMemoryStore.__ophelia_store.dutySessions || globalMemoryStore.__ophelia_store.dutySessions.length === 0) {
     globalMemoryStore.__ophelia_store.dutySessions = savedData?.dutySessions || [];
@@ -768,11 +813,33 @@ function reloadPersistedSessions(): void {
       }
     }
     if (current?.memberships && Array.isArray(current.memberships)) {
-      const existingIds = new Set(memoryStore.memberships.map((m) => m.id));
+      const existingMap = new Map(memoryStore.memberships.map((m) => [m.id, m]));
       for (const dm of current.memberships) {
-        if (!existingIds.has(dm.id)) {
-          memoryStore.memberships.push(dm);
-          existingIds.add(dm.id);
+        const existing = existingMap.get(dm.id);
+        if (existing) {
+          if (dm.user) {
+            existing.user = {
+              ...existing.user,
+              ...dm.user,
+              displayName: formatInstitutionMemberName(
+                dm.user.displayName || existing.user?.displayName,
+                existing.institutionId
+              ),
+            };
+          }
+          if (dm.positionName) existing.positionName = dm.positionName;
+          if (dm.permissionLevel) existing.permissionLevel = dm.permissionLevel;
+          if (dm.status) existing.status = dm.status;
+        } else {
+          const copy = { ...dm };
+          if (copy.user) {
+            copy.user = {
+              ...copy.user,
+              displayName: formatInstitutionMemberName(copy.user.displayName, copy.institutionId),
+            };
+          }
+          memoryStore.memberships.push(copy);
+          existingMap.set(dm.id, copy);
         }
       }
     }
@@ -1129,7 +1196,7 @@ export class DataService {
             const res: DutySessionData = {
               id: active.id,
               userId: active.userId,
-              userName: active.user.displayName || active.user.discordUsername,
+              userName: formatInstitutionMemberName(active.user.displayName || active.user.discordUsername, active.institution.slug),
               institutionId: active.institutionId,
               institutionSlug: active.institution.slug,
               institutionName: active.institution.name,
@@ -1162,7 +1229,12 @@ export class DataService {
           !s.endedAt &&
           s.status === "ON_DUTY"
       );
-      const result = session || null;
+      const result = session
+        ? {
+            ...session,
+            userName: formatInstitutionMemberName(session.userName, session.institutionSlug),
+          }
+        : null;
       const stamp = Date.now();
       this.activeSessionsCache.set(cleanId, { data: result, timestamp: stamp });
       this.activeSessionsCache.set(userId, { data: result, timestamp: stamp });
@@ -1255,6 +1327,8 @@ export class DataService {
           m.user?.discordId === cleanId)
     );
 
+    const formattedUserName = formatInstitutionMemberName(params.userName, institution.slug);
+
     if (!existingMembership) {
       const defaultRoleName =
         institution.slug === "police"
@@ -1276,7 +1350,7 @@ export class DataService {
           id: params.userId,
           discordId: cleanId,
           discordUsername: params.userName,
-          displayName: params.userName,
+          displayName: formattedUserName,
           discordAvatar: params.userAvatar || null,
         },
       });
@@ -1293,14 +1367,14 @@ export class DataService {
           where: { discordId: cleanId },
           update: {
             discordUsername: params.userName,
-            displayName: params.userName,
+            displayName: formattedUserName,
             discordAvatar: params.userAvatar || null,
           },
           create: {
             id: params.userId,
             discordId: cleanId,
             discordUsername: params.userName,
-            displayName: params.userName,
+            displayName: formattedUserName,
             discordAvatar: params.userAvatar || null,
           },
         });
@@ -1333,7 +1407,7 @@ export class DataService {
         const sessionResult: DutySessionData = {
           id: newSession.id,
           userId: params.userId,
-          userName: params.userName,
+          userName: formattedUserName,
           userAvatar: params.userAvatar,
           positionName,
           institutionId: institution.id,
@@ -1367,7 +1441,7 @@ export class DataService {
     const session: DutySessionData = {
       id: `ds-${Date.now()}`,
       userId: params.userId,
-      userName: params.userName,
+      userName: formattedUserName,
       userAvatar: params.userAvatar,
       positionName,
       institutionId: institution.id,
@@ -1385,7 +1459,7 @@ export class DataService {
     memoryStore.auditLogs.unshift({
       id: `audit-${Date.now()}`,
       actorId: params.userId,
-      actorName: params.userName,
+      actorName: formattedUserName,
       action: "START_DUTY",
       targetType: "DUTY_SESSION",
       targetId: session.id,
@@ -1619,7 +1693,7 @@ export class DataService {
             return {
               id: r.id,
               userId: r.userId,
-              userName: r.user.displayName || r.user.discordUsername,
+              userName: formatInstitutionMemberName(r.user.displayName || r.user.discordUsername, cleanSlug),
               userAvatar: r.user.discordAvatar,
               positionName: pos,
               institutionId: r.institutionId,
@@ -1644,6 +1718,10 @@ export class DataService {
       reloadPersistedSessions();
       const memoryResult = memoryStore.dutySessions
         .filter((s) => matchesInstitution(s, institutionSlug))
+        .map((s) => ({
+          ...s,
+          userName: formatInstitutionMemberName(s.userName, s.institutionSlug || cleanSlug),
+        }))
         .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
       this.institutionSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: Date.now() });
       return memoryResult;
@@ -1755,7 +1833,7 @@ export class DataService {
             return {
               id: r.id,
               userId: r.userId,
-              userName: r.user.displayName || r.user.discordUsername,
+              userName: formatInstitutionMemberName(r.user.displayName || r.user.discordUsername, r.institution.slug),
               userAvatar: r.user.discordAvatar,
               positionName: pos,
               institutionId: r.institutionId,
@@ -1777,11 +1855,16 @@ export class DataService {
       }
 
       reloadPersistedSessions();
-      const memoryResult = memoryStore.dutySessions.filter((s) => {
-        const isLive = !s.endedAt && s.status === "ON_DUTY";
-        if (!isLive) return false;
-        return matchesInstitution(s, institutionSlug);
-      });
+      const memoryResult = memoryStore.dutySessions
+        .filter((s) => {
+          const isLive = !s.endedAt && s.status === "ON_DUTY";
+          if (!isLive) return false;
+          return matchesInstitution(s, institutionSlug);
+        })
+        .map((s) => ({
+          ...s,
+          userName: formatInstitutionMemberName(s.userName, s.institutionSlug || cleanSlug),
+        }));
       this.liveSessionsCache.set(cleanSlug, { data: memoryResult, timestamp: Date.now() });
       return memoryResult;
     })();
@@ -1876,7 +1959,7 @@ export class DataService {
               id: row.user.id,
               discordId: row.user.discordId,
               discordUsername: row.user.discordUsername,
-              displayName: row.user.displayName || row.user.discordUsername,
+              displayName: formatInstitutionMemberName(row.user.displayName || row.user.discordUsername, cleanSlug),
               discordAvatar: row.user.discordAvatar,
             },
           };
@@ -1938,7 +2021,7 @@ export class DataService {
                 id: r.user.id,
                 discordId: r.user.discordId,
                 discordUsername: r.user.discordUsername,
-                displayName: r.user.displayName || r.user.discordUsername,
+                displayName: formatInstitutionMemberName(r.user.displayName || r.user.discordUsername, r.institution?.slug || r.institutionId),
                 discordAvatar: r.user.discordAvatar,
               },
             }));
@@ -1951,13 +2034,23 @@ export class DataService {
         }
       }
 
-      const memList = memoryStore.memberships.filter(
-        (m) =>
-          m.userId === userId ||
-          m.userId === cleanId ||
-          m.userId === `discord-${cleanId}` ||
-          m.user?.discordId === cleanId
-      );
+      const memList = memoryStore.memberships
+        .filter(
+          (m) =>
+            m.userId === userId ||
+            m.userId === cleanId ||
+            m.userId === `discord-${cleanId}` ||
+            m.user?.discordId === cleanId
+        )
+        .map((m) => ({
+          ...m,
+          user: m.user
+            ? {
+                ...m.user,
+                displayName: formatInstitutionMemberName(m.user.displayName || m.user.discordUsername, m.institutionId),
+              }
+            : undefined,
+        }));
       this.userMembershipsCache.set(cleanId, { data: memList, timestamp: Date.now() });
       this.userMembershipsCache.set(userId, { data: memList, timestamp: Date.now() });
       return memList;
@@ -2015,7 +2108,7 @@ export class DataService {
                 id: r.user.id,
                 discordId: r.user.discordId,
                 discordUsername: r.user.discordUsername,
-                displayName: r.user.displayName || r.user.discordUsername,
+                displayName: formatInstitutionMemberName(r.user.displayName || r.user.discordUsername, cleanSlug),
                 discordAvatar: r.user.discordAvatar,
               },
             }));
@@ -2027,9 +2120,19 @@ export class DataService {
         }
       }
 
-      const memoryMembers = memoryStore.memberships.filter(
-        (m) => normalizeInstSlug(m.institutionId) === cleanSlug || m.institutionId === institution.id || m.institutionId === institutionSlug
-      );
+      const memoryMembers = memoryStore.memberships
+        .filter(
+          (m) => normalizeInstSlug(m.institutionId) === cleanSlug || m.institutionId === institution.id || m.institutionId === institutionSlug
+        )
+        .map((m) => ({
+          ...m,
+          user: m.user
+            ? {
+                ...m.user,
+                displayName: formatInstitutionMemberName(m.user.displayName || m.user.discordUsername, cleanSlug),
+              }
+            : undefined,
+        }));
       this.membershipsCache.set(cleanSlug, { data: memoryMembers, timestamp: Date.now() });
       return memoryMembers;
     })();
@@ -2068,6 +2171,7 @@ export class DataService {
           if (!targetInst) continue;
 
           const memId = `mem-${mr.institutionSlug}-${dm.discordId}`;
+          const formattedName = formatInstitutionMemberName(dm.displayName, mr.institutionSlug);
           const newMem: MembershipData = {
             id: memId,
             userId: `discord-${dm.discordId}`,
@@ -2080,7 +2184,7 @@ export class DataService {
               id: `discord-${dm.discordId}`,
               discordId: dm.discordId,
               discordUsername: dm.username,
-              displayName: dm.displayName,
+              displayName: formattedName,
               discordAvatar: getDiscordAvatarUrl(dm.discordId, dm.avatarUrl),
             },
           };
@@ -2092,7 +2196,7 @@ export class DataService {
                 where: { discordId: dm.discordId },
                 update: {
                   discordUsername: dm.username,
-                  displayName: dm.displayName,
+                  displayName: formattedName,
                   discordAvatar: dm.avatarUrl,
                   discordRoles: dm.roles,
                 },
@@ -2100,7 +2204,7 @@ export class DataService {
                   id: `discord-${dm.discordId}`,
                   discordId: dm.discordId,
                   discordUsername: dm.username,
-                  displayName: dm.displayName,
+                  displayName: formattedName,
                   discordAvatar: dm.avatarUrl,
                   discordRoles: dm.roles,
                 },
@@ -2179,6 +2283,8 @@ export class DataService {
       } else {
         this.invalidateMembershipsCache();
       }
+
+      persistStore();
 
       const resultMembers = institutionSlug
         ? await this.getMemberships(institutionSlug)
@@ -2347,6 +2453,7 @@ export class DataService {
         if (!targetInst) continue;
 
         const memId = `mem-${mr.institutionSlug}-${sessionUser.discordId}`;
+        const formattedName = formatInstitutionMemberName(sessionUser.displayName, mr.institutionSlug);
         const newMem: MembershipData = {
           id: memId,
           userId: sessionUser.id,
@@ -2359,7 +2466,7 @@ export class DataService {
             id: sessionUser.id,
             discordId: sessionUser.discordId,
             discordUsername: sessionUser.discordUsername,
-            displayName: sessionUser.displayName,
+            displayName: formattedName,
             discordAvatar: getDiscordAvatarUrl(sessionUser.discordId, sessionUser.discordAvatar),
           },
         };

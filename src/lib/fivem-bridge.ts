@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { FiveMPlayerData, CityStatusEntry } from "@/types";
 import { DataService } from "./data-service";
 import { DEFAULT_INSTITUTIONS, FIVEM_JOB_TO_INSTITUTION_MAP } from "./constants";
+import { formatInstitutionMemberName } from "./member-tag";
 
 /**
  * In-memory fallback store for FiveM player state.
@@ -282,7 +283,10 @@ export class FiveMBridge {
           });
           return inst || m.institutionId.replace("inst-", "");
         }),
-        displayName: memberUser?.displayName || duty?.userName || player.playerName,
+        displayName: formatInstitutionMemberName(
+          memberUser?.displayName || duty?.userName || player.playerName,
+          dutyInstSlug || memberships[0]?.institutionId
+        ),
         avatar: memberUser?.discordAvatar || duty?.userAvatar || null,
         positionName,
       });
@@ -301,7 +305,7 @@ export class FiveMBridge {
         existing.dutyInstitutionSlug = session.institutionSlug;
         existing.dutyStartedAt = session.startedAt;
         if (session.positionName) existing.positionName = session.positionName;
-        if (session.userName) existing.displayName = session.userName;
+        if (session.userName) existing.displayName = formatInstitutionMemberName(session.userName, session.institutionSlug);
         if (session.userAvatar) existing.avatar = session.userAvatar;
         if (session.institutionSlug && !existing.memberInstitutions.includes(session.institutionSlug)) {
           existing.memberInstitutions.push(session.institutionSlug);
@@ -309,7 +313,7 @@ export class FiveMBridge {
       } else {
         entriesMap.set(cleanDid, {
           discordId: cleanDid,
-          playerName: session.userName || "Officer",
+          playerName: formatInstitutionMemberName(session.userName || "Officer", session.institutionSlug),
           serverId: 0,
           isOnline: true,
           joinedAt: session.startedAt,
@@ -319,7 +323,7 @@ export class FiveMBridge {
           dutyInstitutionSlug: session.institutionSlug,
           dutyStartedAt: session.startedAt,
           memberInstitutions: session.institutionSlug ? [session.institutionSlug] : [],
-          displayName: session.userName || memberUser?.displayName,
+          displayName: formatInstitutionMemberName(session.userName || memberUser?.displayName, session.institutionSlug),
           avatar: session.userAvatar || memberUser?.discordAvatar || null,
           positionName: session.positionName || memberships[0]?.positionName || "Petugas",
         });
@@ -333,16 +337,17 @@ export class FiveMBridge {
       const cleanDid = did.replace("discord-", "");
       const instSlug = m.institutionId.replace("inst-", "").toLowerCase();
       if (!entriesMap.has(cleanDid)) {
+        const fmtName = formatInstitutionMemberName(m.user?.displayName || m.user?.discordUsername || "Member", instSlug);
         entriesMap.set(cleanDid, {
           discordId: cleanDid,
-          playerName: m.user?.displayName || m.user?.discordUsername || "Member",
+          playerName: fmtName,
           serverId: 0,
           isOnline: false,
           joinedAt: m.joinedAt,
           lastSeenAt: m.joinedAt,
           isOnDuty: false,
           memberInstitutions: [instSlug],
-          displayName: m.user?.displayName || m.user?.discordUsername,
+          displayName: fmtName,
           avatar: m.user?.discordAvatar || null,
           positionName: m.positionName || "Anggota",
         });
