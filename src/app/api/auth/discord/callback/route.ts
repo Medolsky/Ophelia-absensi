@@ -73,6 +73,9 @@ export async function GET(req: NextRequest) {
       console.warn("Failed to check user guild permissions:", e);
     }
 
+    let serverNick: string | null = null;
+    let memberAvatar: string | null = null;
+
     // 3b. Fetch user member roles using User OAuth2 Token (guilds.members.read scope)
     try {
       const userMemberRes = await fetch(
@@ -82,7 +85,13 @@ export async function GET(req: NextRequest) {
         }
       );
       if (userMemberRes.ok) {
-        const userMemberData: { roles?: string[]; nick?: string } = await userMemberRes.json();
+        const userMemberData: { roles?: string[]; nick?: string; avatar?: string } = await userMemberRes.json();
+        if (userMemberData.nick) {
+          serverNick = userMemberData.nick;
+        }
+        if (userMemberData.avatar) {
+          memberAvatar = `https://cdn.discordapp.com/guilds/${guildId}/users/${discordUser.id}/avatars/${userMemberData.avatar}.png`;
+        }
         if (Array.isArray(userMemberData.roles)) {
           for (const roleId of userMemberData.roles) {
             const mappedName = KNOWN_DISCORD_ROLE_IDS[roleId];
@@ -96,7 +105,7 @@ export async function GET(req: NextRequest) {
       console.warn("Failed to fetch user member with OAuth token:", e);
     }
 
-    // 3c. Fetch via Bot Token if available (for dynamic role resolution)
+    // 3c. Fetch via Bot Token if available (for dynamic role resolution and nickname)
     if (botToken && guildId) {
       try {
         const memberRes = await fetch(
@@ -107,6 +116,12 @@ export async function GET(req: NextRequest) {
         );
         if (memberRes.ok) {
           const memberData = await memberRes.json();
+          if (memberData.nick) {
+            serverNick = memberData.nick;
+          }
+          if (memberData.avatar) {
+            memberAvatar = `https://cdn.discordapp.com/guilds/${guildId}/users/${discordUser.id}/avatars/${memberData.avatar}.png`;
+          }
           const rolesRes = await fetch(`https://discord.com/api/guilds/${guildId}/roles`, {
             headers: { Authorization: `Bot ${botToken}` },
           });
@@ -129,15 +144,20 @@ export async function GET(req: NextRequest) {
       isUserSuperAdmin = true;
     }
 
+    const rawDisplayName = serverNick || discordUser.global_name || discordUser.username;
+    const cleanDisplayName =
+      rawDisplayName.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "").trim() ||
+      rawDisplayName;
+
     // 4. Construct user object
     const sessionUser: SessionUser = {
       id: `discord-${discordUser.id}`,
       discordId: discordUser.id,
       discordUsername: discordUser.username,
-      displayName: discordUser.global_name || discordUser.username,
-      discordAvatar: discordUser.avatar
+      displayName: cleanDisplayName,
+      discordAvatar: memberAvatar || (discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-        : null,
+        : null),
       discordRoles: userRoles,
       isSuperAdmin: isUserSuperAdmin,
     };

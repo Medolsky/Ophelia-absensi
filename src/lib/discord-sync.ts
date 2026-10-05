@@ -346,7 +346,8 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
       "g", "h", "j", "f", "c",
       "w", "v", "z", "y", "q", "x",
       "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-      "pol", "med", "orp", "mek", "res", "pem"
+      "pol", "med", "orp", "mek", "res", "pem",
+      "opd", "omc", "ocg", "resto"
     ];
 
     // Concurrently process in chunks of 6 to respect rate limits while maintaining ultra-fast execution (~2s)

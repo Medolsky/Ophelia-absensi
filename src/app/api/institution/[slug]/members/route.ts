@@ -110,7 +110,7 @@ export async function POST(
           if (uRes.ok) {
             const u = await uRes.json();
             discordUsername = u.username || discordUsername;
-            displayName = u.global_name || u.username || displayName;
+            displayName = displayName || u.global_name || u.username;
             if (u.avatar) {
               discordAvatar = `https://cdn.discordapp.com/avatars/${discordId}/${u.avatar}.png`;
             }

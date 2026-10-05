@@ -24,15 +24,22 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Ses
     // Only fetch live from Discord if roles are completely missing
     if (parsed.discordId && !parsed.discordId.startsWith("demo-")) {
       const isMissingRoles = !parsed.discordRoles || parsed.discordRoles.length === 0;
-      if (isMissingRoles) {
-        try {
-          const freshUser = await DataService.syncDiscordUser(parsed.discordId, true);
-          if (freshUser) {
+      try {
+        const freshUser = await DataService.syncDiscordUser(parsed.discordId, isMissingRoles);
+        if (freshUser) {
+          if (
+            freshUser.displayName !== parsed.displayName ||
+            JSON.stringify(freshUser.discordRoles) !== JSON.stringify(parsed.discordRoles) ||
+            freshUser.isSuperAdmin !== parsed.isSuperAdmin
+          ) {
             parsed = freshUser;
+            try {
+              await setCurrentUser(freshUser);
+            } catch {}
           }
-        } catch (err) {
-          console.warn("Discord role sync on missing roles error:", err);
         }
+      } catch (err) {
+        console.warn("Discord user sync check error:", err);
       }
     }
 
