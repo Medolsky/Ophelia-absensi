@@ -11,13 +11,13 @@
  */
 
 const TAG_PREFIX_REGEX =
-  /^(?:\[(?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)\]|\((?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)\)|(?:OPD|OMC|OCG|RESTO|POLICE|POLISI|POL|ORP|OFFICER|SWAT|CHIEF|MEDIS|MEDICAL|EMS|DOKTER|DOCTOR|PARAMEDIC|MEKANIK|MECHANIC|BENGKEL|TUNER|RESTAURANT|SERVERS?\s+RESTO))\s*(?:[-:|–—]\s*|\s+)/i;
+  /^[!~*•@\s]*(?:\[(?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)\]|\((?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)\)|(?:ASSISTANT\s+OFFICER|CHIEF\s+OF\s+POLICE|HIGHWAY\s+PATROL|SERVERS?\s+RESTO|PETINGGI\s+(?:MEDIS|RESTO|BENGKEL|POLISI)|OFFICER|SERGEANT|SERGENT|LIEUTENANT|CAPTAIN|CHIEF|CADET|KADET|SWAT|OPD|OMC|OCG|RESTO|POLICE|POLISI|POL|ORP|MEDIS|MEDICAL|EMS|DOKTER|DOCTOR|PARAMEDIC|PERAWAT|MEKANIK|MECHANIC|MECH|BENGKEL|TUNER|RESTAURANT)(?:\s*(?:[#№]?\d+|I{1,3}|IV|V))?)\s*(?:[-:|–—~•.]\s*|\s+)/i;
 
 const BRACKET_PREFIX_REGEX =
-  /^(?:\[|\()(?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)(?:\]|\))\s*/i;
+  /^[!~*•@\s]*(?:\[|\()(?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)(?:\s*(?:[#№]?\d+|I{1,3}|IV|V))?(?:\]|\))\s*/i;
 
 const TRAILING_TAG_REGEX =
-  /\s*(?:\[|\()(?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)(?:\]|\))\s*$/i;
+  /\s*(?:\[|\()(?:OPD|OMC|OCG|RESTO|POLICE|MEDIS|MECHANIC|EMS|BENGKEL|RESTAURANT)(?:\s*(?:[#№]?\d+|I{1,3}|IV|V))?(?:\]|\))\s*$/i;
 
 /**
  * Returns the standardized institution tag prefix (OPD, OMC, OCG, RESTO).
@@ -26,14 +26,15 @@ export function getInstitutionTag(slugOrId: string | null | undefined): string |
   if (!slugOrId) return null;
   const s = slugOrId.toLowerCase().replace(/^inst-/, "");
   if (s.includes("pol") || s === "opd") return "OPD";
-  if (s.includes("med") || s.includes("ems") || s === "omc") return "OMC";
+  if (s.includes("med") || s.includes("ems") || s === "omc" || s.includes("hosp")) return "OMC";
   if (s.includes("mech") || s.includes("bengkel") || s === "ocg") return "OCG";
   if (s.includes("resto") || s.includes("restaurant")) return "RESTO";
   return null;
 }
 
 /**
- * Strips known institution prefix tags from a nickname to recover the base name.
+ * Strips known institution prefix tags, rank titles, and rank tiers from a nickname
+ * to recover the base Discord nickname.
  */
 export function stripInstitutionTags(rawName: string | null | undefined): string {
   if (!rawName) return "";
@@ -48,6 +49,9 @@ export function stripInstitutionTags(rawName: string | null | undefined): string
     if (next === clean || next.length === 0) break;
     clean = next;
   }
+
+  // Strip standalone leading rank tier/number + separator if still present (e.g. "1 - Mine" or "1. Mine")
+  clean = clean.replace(/^(?:[#№]?\d+|I{1,3}|IV|V)\s*[-:|–—~•.]\s*/i, "").trim();
 
   return clean;
 }
