@@ -392,6 +392,166 @@ app.get("/api/stats/overview", async (req, res) => {
   }
 });
 
+// Gang slug mapping for Badside
+const GANG_SLUG_MAP = {
+  hightable: "high-table",
+  whitetiger: "white-tiger",
+  vanity: "vanity",
+  xyk: "xyk",
+  csr: "csr",
+  sog: "sog",
+  olivercasper: "oliver-casper",
+  ghostfams: "ghost-fams",
+};
+
+/**
+ * GET /api/badside/players
+ * Fetch all syndicate and gang members from MySQL database
+ */
+app.get("/api/badside/players", async (req, res) => {
+  try {
+    const { gang, limit = 200 } = req.query;
+    let query = `
+      SELECT citizenid, cid, license, name, money, charinfo, gang, position, last_updated
+      FROM players
+      WHERE gang IS NOT NULL AND gang != '' AND gang != 'null'
+    `;
+    const params = [];
+    if (gang) {
+      query += ` AND JSON_EXTRACT(gang, '$.name') = ?`;
+      params.push(gang);
+    } else {
+      query += ` AND JSON_EXTRACT(gang, '$.name') != 'none'`;
+    }
+    query += ` ORDER BY last_updated DESC LIMIT ?`;
+    params.push(Number(limit) || 200);
+
+    const [rows] = await pool.query(query, params);
+    const formatted = rows.map((row) => {
+      const charinfo = safeJsonParse(row.charinfo, {});
+      const gangData = safeJsonParse(row.gang, {});
+      const money = safeJsonParse(row.money, {});
+      const position = safeJsonParse(row.position, {});
+      const gangName = gangData.name || "none";
+
+      return {
+        citizenid: row.citizenid,
+        name: row.name,
+        fullname: `${charinfo.firstname || ""} ${charinfo.lastname || ""}`.trim() || row.name,
+        license: row.license,
+        phone: charinfo.phone || null,
+        gang: {
+          name: gangName,
+          label: gangData.label || gangName,
+          isboss: Boolean(gangData.isboss),
+          grade: {
+            name: gangData.grade?.name || "Member",
+            level: Number(gangData.grade?.level || 0),
+          },
+          slug: GANG_SLUG_MAP[gangName] || gangName,
+        },
+        money: {
+          cash: Number(money.cash || 0),
+          bank: Number(money.bank || 0),
+        },
+        position: position.x ? { x: position.x, y: position.y, z: position.z } : null,
+        lastUpdated: row.last_updated,
+      };
+    });
+
+    res.json({
+      ok: true,
+      count: formatted.length,
+      players: formatted,
+    });
+  } catch (err) {
+    console.error("Error fetching badside players:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/billing
+ * List fines, invoices and citations from rey_billing
+ */
+app.get("/api/billing", async (req, res) => {
+  try {
+    const { job, status, limit = 100 } = req.query;
+    let query = `
+      SELECT id, citizenid, target_name, sender_citizenid, sender_name, job, society, amount, reason, status, paid_method, created_at, paid_at
+      FROM rey_billing
+    `;
+    const params = [];
+    const conditions = [];
+    if (job) {
+      conditions.push("job = ?");
+      params.push(job);
+    }
+    if (status) {
+      conditions.push("status = ?");
+      params.push(status);
+    }
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+    query += " ORDER BY created_at DESC LIMIT ?";
+    params.push(Number(limit) || 100);
+
+    const [rows] = await pool.query(query, params);
+    res.json({ ok: true, count: rows.length, bills: rows });
+  } catch (err) {
+    res.json({ ok: true, count: 0, bills: [], warning: err.message });
+  }
+});
+
+/**
+ * GET /api/playtime
+ * Playtime leaderboard / activity records
+ */
+app.get("/api/playtime", async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    const [rows] = await pool.query(
+      "SELECT citizenid, name, playtime, account FROM player_playtime ORDER BY playtime DESC LIMIT ?",
+      [Number(limit) || 100]
+    );
+    res.json({ ok: true, count: rows.length, playtime: rows });
+  } catch (err) {
+    res.json({ ok: true, count: 0, playtime: [], warning: err.message });
+  }
+});
+
+/**
+ * GET /api/vehicles
+ * Player and institution vehicles
+ */
+app.get("/api/vehicles", async (req, res) => {
+  try {
+    const { job, citizenid, limit = 100 } = req.query;
+    let query = "SELECT id, plate, citizenid, vehicle, garage, fuel, engine, body, state, job FROM player_vehicles";
+    const params = [];
+    const conditions = [];
+    if (job) {
+      conditions.push("job = ?");
+      params.push(job);
+    }
+    if (citizenid) {
+      conditions.push("citizenid = ?");
+      params.push(citizenid);
+    }
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+    query += " LIMIT ?";
+    params.push(Number(limit) || 100);
+
+    const [rows] = await pool.query(query, params);
+    res.json({ ok: true, count: rows.length, vehicles: rows });
+  } catch (err) {
+    res.json({ ok: true, count: 0, vehicles: [], warning: err.message });
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`[Ophelia FiveM Bridge] Running on port ${PORT}`);
   console.log(`[Ophelia FiveM Bridge] Protected with X-API-Secret authentication`);

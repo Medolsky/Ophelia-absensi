@@ -75,3 +75,7 @@ Semua endpoint `/api/*` memerlukan header:
 | `GET` | `/api/player/:citizenid` | Detail lengkap profil 1 pemain FiveM |
 | `GET` | `/api/bank-accounts/society` | Saldo kas instansi (`society_police`, `society_ambulance`, dll) |
 | `GET` | `/api/stats/overview` | Ringkasan cepat jumlah anggota & saldo kas |
+| `GET` | `/api/badside/players` | Daftar anggota gang/sindikat (`?gang=hightable`, `whitetiger`, dll) |
+| `GET` | `/api/billing` | Rekap invoice tilang/denda polisi & tagihan instansi (`rey_billing`) |
+| `GET` | `/api/playtime` | Leaderboard jam terbang keaktifan di kota (`player_playtime`) |
+| `GET` | `/api/vehicles` | Data kendaraan dinas & kendaraan pemain (`player_vehicles`) |
