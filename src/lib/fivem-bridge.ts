@@ -128,7 +128,68 @@ export class FiveMBridge {
       }
     }
 
+    // AUTO OFF-DUTY: Check all active on-duty sessions
+    // If a staff member is ON_DUTY but their discord ID is not in incomingIds,
+    // they have left the city -> automatically end their duty session immediately!
+    try {
+      const activeSessions = await DataService.getLiveOnDuty();
+      for (const session of activeSessions) {
+        const cleanDid = session.userId.replace("discord-", "");
+        if (
+          !incomingIds.has(cleanDid) &&
+          !incomingIds.has(session.userId) &&
+          !incomingIds.has(`discord-${cleanDid}`)
+        ) {
+          await DataService.endDuty({
+            userId: session.userId,
+            institutionSlug: session.institutionSlug,
+          });
+          console.log(
+            `[FiveMBridge] Auto Off-Duty: ${session.userName} (${session.userId}) keluar kota.`
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[FiveMBridge] Auto off-duty evaluation error:", e);
+    }
+
     return { synced: players.length, wentOffline };
+  }
+
+  /**
+   * Mark a player as offline immediately (e.g. on playerDropped event)
+   */
+  static async markPlayerOffline(discordId: string): Promise<void> {
+    const cleanDid = discordId.replace("discord-", "");
+    const now = new Date();
+
+    // In-memory
+    const existing = playerStore.get(cleanDid) || playerStore.get(discordId);
+    if (existing) {
+      existing.isOnline = false;
+      existing.lastSeenAt = now.toISOString();
+    }
+
+    // Database
+    if (this.isDatabaseAvailable()) {
+      try {
+        const db = prisma as any;
+        if (db.fiveMPlayer) {
+          await db.fiveMPlayer.updateMany({
+            where: {
+              OR: [
+                { discordId: cleanDid },
+                { discordId: discordId },
+                { discordId: `discord-${cleanDid}` },
+              ],
+            },
+            data: { isOnline: false, lastSeenAt: now },
+          });
+        }
+      } catch (e) {
+        console.warn("DB markPlayerOffline error:", e);
+      }
+    }
   }
 
   /**

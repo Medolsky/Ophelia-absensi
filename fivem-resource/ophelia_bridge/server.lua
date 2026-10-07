@@ -126,30 +126,38 @@ RegisterNetEvent('QBCore:Server:OnJobUpdate', function(src, newJob)
     end)
 end)
 
--- Hook: When a player drops / disconnects
+-- Hook: When a player drops / disconnects (Instant Auto Off-Duty)
 AddEventHandler('playerDropped', function(reason)
     local src = source
     local discordId = GetPlayerDiscordId(src)
     if not discordId then return end
 
+    local citizenid = nil
+    local jobName = nil
     if QBCore then
         local Player = QBCore.Functions.GetPlayer(src)
-        if Player and Player.PlayerData and Player.PlayerData.job then
-            local jobData = Player.PlayerData.job
-            if jobData.onduty and Config.TrackedJobs[jobData.name] then
-                SendWebhook('/duty-webhook', {
-                    secret = Config.APISecret,
-                    event = "PLAYER_DROPPED",
-                    discordId = discordId,
-                    citizenid = Player.PlayerData.citizenid,
-                    serverId = tonumber(src),
-                    jobName = jobData.name,
-                    timestamp = os.time(),
-                    reason = reason
-                })
+        if Player and Player.PlayerData then
+            citizenid = Player.PlayerData.citizenid
+            if Player.PlayerData.job then
+                jobName = Player.PlayerData.job.name
             end
         end
     end
+
+    SendWebhook('/duty-webhook', {
+        secret = Config.APISecret,
+        event = "PLAYER_DROPPED",
+        discordId = discordId,
+        citizenid = citizenid,
+        serverId = tonumber(src),
+        jobName = jobName or "unknown",
+        timestamp = os.time(),
+        reason = reason or "playerDropped"
+    }, function(status, body)
+        if Config.Debug then
+            print(('[Ophelia Bridge] PLAYER_DROPPED webhook sent for discord:%s (Status: %s)'):format(discordId, tostring(status)))
+        end
+    end)
 end)
 
 -- Main Loop: Periodic Player Sync
