@@ -1,9 +1,7 @@
 import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
-import { DataService } from "@/lib/data-service";
+import { DataService, normalizeInstSlug } from "@/lib/data-service";
 import { LiveDutyList } from "@/components/live-duty-list";
-import { Radio, Users, ShieldAlert } from "lucide-react";
-import { cookies } from "next/headers";
-import { DutySessionData } from "@/types";
+import { Radio } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,7 +11,8 @@ export default async function LiveDutyPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = normalizeInstSlug(rawSlug);
   const currentUser = await getCurrentUser();
   if (!currentUser) return null;
 
@@ -21,22 +20,8 @@ export default async function LiveDutyPage({
   const institution = await DataService.getInstitutionBySlug(slug);
   if (!institution) return null;
 
-  // Inject active duty from cookie for instant lambda synchronization
-  const cookieStore = await cookies();
-  const dutyCookie =
-    cookieStore.get(`ophelia_active_duty_${slug}`) ||
-    cookieStore.get("ophelia_active_duty");
-  if (dutyCookie?.value) {
-    try {
-      const parsed = JSON.parse(dutyCookie.value) as DutySessionData;
-      if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
-        DataService.injectActiveDutySession(parsed);
-      }
-    } catch {}
-  }
-
-  // Fetch live duty sessions
-  const liveSessions = await DataService.getLiveOnDuty(slug);
+  // Fetch authoritative live duty sessions directly from server/DB
+  const liveSessions = await DataService.getLiveOnDuty(slug, true);
 
   return (
     <div className="space-y-6">

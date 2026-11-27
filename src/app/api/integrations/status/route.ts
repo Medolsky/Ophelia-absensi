@@ -24,19 +24,6 @@ export async function GET(request: NextRequest) {
     const institution = request.nextUrl.searchParams.get("institution") || "all";
     const view = request.nextUrl.searchParams.get("view") || "overview";
 
-    // Auto-inject active duty from user's request cookie if present
-    const dutyCookie =
-      request.cookies.get(`ophelia_active_duty_${institution}`) ||
-      request.cookies.get("ophelia_active_duty");
-    if (dutyCookie?.value) {
-      try {
-        const parsed = JSON.parse(dutyCookie.value);
-        if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
-          DataService.injectActiveDutySession(parsed);
-        }
-      } catch {}
-    }
-
     switch (view) {
       case "members": {
         if (institution === "all") {
@@ -55,16 +42,21 @@ export async function GET(request: NextRequest) {
 
       case "onduty": {
         const sessions = await DataService.getLiveOnDuty(
-          institution === "all" ? undefined : institution
+          institution === "all" ? undefined : institution,
+          true
         );
         return Response.json({ view, institution, data: sessions }, { headers: NO_CACHE_HEADERS });
       }
 
       case "incity": {
-        const cityStatus = await FiveMBridge.getCityStatus(
-          institution === "all" ? undefined : institution
+        const [cityStatus, serverStatus] = await Promise.all([
+          FiveMBridge.getCityStatus(institution === "all" ? undefined : institution),
+          FiveMBridge.getServerStatus(),
+        ]);
+        return Response.json(
+          { view, institution, serverStatus, data: cityStatus },
+          { headers: NO_CACHE_HEADERS }
         );
-        return Response.json({ view, institution, data: cityStatus }, { headers: NO_CACHE_HEADERS });
       }
 
       case "offduty": {
@@ -72,7 +64,7 @@ export async function GET(request: NextRequest) {
           institution === "all" ? undefined : institution
         );
         const offDuty = cityStatus.filter(
-          (e) => !e.isOnDuty && e.memberInstitutions.length > 0
+          (e) => e.isOnline && !e.isOnDuty && e.memberInstitutions.length > 0
         );
         return Response.json({ view, institution, data: offDuty }, { headers: NO_CACHE_HEADERS });
       }
@@ -80,36 +72,48 @@ export async function GET(request: NextRequest) {
       case "overview":
       default: {
         const slugs = ["police", "medical", "mechanic", "restaurant", "pemerintah"];
-        const overview = await Promise.all(
-          slugs.map(async (slug) => {
-            const inst = await DataService.getInstitutionBySlug(slug);
-            const members = await DataService.getMemberships(slug);
-            const onDuty = await DataService.getLiveOnDuty(slug);
-            const cityStatus = await FiveMBridge.getCityStatus(slug);
-            const inCity = cityStatus.filter((e) => e.isOnline);
-            const offDuty = cityStatus.filter(
-              (e) => !e.isOnDuty && e.memberInstitutions.includes(slug)
-            );
+        const [overview, allCityStatus, serverStatus] = await Promise.all([
+          Promise.all(
+            slugs.map(async (slug) => {
+              const inst = await DataService.getInstitutionBySlug(slug);
+              const members = await DataService.getMemberships(slug);
+              const onDuty = await DataService.getLiveOnDuty(slug, true);
+              const cityStatus = await FiveMBridge.getCityStatus(slug);
+              const inCity = cityStatus.filter((e) => e.isOnline);
+              const offDuty = cityStatus.filter(
+                (e) => e.isOnline && !e.isOnDuty && e.memberInstitutions.includes(slug)
+              );
 
-            return {
-              institution: slug,
-              name: inst?.name || slug,
-              icon: { police: "shield", medical: "cross", mechanic: "wrench", restaurant: "utensils", pemerintah: "landmark" }[slug] || "building",
-              stats: {
-                totalMembers: members.length,
-                onDuty: onDuty.length,
-                inCity: inCity.length,
-                offDuty: offDuty.length,
-              },
-            };
-          })
-        );
+              return {
+                institution: slug,
+                name: inst?.name || slug,
+                icon:
+                  {
+                    police: "shield",
+                    medical: "cross",
+                    mechanic: "wrench",
+                    restaurant: "utensils",
+                    pemerintah: "landmark",
+                  }[slug] || "building",
+                stats: {
+                  totalMembers: members.length,
+                  onDuty: onDuty.length,
+                  inCity: inCity.length,
+                  offDuty: offDuty.length,
+                },
+              };
+            })
+          ),
+          FiveMBridge.getCityStatus(),
+          FiveMBridge.getServerStatus(),
+        ]);
 
-        const allCityStatus = await FiveMBridge.getCityStatus();
+        const totalOnlinePlayers = allCityStatus.filter((e) => e.isOnline).length;
         return Response.json(
           {
             view: "overview",
-            totalOnlinePlayers: allCityStatus.length,
+            serverStatus,
+            totalOnlinePlayers,
             institutions: overview,
           },
           { headers: NO_CACHE_HEADERS }
@@ -118,6 +122,9 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     console.error("Integration status error:", err);
-    return Response.json({ error: "Internal server error" }, { status: 500, headers: NO_CACHE_HEADERS });
+    return Response.json(
+      { error: "Internal server error" },
+      { status: 500, headers: NO_CACHE_HEADERS }
+    );
   }
 }

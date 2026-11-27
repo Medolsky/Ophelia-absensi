@@ -18,9 +18,6 @@ import {
   AlertCircle,
   AlertTriangle,
   X,
-  ShieldCheck,
-  ShieldAlert,
-  Users,
 } from "lucide-react";
 
 interface RoleMappingsManagerProps {

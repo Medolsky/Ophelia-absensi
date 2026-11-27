@@ -1,6 +1,5 @@
 import { DataService } from "./data-service";
 import { FiveMBridge } from "./fivem-bridge";
-import { CityStatusEntry } from "@/types";
 import { getDiscordCredentials } from "./discord-credentials";
 
 const DISCORD_API = "https://discord.com/api/v10";

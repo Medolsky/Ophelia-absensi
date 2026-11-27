@@ -19,10 +19,7 @@ import {
   AlertCircle,
   AlertTriangle,
   X,
-  Palette,
   ExternalLink,
-  Shield,
-  Tag,
 } from "lucide-react";
 
 interface InstitutionsManagerProps {
@@ -565,7 +562,7 @@ export function InstitutionsManager({ initialInstitutions }: InstitutionsManager
                 </label>
                 <select
                   value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value as any)}
+                  onChange={(e) => setFormStatus(e.target.value as "ACTIVE" | "INACTIVE")}
                   className="w-full bg-[#080808] border border-[#252525] focus:border-amber-500 text-xs text-white p-2.5 rounded-xl outline-none"
                 >
                   <option value="ACTIVE">ACTIVE (Aktif & Dapat Diakses)</option>
@@ -694,7 +691,7 @@ export function InstitutionsManager({ initialInstitutions }: InstitutionsManager
                 </label>
                 <select
                   value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value as any)}
+                  onChange={(e) => setFormStatus(e.target.value as "ACTIVE" | "INACTIVE")}
                   className="w-full bg-[#080808] border border-[#252525] focus:border-amber-500 text-xs text-white p-2.5 rounded-xl outline-none"
                 >
                   <option value="ACTIVE">ACTIVE (Aktif & Dapat Diakses)</option>

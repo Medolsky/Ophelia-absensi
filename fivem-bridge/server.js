@@ -46,6 +46,13 @@ const JOB_SLUG_MAP = {
   resto: "restaurant",
 };
 
+// Safe limit parser helper
+function clampLimit(val, fallback = 200, max = 1000) {
+  const num = parseInt(val, 10);
+  if (Number.isNaN(num) || num <= 0) return fallback;
+  return Math.min(num, max);
+}
+
 // Safe JSON parser helper
 function safeJsonParse(val, fallback = null) {
   if (!val) return fallback;
@@ -60,7 +67,7 @@ function safeJsonParse(val, fallback = null) {
 // Health check endpoint (public)
 app.get("/health", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT 1 as alive");
+    await pool.query("SELECT 1 as alive");
     res.json({
       ok: true,
       status: "healthy",
@@ -99,12 +106,12 @@ app.get("/api/players", async (req, res) => {
     const conditions = [];
 
     if (job) {
-      conditions.push("(lbtablet_job_name = ? OR JSON_EXTRACT(job, '$.name') = ?)");
+      conditions.push("(lbtablet_job_name = ? OR JSON_UNQUOTE(JSON_EXTRACT(job, '$.name')) = ?)");
       params.push(job, job);
     } else {
       // By default, filter to tracked jobs if not requesting all
       conditions.push(
-        "(lbtablet_job_name IN (?, ?, ?, ?, ?) OR JSON_EXTRACT(job, '$.name') IN (?, ?, ?, ?, ?))"
+        "(lbtablet_job_name IN (?, ?, ?, ?, ?) OR JSON_UNQUOTE(JSON_EXTRACT(job, '$.name')) IN (?, ?, ?, ?, ?))"
       );
       params.push(...TRACKED_JOBS, ...TRACKED_JOBS);
     }
@@ -114,7 +121,7 @@ app.get("/api/players", async (req, res) => {
     }
 
     query += " ORDER BY last_updated DESC LIMIT ?";
-    params.push(Number(limit) || 200);
+    params.push(clampLimit(limit, 200));
 
     const [rows] = await pool.query(query, params);
 
@@ -180,7 +187,7 @@ app.get("/api/players/by-job/:jobName", async (req, res) => {
         citizenid, cid, license, name, money, charinfo, job, metadata, last_updated,
         lbtablet_job_name, lbtablet_job_grade_name, lbtablet_job_grade_level
       FROM players
-      WHERE lbtablet_job_name = ? OR JSON_EXTRACT(job, '$.name') = ?
+      WHERE lbtablet_job_name = ? OR JSON_UNQUOTE(JSON_EXTRACT(job, '$.name')) = ?
       ORDER BY last_updated DESC
     `;
     const [rows] = await pool.query(query, [targetJob, targetJob]);
@@ -357,12 +364,13 @@ app.get("/api/stats/overview", async (req, res) => {
     // 1. Count members per job
     const [jobCounts] = await pool.query(`
       SELECT 
-        lbtablet_job_name as jobName, 
+        COALESCE(lbtablet_job_name, JSON_UNQUOTE(JSON_EXTRACT(job, '$.name'))) as jobName, 
         COUNT(*) as totalMembers,
-        SUM(CASE WHEN JSON_EXTRACT(job, '$.onduty') = true THEN 1 ELSE 0 END) as onDutyCount
+        SUM(CASE WHEN LOWER(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(job, '$.onduty')), 'false')) IN ('true', '1') THEN 1 ELSE 0 END) as onDutyCount
       FROM players
       WHERE lbtablet_job_name IN ('police', 'ambulance', 'mechanic', 'pedagang', 'resto')
-      GROUP BY lbtablet_job_name
+         OR JSON_UNQUOTE(JSON_EXTRACT(job, '$.name')) IN ('police', 'ambulance', 'mechanic', 'pedagang', 'resto')
+      GROUP BY jobName
     `);
 
     // 2. Society bank balances
@@ -418,13 +426,13 @@ app.get("/api/badside/players", async (req, res) => {
     `;
     const params = [];
     if (gang) {
-      query += ` AND JSON_EXTRACT(gang, '$.name') = ?`;
+      query += ` AND JSON_UNQUOTE(JSON_EXTRACT(gang, '$.name')) = ?`;
       params.push(gang);
     } else {
-      query += ` AND JSON_EXTRACT(gang, '$.name') != 'none'`;
+      query += ` AND JSON_UNQUOTE(JSON_EXTRACT(gang, '$.name')) != 'none'`;
     }
     query += ` ORDER BY last_updated DESC LIMIT ?`;
-    params.push(Number(limit) || 200);
+    params.push(clampLimit(limit, 200));
 
     const [rows] = await pool.query(query, params);
     const formatted = rows.map((row) => {
@@ -495,7 +503,7 @@ app.get("/api/billing", async (req, res) => {
       query += " WHERE " + conditions.join(" AND ");
     }
     query += " ORDER BY created_at DESC LIMIT ?";
-    params.push(Number(limit) || 100);
+    params.push(clampLimit(limit, 100));
 
     const [rows] = await pool.query(query, params);
     res.json({ ok: true, count: rows.length, bills: rows });
@@ -513,7 +521,7 @@ app.get("/api/playtime", async (req, res) => {
     const { limit = 100 } = req.query;
     const [rows] = await pool.query(
       "SELECT citizenid, name, playtime, account FROM player_playtime ORDER BY playtime DESC LIMIT ?",
-      [Number(limit) || 100]
+      [clampLimit(limit, 100)]
     );
     res.json({ ok: true, count: rows.length, playtime: rows });
   } catch (err) {
@@ -543,7 +551,7 @@ app.get("/api/vehicles", async (req, res) => {
       query += " WHERE " + conditions.join(" AND ");
     }
     query += " LIMIT ?";
-    params.push(Number(limit) || 100);
+    params.push(clampLimit(limit, 100));
 
     const [rows] = await pool.query(query, params);
     res.json({ ok: true, count: rows.length, vehicles: rows });

@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MembershipData } from "@/types";
-import { getDiscordAvatarUrl } from "@/lib/discord-sync";
+import { MembershipData, MemberStatus } from "@/types";
 import { UserAvatar } from "@/components/user-avatar";
 import {
-  Users,
   Search,
   UserPlus,
   RefreshCw,
-  Check,
   X,
   Edit2,
   Trash2,
@@ -685,7 +682,7 @@ export function MemberManagementTable({
                 </label>
                 <select
                   value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value as any)}
+                  onChange={(e) => setNewStatus(e.target.value as MemberStatus)}
                   className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white p-2.5 rounded-xl outline-none"
                 >
                   <option value="ACTIVE">ACTIVE (Aktif)</option>
@@ -770,7 +767,7 @@ export function MemberManagementTable({
                 <select
                   value={editingMember.status}
                   onChange={(e) =>
-                    setEditingMember({ ...editingMember, status: e.target.value as any })
+                    setEditingMember({ ...editingMember, status: e.target.value as MemberStatus })
                   }
                   className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white p-2.5 rounded-xl outline-none"
                 >

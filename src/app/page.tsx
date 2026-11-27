@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { getDiscordAvatarUrl } from "@/lib/discord-sync";
-import { Shield, Sparkles, Lock, ArrowRight, Radio, Clock, Users, AlertTriangle } from "lucide-react";
+import { ArrowRight, AlertTriangle } from "lucide-react";
 
 export default async function HomePage({
   searchParams,

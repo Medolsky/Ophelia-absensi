@@ -3,7 +3,7 @@ import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { PermissionLevel } from "@/types";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Shield, Lock, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
+import { Lock, ArrowRight, CheckCircle, ShieldAlert } from "lucide-react";
 import { InstitutionLogo } from "@/components/institution-logo";
 import { SyncDiscordRolesButton } from "@/components/sync-discord-roles-button";
 

@@ -9,7 +9,6 @@ import {
   Key,
   MessageSquare,
   FileArchive,
-  ChevronRight,
   ExternalLink,
   ShieldCheck,
   CheckCircle2,
@@ -97,7 +96,7 @@ Terima kasih!`;
               <Download className="h-4 w-4" />
               <span>Download ophelia-bridge.zip</span>
               <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded-full font-mono font-normal">
-                ~6 KB
+                v2.0.0
               </span>
             </a>
           </div>
@@ -106,15 +105,15 @@ Terima kasih!`;
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-white/5">
             <div className="flex items-center gap-2.5 text-xs text-neutral-300 bg-white/5 rounded-xl p-3 border border-white/5">
               <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>Auto-Stop Saat Keluar Kota / Server</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-xs text-neutral-300 bg-white/5 rounded-xl p-3 border border-white/5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>Auto-Detect QBox / QBCore / ESX / Standalone</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-xs text-neutral-300 bg-white/5 rounded-xl p-3 border border-white/5">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
               <span>0 Client Scripts (No FPS drop)</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-neutral-300 bg-white/5 rounded-xl p-3 border border-white/5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Standalone (Tanpa ESX/QBCore)</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-neutral-300 bg-white/5 rounded-xl p-3 border border-white/5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Auto-sync Discord ID & Online</span>
             </div>
           </div>
         </div>
@@ -263,9 +262,9 @@ Terima kasih!`;
             <div className="w-6 h-6 rounded-full bg-[#E50914]/20 text-[#FF5A5F] flex items-center justify-center font-bold text-xs">
               2
             </div>
-            <div className="text-xs font-bold text-white">Edit config.lua</div>
+            <div className="text-xs font-bold text-white">Siap Pakai (Tanpa Edit)</div>
             <p className="text-[11px] text-neutral-400 leading-relaxed">
-              Buka <code className="text-neutral-300 font-mono text-[10px]">config.lua</code>, isi <code className="text-neutral-300 font-mono text-[10px]">Config.OpheliaURL</code> dan <code className="text-neutral-300 font-mono text-[10px]">Config.Secret</code> sesuai data di atas.
+              URL <code className="text-neutral-300 font-mono text-[10px]">{baseUrl}</code> &amp; API Secret sudah terisi otomatis di <code className="text-neutral-300 font-mono text-[10px]">config.lua</code>.
             </p>
           </div>
 

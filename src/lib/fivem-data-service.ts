@@ -1,12 +1,12 @@
 import { FiveMSocietyAccount, FiveMGamePlayer } from "@/types";
-import { FIVEM_SOCIETY_ACCOUNT_MAP } from "./constants";
+import { getFiveMApiSecret } from "./fivem-config";
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
 }
 
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL_MS = 30 * 1000; // 30 seconds
 
 /**
@@ -62,10 +62,7 @@ export class FiveMDataService {
   }
 
   private static getApiSecret(): string {
-    return (
-      process.env.FIVEM_API_SECRET ||
-      "oph_live_b4958b8b1f1eb1c1e7ca47dd8500fe4c8dcbe638ea45740e"
-    );
+    return getFiveMApiSecret();
   }
 
   /**
@@ -97,10 +94,11 @@ export class FiveMDataService {
       }
 
       return (await res.json()) as T;
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Don't crash if RDP server is momentarily offline or sleeping
-      if (err.name !== "AbortError") {
-        console.warn(`[FiveMDataService] Bridge unreachable at ${endpoint}:`, err.message);
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      if (errorObj.name !== "AbortError") {
+        console.warn(`[FiveMDataService] Bridge unreachable at ${endpoint}:`, errorObj.message);
       }
       return null;
     }
@@ -115,7 +113,7 @@ export class FiveMDataService {
     const cached = cache.get(cacheKey);
 
     if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-      return cached.data;
+      return cached.data as FiveMSocietyAccount[];
     }
 
     const bridgeData = await this.fetchFromBridge<{
@@ -153,7 +151,7 @@ export class FiveMDataService {
     const cached = cache.get(cacheKey);
 
     if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-      return cached.data;
+      return cached.data as FiveMGamePlayer[];
     }
 
     const bridgeData = await this.fetchFromBridge<{
@@ -172,19 +170,19 @@ export class FiveMDataService {
   /**
    * Get detailed character profile by Citizen ID
    */
-  static async getPlayerDetail(citizenid: string): Promise<any | null> {
+  static async getPlayerDetail(citizenid: string): Promise<Record<string, unknown> | null> {
     if (!citizenid) return null;
     const cacheKey = `player_detail_${citizenid}`;
     const now = Date.now();
     const cached = cache.get(cacheKey);
 
     if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-      return cached.data;
+      return cached.data as Record<string, unknown>;
     }
 
     const bridgeData = await this.fetchFromBridge<{
       ok: boolean;
-      player: any;
+      player: Record<string, unknown>;
     }>(`/api/player/${encodeURIComponent(citizenid)}`);
 
     if (bridgeData && bridgeData.ok && bridgeData.player) {
@@ -227,11 +225,12 @@ export class FiveMDataService {
         bridgeUrl,
         message: `API Bridge merespon dengan status: ${res.status}`,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       return {
         connected: false,
         bridgeUrl,
-        message: `Gagal menghubungi API Bridge: ${err.message}`,
+        message: `Gagal menghubungi API Bridge: ${errorMsg}`,
       };
     }
   }

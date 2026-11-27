@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     const discordUser = await userRes.json();
 
     // 3. Multi-Layer Guild Roles & Administrator Permission Fetch
-    let userRoles: string[] = [];
+    const userRoles: string[] = [];
     let isUserSuperAdmin = false;
 
     // 3a. Check user's guilds to detect Server Owner or Administrator permissions (0x8)

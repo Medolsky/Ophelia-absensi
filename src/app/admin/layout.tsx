@@ -1,7 +1,7 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isDiscordAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Shield, ShieldAlert, ArrowLeft, Sliders, Building, History } from "lucide-react";
+import { ShieldAlert, ArrowLeft, Sliders, Building, History } from "lucide-react";
 
 export default async function AdminLayout({
   children,
@@ -11,7 +11,7 @@ export default async function AdminLayout({
   const currentUser = await getCurrentUser();
   if (!currentUser) redirect("/");
 
-  if (!currentUser.isSuperAdmin) {
+  if (!currentUser.isSuperAdmin && !isDiscordAdmin(currentUser)) {
     return (
       <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
         <div className="max-w-md w-full rounded-2xl bg-[#111111] border border-red-900/40 p-8 text-center shadow-2xl">

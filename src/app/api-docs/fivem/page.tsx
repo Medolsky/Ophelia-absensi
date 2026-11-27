@@ -1,5 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import { FiveMBridge } from "@/lib/fivem-bridge";
+import { getFiveMApiSecret, getOpheliaAppUrl } from "@/lib/fivem-config";
+import { FiveMHandoffCard } from "@/components/fivem-download-card";
 import {
   ArrowLeft,
   Key,
@@ -8,23 +11,29 @@ import {
   AlertTriangle,
   Info,
   CheckCircle2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Ophelia FiveM API Documentation",
   description: "API documentation and developer kit for FiveM integration with Ophelia Duty System",
 };
 
-export default function FiveMDocsPage() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ophelia-absensi.vercel.app";
-  const apiSecret = process.env.FIVEM_API_SECRET || "oph_live_b4958b8b1f1eb1c1e7ca47dd8500fe4c8dcbe638ea45740e";
+export default async function FiveMDocsPage() {
+  const baseUrl = getOpheliaAppUrl();
+  const apiSecret = getFiveMApiSecret();
+  const serverStatus = await FiveMBridge.getServerStatus();
 
   return (
     <div className="min-h-screen bg-[#080808] text-white selection:bg-[#E50914] selection:text-white">
       <div className="max-w-5xl mx-auto px-6 py-12">
         {/* Navigation & Header */}
         <div className="mb-10">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-xs text-neutral-400 hover:text-white transition bg-[#141414] hover:bg-[#202020] border border-[#222] px-3.5 py-2 rounded-xl"
@@ -32,9 +41,30 @@ export default function FiveMDocsPage() {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Kembali ke Dashboard</span>
             </Link>
-            <span className="text-[11px] font-mono text-neutral-500 bg-[#111] border border-[#222] px-3 py-1.5 rounded-lg">
-              v1.0.0 • Ophelia Bridge
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg border ${
+                  serverStatus.connected
+                    ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/50"
+                    : "bg-[#111] text-neutral-400 border-[#222]"
+                }`}
+              >
+                {serverStatus.connected ? (
+                  <>
+                    <Wifi className="h-3.5 w-3.5" />
+                    <span>BRIDGE ONLINE ({serverStatus.onlineCount} player)</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3.5 w-3.5" />
+                    <span>BRIDGE STANDBY</span>
+                  </>
+                )}
+              </span>
+              <span className="text-[11px] font-mono text-neutral-500 bg-[#111] border border-[#222] px-3 py-1.5 rounded-lg">
+                v2.0.0 • Ophelia Bridge
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 mb-6">
@@ -43,14 +73,58 @@ export default function FiveMDocsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">
-                Ophelia × FiveM Integration & API
+                Ophelia × FiveM Integration & Auto-Stop API
               </h1>
               <p className="text-xs text-neutral-400">
-                Panduan integrasi dan dokumentasi REST API lengkap untuk FiveM
+                Download resource FiveM v2.0.0 & dokumentasi REST API untuk auto-stop absensi saat keluar kota/server
               </p>
             </div>
           </div>
         </div>
+
+        {/* Downloadable Resource & Setup Handoff Kit */}
+        <section className="mb-12">
+          <FiveMHandoffCard baseUrl={baseUrl} apiSecret={apiSecret} />
+        </section>
+
+        {/* Endpoint 0: POST /api/fivem/duty-webhook */}
+        <section className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] font-mono font-bold border border-emerald-500/30">
+              POST
+            </span>
+            <code className="text-sm text-white font-mono">
+              /api/fivem/duty-webhook
+            </code>
+          </div>
+
+          <div className="rounded-2xl bg-[#111] border border-[#222] p-6 space-y-4">
+            <p className="text-sm text-neutral-300">
+              Webhook real-time untuk <strong>Auto-Stop Absensi</strong> saat player keluar server (
+              <code className="text-[#E50914] bg-[#1a0a0a] px-1 py-0.5 rounded text-xs">PLAYER_DROPPED</code>),
+              keluar kota / kembali ke menu karakter (
+              <code className="text-[#E50914] bg-[#1a0a0a] px-1 py-0.5 rounded text-xs">PLAYER_UNLOADED</code>),
+              off-duty in-game (
+              <code className="text-[#E50914] bg-[#1a0a0a] px-1 py-0.5 rounded text-xs">DUTY_OFF</code>),
+              mulai duty dari command in-game (
+              <code className="text-[#E50914] bg-[#1a0a0a] px-1 py-0.5 rounded text-xs">DUTY_ON</code>),
+              maupun restart server (
+              <code className="text-[#E50914] bg-[#1a0a0a] px-1 py-0.5 rounded text-xs">SERVER_SHUTDOWN</code>).
+            </p>
+            <div className="bg-[#0a0a0a] border border-[#1f1f1f] rounded-xl p-4">
+              <pre className="text-xs text-neutral-300 font-mono whitespace-pre-wrap">
+{`{
+  "secret": "${apiSecret}",
+  "event": "PLAYER_DROPPED",
+  "discordId": "123456789012345678",
+  "serverId": 12,
+  "playerName": "Officer John",
+  "reason": "Exiting"
+}`}
+              </pre>
+            </div>
+          </div>
+        </section>
 
         {/* Auth */}
         <section className="mb-10">

@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isDiscordAdmin } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { revalidatePath } from "next/cache";
 import { InstitutionData, DiscordRoleMappingData } from "@/types";
@@ -8,7 +8,7 @@ import { InstitutionData, DiscordRoleMappingData } from "@/types";
 // Helper to check super admin
 async function requireSuperAdmin() {
   const user = await getCurrentUser();
-  if (!user || !user.isSuperAdmin) {
+  if (!user || (!user.isSuperAdmin && !isDiscordAdmin(user))) {
     throw new Error("Akses ditolak: Hanya Super Admin yang berhak melakukan operasi ini.");
   }
   return user;

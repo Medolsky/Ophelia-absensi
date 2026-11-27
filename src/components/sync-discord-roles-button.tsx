@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw, Check, Sparkles } from "lucide-react";
+import { RefreshCw, Check } from "lucide-react";
 import { syncDiscordRolesAction } from "@/app/actions/auth-actions";
 
 interface SyncDiscordRolesButtonProps {

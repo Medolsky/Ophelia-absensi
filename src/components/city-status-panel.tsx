@@ -8,19 +8,24 @@ import {
   Search,
   Shield,
   ShieldOff,
-  Clock,
-  Users,
-  Radio,
   RefreshCw,
   Gamepad2,
   Building2,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 interface CityStatusPanelProps {
   institutionSlug: string;
 }
 
-type FilterMode = "all" | "onduty" | "offduty";
+type FilterMode = "all" | "online" | "onduty" | "offduty";
+
+interface ServerConnectionMeta {
+  connected: boolean;
+  lastHeartbeatAt: string | null;
+  onlineCount: number;
+}
 
 const INSTITUTION_COLORS: Record<string, string> = {
   police: "#0066FF",
@@ -40,151 +45,73 @@ const INSTITUTION_NAMES: Record<string, string> = {
 
 export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
   const [players, setPlayers] = useState<CityStatusEntry[]>([]);
+  const [serverStatus, setServerStatus] = useState<ServerConnectionMeta | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterMode>("all");
   const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-
-  const mergeLocalOnDuty = useCallback(
-    (incoming: CityStatusEntry[]): CityStatusEntry[] => {
-      if (typeof window === "undefined") return incoming;
-      try {
-        const lastOffDutyStr = localStorage.getItem("ophelia_last_off_duty_timestamp");
-        const lastOffDuty = lastOffDutyStr ? parseInt(lastOffDutyStr, 10) : 0;
-
-        const stored =
-          localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
-          localStorage.getItem("ophelia_current_active_duty");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const startedAtTime = parsed?.startedAt ? new Date(parsed.startedAt).getTime() : 0;
-
-          // If session started before last off duty, it is stale: discard!
-          if (lastOffDuty && startedAtTime <= lastOffDuty) {
-            localStorage.removeItem(`ophelia_active_duty_${institutionSlug}`);
-            localStorage.removeItem("ophelia_current_active_duty");
-            return incoming.map((p) => {
-              if (lastOffDuty && p.dutyStartedAt && new Date(p.dutyStartedAt).getTime() <= lastOffDuty) {
-                return { ...p, isOnDuty: false, dutyStartedAt: undefined };
-              }
-              return p;
-            });
-          }
-
-          if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
-            const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
-            const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
-            if (!targetSlug || targetSlug === "all" || cleanSlug === targetSlug) {
-              const cleanDid = parsed.userId?.replace("discord-", "");
-              let matched = false;
-              const updated = incoming.map((p) => {
-                const pDid = p.discordId?.replace("discord-", "");
-                if (pDid === cleanDid || p.playerName === parsed.userName || p.displayName === parsed.userName) {
-                  matched = true;
-                  return {
-                    ...p,
-                    isOnDuty: true,
-                    dutyInstitutionSlug: parsed.institutionSlug,
-                    dutyInstitutionName: parsed.institutionName,
-                    dutyStartedAt: parsed.startedAt,
-                    positionName: parsed.positionName || p.positionName,
-                  };
-                }
-                return p;
-              });
-
-              if (!matched) {
-                updated.unshift({
-                  discordId: cleanDid || "me",
-                  playerName: parsed.userName || "Officer",
-                  serverId: 0,
-                  isOnline: true,
-                  joinedAt: parsed.startedAt,
-                  lastSeenAt: new Date().toISOString(),
-                  isOnDuty: true,
-                  dutyInstitutionName: parsed.institutionName,
-                  dutyInstitutionSlug: parsed.institutionSlug,
-                  dutyStartedAt: parsed.startedAt,
-                  memberInstitutions: [parsed.institutionSlug],
-                  displayName: parsed.userName,
-                  avatar: parsed.userAvatar || null,
-                  positionName: parsed.positionName || "Petugas",
-                });
-              }
-              return updated;
-            }
-          }
-        } else if (lastOffDuty) {
-          // If no active session in localStorage and user recently went off duty, filter out stale on-duty entries
-          return incoming.map((p) => {
-            if (p.dutyStartedAt && new Date(p.dutyStartedAt).getTime() <= lastOffDuty) {
-              return { ...p, isOnDuty: false, dutyStartedAt: undefined };
-            }
-            return p;
-          });
-        }
-      } catch {}
-      return incoming;
-    },
-    [institutionSlug]
-  );
+  const [currentTime, setCurrentTime] = useState<number>(0);
 
   const fetchCityStatus = useCallback(async () => {
     try {
       const res = await fetch(
-        `/api/integrations/status?view=incity&institution=${institutionSlug}`
+        `/api/integrations/status?view=incity&institution=${encodeURIComponent(institutionSlug)}`,
+        { cache: "no-store" }
       );
+      if (!res.ok) return;
       const data = await res.json();
-      if (data.data) {
-        setPlayers(mergeLocalOnDuty(data.data));
-        setLastUpdate(new Date());
+      if (Array.isArray(data.data)) {
+        setPlayers(data.data);
+      }
+      if (data.serverStatus) {
+        setServerStatus(data.serverStatus);
       }
     } catch (err) {
       console.error("Failed to fetch city status:", err);
     } finally {
       setLoading(false);
     }
-  }, [institutionSlug, mergeLocalOnDuty]);
+  }, [institutionSlug]);
 
   useEffect(() => {
-    fetchCityStatus();
+    const initialTimer = setTimeout(() => {
+      fetchCityStatus();
+    }, 0);
+
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       fetchCityStatus();
-    }, 8000);
-    return () => clearInterval(interval);
+    }, 6000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [fetchCityStatus]);
 
-  // Listen to ophelia_duty_changed
+  // Refetch on duty change or tab focus
   useEffect(() => {
-    const handleDutyChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ status: string }>;
-      if (customEvent?.detail?.status === "OFF_DUTY") {
-        setPlayers((prev) =>
-          prev.map((p) => ({
-            ...p,
-            isOnDuty: false,
-            dutyStartedAt: undefined,
-          }))
-        );
-      }
+    const handleRefresh = () => {
       fetchCityStatus();
     };
-    window.addEventListener("ophelia_duty_changed", handleDutyChange);
-    window.addEventListener("storage", handleDutyChange);
+    window.addEventListener("ophelia_duty_changed", handleRefresh);
+    window.addEventListener("focus", handleRefresh);
     return () => {
-      window.removeEventListener("ophelia_duty_changed", handleDutyChange);
-      window.removeEventListener("storage", handleDutyChange);
+      window.removeEventListener("ophelia_duty_changed", handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
     };
   }, [fetchCityStatus]);
 
   useEffect(() => {
+    const initClock = setTimeout(() => setCurrentTime(Date.now()), 0);
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(initClock);
+      clearInterval(timer);
+    };
   }, []);
 
   const formatElapsed = (iso: string) => {
+    if (currentTime <= 0) return "00h\u00A000m\u00A000s";
     const elapsed = Math.max(0, Math.floor((currentTime - new Date(iso).getTime()) / 1000));
     const h = Math.floor(elapsed / 3600);
     const m = Math.floor((elapsed % 3600) / 60);
@@ -201,11 +128,13 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
       p.displayName?.toLowerCase().includes(search.toLowerCase()) ||
       p.positionName?.toLowerCase().includes(search.toLowerCase());
 
+    if (filter === "online") return matchesSearch && p.isOnline;
     if (filter === "onduty") return matchesSearch && p.isOnDuty;
     if (filter === "offduty") return matchesSearch && !p.isOnDuty;
     return matchesSearch;
   });
 
+  const onlineInCityCount = players.filter((p) => p.isOnline).length;
   const onDutyCount = players.filter((p) => p.isOnDuty).length;
   const offDutyCount = players.filter((p) => !p.isOnDuty).length;
 
@@ -213,15 +142,52 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
 
   return (
     <div className="space-y-4">
+      {/* FiveM Server Bridge Status Banner */}
+      {serverStatus && (
+        <div
+          className={`rounded-2xl border p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs ${
+            serverStatus.connected
+              ? "bg-emerald-950/25 border-emerald-800/40 text-emerald-300"
+              : "bg-[#141414] border-[#252525] text-neutral-400"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {serverStatus.connected ? (
+              <Wifi className="h-4 w-4 text-emerald-400 shrink-0" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-neutral-500 shrink-0" />
+            )}
+            <span className="font-semibold">
+              {serverStatus.connected
+                ? "FiveM Bridge Terhubung — Auto-Stop Absensi Aktif"
+                : "FiveM Bridge Belum Terhubung — Pasang resource ophelia-bridge di server FiveM"}
+            </span>
+          </div>
+          {serverStatus.lastHeartbeatAt && (
+            <span className="font-mono text-[11px] opacity-80">
+              Sync terakhir:{" "}
+              {new Date(serverStatus.lastHeartbeatAt).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Header Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4">
           <div className="flex items-center gap-2 text-neutral-400 text-[10px] uppercase tracking-wider mb-1">
-            <Gamepad2 className="h-3.5 w-3.5" />
-            <span>Di Kota</span>
+            <Gamepad2 className="h-3.5 w-3.5 text-sky-400" />
+            <span>Online Di Kota</span>
           </div>
           <div className="text-2xl font-black text-white font-mono">
-            {players.length}
+            {onlineInCityCount}
+            <span className="text-xs font-normal text-neutral-500 ml-1.5">
+              / {players.length} terdaftar
+            </span>
           </div>
         </div>
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-4">
@@ -259,14 +225,21 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {(["all", "onduty", "offduty"] as FilterMode[]).map((mode) => {
+          {(["all", "online", "onduty", "offduty"] as FilterMode[]).map((mode) => {
             const isActive = filter === mode;
-            const label = mode === "all" ? "Semua" : mode === "onduty" ? "On Duty" : "Off Duty";
+            const label =
+              mode === "all"
+                ? "Semua"
+                : mode === "online"
+                ? "Di Kota"
+                : mode === "onduty"
+                ? "On Duty"
+                : "Off Duty";
             return (
               <button
                 key={mode}
                 onClick={() => setFilter(mode)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                   isActive
                     ? "text-white shadow-lg"
                     : "bg-[#1a1a1a] text-neutral-500 hover:text-white hover:bg-[#222]"
@@ -280,15 +253,13 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
 
           <button
             onClick={fetchCityStatus}
-            className="p-2 rounded-lg bg-[#1a1a1a] text-neutral-400 hover:text-white hover:bg-[#222] transition-colors"
+            className="p-2 rounded-lg bg-[#1a1a1a] text-neutral-400 hover:text-white hover:bg-[#222] transition-colors cursor-pointer"
             title="Refresh"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
-
-
 
       {/* Player Grid */}
       {loading ? (
@@ -320,7 +291,6 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                 borderColor: entry.isOnDuty ? `${accentColor}33` : "#252525",
               }}
             >
-              {/* Online glow for on-duty */}
               {entry.isOnDuty && (
                 <div
                   className="absolute top-0 right-0 w-24 h-24 opacity-[0.06] rounded-full blur-2xl"
@@ -345,8 +315,19 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                     />
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#141414] ${
-                        entry.isOnDuty ? "bg-emerald-400" : "bg-red-500"
+                        entry.isOnDuty
+                          ? "bg-emerald-400"
+                          : entry.isOnline
+                          ? "bg-amber-400"
+                          : "bg-neutral-600"
                       }`}
+                      title={
+                        entry.isOnDuty
+                          ? "On Duty di Kota"
+                          : entry.isOnline
+                          ? "Online di Kota (Off Duty)"
+                          : "Offline (Di Luar Kota)"
+                      }
                     />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -363,17 +344,21 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                   className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border shrink-0 ${
                     entry.isOnDuty
                       ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                      : "bg-red-500/15 text-red-400 border-red-500/30"
+                      : entry.isOnline
+                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                      : "bg-neutral-800/80 text-neutral-400 border-neutral-700"
                   }`}
                 >
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
                       entry.isOnDuty
                         ? "bg-emerald-400 animate-pulse"
-                        : "bg-red-400"
+                        : entry.isOnline
+                        ? "bg-amber-400"
+                        : "bg-neutral-500"
                     }`}
                   />
-                  {entry.isOnDuty ? "ON DUTY" : "OFF DUTY"}
+                  {entry.isOnDuty ? "ON DUTY" : entry.isOnline ? "DI KOTA" : "OFFLINE"}
                 </span>
               </div>
 
@@ -383,7 +368,7 @@ export function CityStatusPanel({ institutionSlug }: CityStatusPanelProps) {
                     SERVER ID
                   </div>
                   <div className="font-mono text-neutral-300 mt-0.5">
-                    #{entry.serverId}
+                    {entry.isOnline && entry.serverId > 0 ? `#${entry.serverId}` : "—"}
                   </div>
                 </div>
 

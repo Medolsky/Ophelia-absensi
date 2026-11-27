@@ -86,10 +86,7 @@ export function isDiscordAdmin(user: SessionUser | null | undefined): boolean {
       norm.includes("pimpinan") ||
       norm.includes("owner") ||
       norm.includes("founder") ||
-      norm.includes("management") ||
-      norm.includes("atasan") ||
-      norm.includes("chief") ||
-      norm.includes("leader")
+      norm.includes("management")
     );
   });
 }
@@ -273,7 +270,7 @@ export const getAllowedInstitutions = cache(async function getAllowedInstitution
     const activeInstIdsOrSlugs = new Set(
       userMemberships
         .filter((m) => m.status === "ACTIVE")
-        .flatMap((m) => [m.institutionId, (m as any).institutionSlug].filter(Boolean))
+        .flatMap((m) => [m.institutionId, normalizeInstSlug(m.institutionId)].filter(Boolean))
     );
 
     return DEFAULT_INSTITUTIONS.filter((inst) =>

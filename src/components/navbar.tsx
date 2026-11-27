@@ -9,7 +9,7 @@ import { endDutyAction } from "@/app/actions/duty-actions";
 import { clearClientDutyState } from "@/lib/duty-client";
 import { InstitutionLogo } from "./institution-logo";
 import { SyncDiscordRolesButton } from "./sync-discord-roles-button";
-import { Shield, Radio, LogOut, ChevronDown, Building2, Square, Check, X } from "lucide-react";
+import { Radio, LogOut, ChevronDown, Square, Check, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
 interface NavbarProps {
@@ -26,24 +26,45 @@ export function Navbar({
   allowedInstitutions,
 }: NavbarProps) {
   const router = useRouter();
-  const [activeSession, setActiveSession] = useState<DutySessionData | null>(initialActiveSession || null);
-  const endedSessionIdRef = useRef<string | null>(null);
+  const [activeSession, setActiveSession] = useState<DutySessionData | null>(
+    initialActiveSession || null
+  );
+  const activeSessionRef = useRef<DutySessionData | null>(initialActiveSession || null);
   const [instMenuOpen, setInstMenuOpen] = useState(false);
   const [quickEndLoading, setQuickEndLoading] = useState(false);
   const [showNavbarEndModal, setShowNavbarEndModal] = useState(false);
 
-  // Sync with prop when server updates, guarding against reviving ended sessions
   useEffect(() => {
-    if (initialActiveSession) {
-      if (endedSessionIdRef.current && initialActiveSession.id === endedSessionIdRef.current) {
-        return;
-      }
-      setActiveSession(initialActiveSession);
-    } else {
-      endedSessionIdRef.current = null;
-      setActiveSession(null);
-    }
-  }, [initialActiveSession]);
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
+  // Background poll to stay in sync with FiveM auto-stop on any page
+  useEffect(() => {
+    const syncNavbarDuty = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      try {
+        const res = await fetch("/api/duty/me", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.ok) return;
+        const serverActive: DutySessionData | null = data.activeSession || null;
+        const prev = activeSessionRef.current;
+        if ((serverActive?.id || null) !== (prev?.id || null)) {
+          setActiveSession(serverActive);
+          if (!serverActive && prev) {
+            clearClientDutyState(prev.institutionSlug);
+          }
+        }
+      } catch {}
+    };
+
+    const interval = setInterval(syncNavbarDuty, 10000);
+    window.addEventListener("focus", syncNavbarDuty);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", syncNavbarDuty);
+    };
+  }, []);
 
   // Synchronize state across other components (e.g. DutyTimer)
   useEffect(() => {
@@ -51,22 +72,17 @@ export function Navbar({
       const customEvent = e as CustomEvent<{
         status: string;
         session?: DutySessionData;
-        institutionSlug?: string;
       }>;
       if (customEvent.detail?.status === "OFF_DUTY") {
-        if (activeSession?.id) {
-          endedSessionIdRef.current = activeSession.id;
-        }
         setActiveSession(null);
       } else if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
-        endedSessionIdRef.current = null;
         setActiveSession(customEvent.detail.session);
       }
     };
 
     window.addEventListener("ophelia_duty_changed", handleDutyChange);
     return () => window.removeEventListener("ophelia_duty_changed", handleDutyChange);
-  }, [activeSession]);
+  }, []);
 
   const handleLogout = async () => {
     await logoutAction();
@@ -75,11 +91,7 @@ export function Navbar({
 
   const handleQuickEndDuty = async () => {
     const targetSlug = activeSession?.institutionSlug || currentInstitution?.slug || "";
-    if (activeSession?.id) {
-      endedSessionIdRef.current = activeSession.id;
-    }
 
-    // Immediate optimistic update and storage cleanup
     clearClientDutyState(targetSlug);
     setActiveSession(null);
     setShowNavbarEndModal(false);
@@ -180,7 +192,9 @@ export function Navbar({
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#E50914]/15 text-[#FF1E2D] border border-[#E50914]/40 glow-red-sm">
                   <Radio className="h-3.5 w-3.5 text-[#FF1E2D] animate-pulse" />
-                  <span className="truncate max-w-[120px]">ON DUTY: {activeSession.institutionName || "Aktif"}</span>
+                  <span className="truncate max-w-[120px]">
+                    ON DUTY: {activeSession.institutionName || "Aktif"}
+                  </span>
                 </div>
                 <button
                   type="button"

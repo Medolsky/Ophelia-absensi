@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 export function NavigationProgress() {
@@ -9,26 +9,32 @@ export function NavigationProgress() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // When pathname or search params change, complete the bar
+  // When pathname or search params change, complete the bar via async timer
   useEffect(() => {
-    setIsNavigating(false);
-    setProgress(100);
-    const timeout = setTimeout(() => {
+    const completeTimer = setTimeout(() => {
+      setIsNavigating(false);
+      setProgress(100);
+    }, 0);
+    const hideTimer = setTimeout(() => {
       setProgress(0);
-    }, 200);
-    return () => clearTimeout(timeout);
+    }, 220);
+    return () => {
+      clearTimeout(completeTimer);
+      clearTimeout(hideTimer);
+    };
   }, [pathname, searchParams]);
 
   // Animate progress smoothly while navigating
   useEffect(() => {
     if (!isNavigating) return;
 
-    setProgress(20);
+    const timer0 = setTimeout(() => setProgress(20), 0);
     const timer1 = setTimeout(() => setProgress(45), 80);
     const timer2 = setTimeout(() => setProgress(75), 250);
     const timer3 = setTimeout(() => setProgress(90), 600);
 
     return () => {
+      clearTimeout(timer0);
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
@@ -59,7 +65,6 @@ export function NavigationProgress() {
         return;
       }
 
-      // Check if it's an internal route that differs from current path
       try {
         const url = new URL(target.href, window.location.href);
         if (
@@ -85,7 +90,10 @@ export function NavigationProgress() {
       style={{
         width: `${progress}%`,
         opacity: progress === 100 ? 0 : 1,
-        transition: progress === 100 ? "width 150ms ease-out, opacity 200ms 150ms" : "width 300ms ease-out",
+        transition:
+          progress === 100
+            ? "width 150ms ease-out, opacity 200ms 150ms"
+            : "width 300ms ease-out",
       }}
     >
       <div className="w-full h-full bg-[#E50914] shadow-[0_0_12px_#E50914,0_0_6px_#FF1E2D]" />

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
+import { MembershipData } from "@/types";
 
 export async function PATCH(
   req: NextRequest,
@@ -31,7 +32,7 @@ export async function PATCH(
     const body = await req.json();
     const { positionName, status } = body;
 
-    const updates: any = {};
+    const updates: Partial<Pick<MembershipData, "positionName" | "status" | "permissionLevel">> = {};
     if (positionName !== undefined) {
       updates.positionName = positionName;
       const isChief = /chief|director|petinggi|pimpinan|manager|head/i.test(positionName);

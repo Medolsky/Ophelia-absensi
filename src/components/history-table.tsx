@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { DutySessionData, PermissionLevel } from "@/types";
 import { UserAvatar } from "./user-avatar";
 import { AttendanceEditModal } from "./attendance-edit-modal";
-import { Search, Clock, ChevronLeft, ChevronRight, User, Users, Filter, Edit3 } from "lucide-react";
+import { Search, Clock, ChevronLeft, ChevronRight, User, Users, Edit3 } from "lucide-react";
 
 interface HistoryTableProps {
   sessions: DutySessionData[];
@@ -67,7 +68,8 @@ export function HistoryTable({
   userPermission,
   currentUserRoles,
 }: HistoryTableProps) {
-  const [sessionsList, setSessionsList] = useState<DutySessionData[]>(sessions);
+  const router = useRouter();
+  const [editedOverrides, setEditedOverrides] = useState<Record<string, DutySessionData>>({});
   const [filterMode, setFilterMode] = useState<"ALL" | "MINE">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -75,9 +77,10 @@ export function HistoryTable({
   const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
   const pageSize = 15;
 
-  useEffect(() => {
-    setSessionsList(sessions);
-  }, [sessions]);
+  const sessionsList = useMemo(
+    () => sessions.map((s) => editedOverrides[s.id] || s),
+    [sessions, editedOverrides]
+  );
 
   // Check if admin or leader can edit attendance
   const hasAdminRole = (currentUserRoles || []).some((r) => {
@@ -90,10 +93,7 @@ export function HistoryTable({
       norm.includes("pimpinan") ||
       norm.includes("owner") ||
       norm.includes("founder") ||
-      norm.includes("management") ||
-      norm.includes("atasan") ||
-      norm.includes("chief") ||
-      norm.includes("leader")
+      norm.includes("management")
     );
   });
   const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN" || hasAdminRole;
@@ -101,14 +101,17 @@ export function HistoryTable({
   const cleanUserId = currentUserId.replace("discord-", "");
   const cleanDiscordId = currentUserDiscordId?.replace("discord-", "");
 
-  const isUserSession = (session: DutySessionData) => {
-    const sId = session.userId?.replace("discord-", "");
-    return (
-      session.userId === currentUserId ||
-      sId === cleanUserId ||
-      (cleanDiscordId && sId === cleanDiscordId)
-    );
-  };
+  const isUserSession = useCallback(
+    (session: DutySessionData) => {
+      const sId = session.userId?.replace("discord-", "");
+      return (
+        session.userId === currentUserId ||
+        sId === cleanUserId ||
+        Boolean(cleanDiscordId && sId === cleanDiscordId)
+      );
+    },
+    [currentUserId, cleanUserId, cleanDiscordId]
+  );
 
   const filteredSessions = useMemo(() => {
     return sessionsList.filter((s) => {
@@ -139,7 +142,7 @@ export function HistoryTable({
 
       return true;
     });
-  }, [sessionsList, filterMode, statusFilter, searchTerm, currentUserId, currentUserDiscordId]);
+  }, [sessionsList, filterMode, statusFilter, searchTerm, isUserSession]);
 
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(filteredSessions.length / pageSize));
@@ -151,7 +154,7 @@ export function HistoryTable({
 
   const mySessionsCount = useMemo(() => {
     return sessionsList.filter(isUserSession).length;
-  }, [sessionsList, currentUserId, currentUserDiscordId]);
+  }, [sessionsList, isUserSession]);
 
   return (
     <div className="space-y-4">
@@ -221,6 +224,7 @@ export function HistoryTable({
               <option value="ALL">Semua Status</option>
               <option value="ON_DUTY">On Duty (Aktif)</option>
               <option value="COMPLETED">Completed</option>
+              <option value="AUTO_CLOSED">Auto Stop (FiveM)</option>
               <option value="CORRECTED">Corrected</option>
             </select>
           </div>
@@ -299,6 +303,11 @@ export function HistoryTable({
                       {session.status === "COMPLETED" && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px] border border-emerald-500/30 font-semibold shrink-0">
                           COMPLETED
+                        </span>
+                      )}
+                      {session.status === "AUTO_CLOSED" && (
+                        <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-mono text-[10px] border border-orange-500/30 font-semibold shrink-0">
+                          AUTO STOP
                         </span>
                       )}
                       {session.status === "CORRECTED" && (
@@ -448,6 +457,11 @@ export function HistoryTable({
                             COMPLETED
                           </span>
                         )}
+                        {session.status === "AUTO_CLOSED" && (
+                          <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-mono text-[10px] border border-orange-500/30 font-semibold">
+                            AUTO STOP
+                          </span>
+                        )}
                         {session.status === "CORRECTED" && (
                           <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono text-[10px] border border-amber-500/30 font-semibold">
                             CORRECTED
@@ -521,9 +535,8 @@ export function HistoryTable({
           isOpen={!!selectedSessionToEdit}
           onClose={() => setSelectedSessionToEdit(null)}
           onSessionUpdated={(updated) => {
-            setSessionsList((prev) =>
-              prev.map((s) => (s.id === updated.id ? updated : s))
-            );
+            setEditedOverrides((prev) => ({ ...prev, [updated.id]: updated }));
+            router.refresh();
           }}
         />
       )}

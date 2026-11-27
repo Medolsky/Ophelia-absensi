@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { DutySessionData, PermissionLevel } from "@/types";
 import { AttendanceEditModal } from "./attendance-edit-modal";
 import {
   Search,
-  Calendar,
   Edit2,
   Clock,
   User,
@@ -15,9 +14,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Filter,
 } from "lucide-react";
-import { getDiscordAvatarUrl } from "@/lib/discord-sync";
 import { UserAvatar } from "./user-avatar";
 
 interface AttendanceTableProps {
@@ -38,7 +35,7 @@ export function AttendanceTable({
   initialMonth,
 }: AttendanceTableProps) {
   const router = useRouter();
-  const [sessionsList, setSessionsList] = useState<DutySessionData[]>(sessions);
+  const [editedOverrides, setEditedOverrides] = useState<Record<string, DutySessionData>>({});
   const [viewMode, setViewMode] = useState<"ALL" | "MINE">("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -62,15 +59,10 @@ export function AttendanceTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
 
-  // Sync if parent updates
-  useEffect(() => {
-    setSessionsList(sessions);
-  }, [sessions]);
-
-  // Reset to page 1 whenever any filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [viewMode, searchTerm, statusFilter, startDate, endDate, pageSize]);
+  const sessionsList = useMemo(
+    () => sessions.map((s) => editedOverrides[s.id] || s),
+    [sessions, editedOverrides]
+  );
 
   const hasAdminRole = (currentUserRoles || []).some((r) => {
     const raw = String(r).trim();
@@ -82,10 +74,7 @@ export function AttendanceTable({
       norm.includes("pimpinan") ||
       norm.includes("owner") ||
       norm.includes("founder") ||
-      norm.includes("management") ||
-      norm.includes("atasan") ||
-      norm.includes("chief") ||
-      norm.includes("leader")
+      norm.includes("management")
     );
   });
 
@@ -159,7 +148,10 @@ export function AttendanceTable({
       {/* View Mode Tabs */}
       <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => setViewMode("ALL")}
+          onClick={() => {
+            setViewMode("ALL");
+            setCurrentPage(1);
+          }}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             viewMode === "ALL"
               ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
@@ -170,7 +162,10 @@ export function AttendanceTable({
           <span>Semua Anggota</span>
         </button>
         <button
-          onClick={() => setViewMode("MINE")}
+          onClick={() => {
+            setViewMode("MINE");
+            setCurrentPage(1);
+          }}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             viewMode === "MINE"
               ? "bg-[#E50914] text-white shadow-lg glow-red-sm"
@@ -192,7 +187,10 @@ export function AttendanceTable({
               type="text"
               placeholder="Cari nama petugas, pangkat, catatan tugas, atau tanggal..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full bg-[#080808] border border-[#252525] focus:border-[#E50914] text-xs text-white pl-9 pr-3 py-2.5 rounded-xl outline-none transition-colors"
             />
           </div>
@@ -201,12 +199,16 @@ export function AttendanceTable({
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-[#080808] border border-[#252525] text-xs text-neutral-300 px-3 py-2 rounded-xl outline-none flex-1 sm:flex-none"
             >
               <option value="ALL">Semua Status</option>
               <option value="ON_DUTY">ON DUTY</option>
               <option value="COMPLETED">COMPLETED</option>
+              <option value="AUTO_CLOSED">AUTO STOP (FiveM)</option>
               <option value="CORRECTED">CORRECTED</option>
             </select>
 
@@ -215,7 +217,10 @@ export function AttendanceTable({
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs text-neutral-300 outline-none w-full"
               />
             </div>
@@ -225,7 +230,10 @@ export function AttendanceTable({
               <input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs text-neutral-300 outline-none w-full"
               />
             </div>
@@ -237,6 +245,7 @@ export function AttendanceTable({
                   setEndDate("");
                   setSearchTerm("");
                   setStatusFilter("ALL");
+                  setCurrentPage(1);
                 }}
                 className="text-xs text-neutral-400 hover:text-white px-2.5 py-2 rounded-xl border border-[#252525] hover:bg-[#1f1f1f] transition cursor-pointer"
               >
@@ -304,6 +313,11 @@ export function AttendanceTable({
                       {session.status === "COMPLETED" && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px] border border-emerald-500/30 shrink-0">
                           COMPLETED
+                        </span>
+                      )}
+                      {session.status === "AUTO_CLOSED" && (
+                        <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-mono text-[10px] border border-orange-500/30 shrink-0">
+                          AUTO STOP
                         </span>
                       )}
                       {session.status === "CORRECTED" && (
@@ -453,6 +467,11 @@ export function AttendanceTable({
                             COMPLETED
                           </span>
                         )}
+                        {session.status === "AUTO_CLOSED" && (
+                          <span className="px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-mono text-[10px] border border-orange-500/30">
+                            AUTO STOP
+                          </span>
+                        )}
                         {session.status === "CORRECTED" && (
                           <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-mono text-[10px] border border-amber-500/30">
                             CORRECTED
@@ -489,7 +508,10 @@ export function AttendanceTable({
               <span>Baris per halaman:</span>
               <select
                 value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
                 className="bg-[#0c0c0c] border border-[#2a2a2a] text-white px-2 py-1 rounded-lg text-xs outline-none cursor-pointer"
               >
                 <option value={10}>10</option>
@@ -561,9 +583,7 @@ export function AttendanceTable({
           isOpen={!!selectedSessionToEdit}
           onClose={() => setSelectedSessionToEdit(null)}
           onSessionUpdated={(updated) => {
-            setSessionsList((prev) =>
-              prev.map((s) => (s.id === updated.id ? updated : s))
-            );
+            setEditedOverrides((prev) => ({ ...prev, [updated.id]: updated }));
             router.refresh();
           }}
         />

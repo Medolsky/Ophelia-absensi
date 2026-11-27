@@ -1,8 +1,7 @@
 import { getCurrentUser, verifyInstitutionAccess } from "@/lib/auth";
 import { DataService, normalizeInstSlug } from "@/lib/data-service";
-import { History, Calendar, Clock, ChevronRight, Users, Shield, ArrowUpRight, Award, BarChart3 } from "lucide-react";
+import { History, Calendar, Clock, ChevronRight, Users, ArrowUpRight, Award, BarChart3 } from "lucide-react";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { HistoryTable } from "@/components/history-table";
 
@@ -38,21 +37,7 @@ export default async function HistoryPage({
     redirect("/select-institution");
   }
 
-  // Inject active duty from cookie if present
-  const cookieStore = await cookies();
-  const dutyCookie =
-    cookieStore.get(`ophelia_active_duty_${slug}`) ||
-    cookieStore.get("ophelia_active_duty");
-  if (dutyCookie?.value) {
-    try {
-      const parsed = JSON.parse(dutyCookie.value);
-      if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
-        DataService.injectActiveDutySession(parsed);
-      }
-    } catch {}
-  }
-
-  // Query institution-wide sessions once
+  // Query authoritative institution-wide sessions once
   const allSessions = await DataService.getInstitutionDutySessions(slug);
 
   const cleanId = currentUser.id.replace("discord-", "");

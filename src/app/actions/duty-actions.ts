@@ -2,9 +2,29 @@
 
 import { getCurrentUser, verifyInstitutionAccess, isDiscordAdmin } from "@/lib/auth";
 import { DataService, normalizeInstSlug } from "@/lib/data-service";
+import { FiveMBridge } from "@/lib/fivem-bridge";
 import { revalidatePath } from "next/cache";
-
 import { cookies } from "next/headers";
+
+function clearLegacyDutyCookies(cookieStore: Awaited<ReturnType<typeof cookies>>, institutionSlug?: string) {
+  cookieStore.delete("ophelia_active_duty");
+  cookieStore.delete("ophelia_current_active_duty");
+
+  const allSlugs = [
+    institutionSlug,
+    institutionSlug ? normalizeInstSlug(institutionSlug) : "",
+    "police",
+    "medical",
+    "mechanic",
+    "restaurant",
+    "pemerintah",
+  ].filter(Boolean) as string[];
+
+  allSlugs.forEach((s) => {
+    cookieStore.delete(`ophelia_active_duty_${s}`);
+    cookieStore.delete(`ophelia_active_duty_inst-${s}`);
+  });
+}
 
 export async function startDutyAction(institutionSlug: string, notes?: string) {
   const user = await getCurrentUser();
@@ -12,8 +32,10 @@ export async function startDutyAction(institutionSlug: string, notes?: string) {
     return { success: false, error: "Harap login terlebih dahulu." };
   }
 
-  // PRD Section 6 & 29: Backend verify Discord Role
-  const access = await verifyInstitutionAccess(user, institutionSlug);
+  const cleanSlug = normalizeInstSlug(institutionSlug);
+
+  // Backend verify Discord Role
+  const access = await verifyInstitutionAccess(user, cleanSlug);
   if (!access.allowed) {
     return {
       success: false,
@@ -21,36 +43,46 @@ export async function startDutyAction(institutionSlug: string, notes?: string) {
     };
   }
 
+  // FiveM Online Guard:
+  // If the FiveM server bridge is actively connected and strict mode is enabled (default),
+  // require the player to be inside the FiveM server/city before starting attendance.
+  const requireOnline = process.env.REQUIRE_FIVEM_ONLINE !== "false";
+  const isDemoAccount =
+    process.env.NEXT_PUBLIC_ENABLE_DEV_DEMO === "true" && user.id.startsWith("user-");
+
+  if (requireOnline && !isDemoAccount) {
+    const fivemStatus = await FiveMBridge.getPlayerOnlineStatus(user.discordId);
+    if (fivemStatus.serverConnected && !fivemStatus.isOnline) {
+      return {
+        success: false,
+        error:
+          "Anda belum terdeteksi masuk kota (server FiveM). Silakan masuk ke server FiveM terlebih dahulu (pastikan akun Discord tertaut di FiveM), lalu tekan START DUTY lagi.",
+      };
+    }
+  }
+
   const result = await DataService.startDuty({
     userId: user.id,
     userName: user.displayName || user.discordUsername,
     userAvatar: user.discordAvatar,
-    institutionSlug,
+    institutionSlug: cleanSlug,
     notes,
   });
 
   if (result.success && result.session) {
-    // Persist active duty in cookie so all serverless lambdas receive it
+    // Clear any legacy duty cookies so server state remains single source of truth
     const cookieStore = await cookies();
-    const cookieValue = JSON.stringify(result.session);
-    cookieStore.set("ophelia_active_duty", cookieValue, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-      sameSite: "lax",
-    });
-    cookieStore.set(`ophelia_active_duty_${institutionSlug}`, cookieValue, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-      sameSite: "lax",
-    });
+    clearLegacyDutyCookies(cookieStore, cleanSlug);
 
-    revalidatePath(`/institution/${institutionSlug}`);
-    revalidatePath(`/institution/${institutionSlug}/duty`);
-    revalidatePath(`/institution/${institutionSlug}/attendance`);
-    revalidatePath(`/institution/${institutionSlug}/history`);
-    revalidatePath(`/institution/${institutionSlug}/live`);
-    revalidatePath(`/institution/${institutionSlug}/city`);
-    revalidatePath(`/institution/${institutionSlug}/statistics`);
+    FiveMBridge.invalidateCityStatusCache();
+
+    revalidatePath(`/institution/${cleanSlug}`);
+    revalidatePath(`/institution/${cleanSlug}/duty`);
+    revalidatePath(`/institution/${cleanSlug}/attendance`);
+    revalidatePath(`/institution/${cleanSlug}/history`);
+    revalidatePath(`/institution/${cleanSlug}/live`);
+    revalidatePath(`/institution/${cleanSlug}/city`);
+    revalidatePath(`/institution/${cleanSlug}/statistics`);
     revalidatePath("/", "layout");
   }
 
@@ -63,39 +95,28 @@ export async function endDutyAction(institutionSlug?: string) {
     return { success: false, error: "Harap login terlebih dahulu." };
   }
 
+  const cleanSlug = institutionSlug ? normalizeInstSlug(institutionSlug) : undefined;
+
   const result = await DataService.endDuty({
     userId: user.id,
-    institutionSlug,
+    institutionSlug: cleanSlug,
+    status: "COMPLETED",
   });
 
-  // Always delete all active duty cookies on end duty
+  // Always delete all legacy active duty cookies on end duty
   const cookieStore = await cookies();
-  cookieStore.delete("ophelia_active_duty");
-  cookieStore.delete("ophelia_current_active_duty");
+  clearLegacyDutyCookies(cookieStore, cleanSlug);
 
-  const allSlugs = [
-    institutionSlug,
-    institutionSlug ? institutionSlug.replace("inst-", "") : "",
-    "police",
-    "medical",
-    "mechanic",
-    "restaurant",
-    "pemerintah",
-  ].filter(Boolean) as string[];
+  FiveMBridge.invalidateCityStatusCache();
 
-  allSlugs.forEach((s) => {
-    cookieStore.delete(`ophelia_active_duty_${s}`);
-    cookieStore.delete(`ophelia_active_duty_inst-${s}`);
-  });
-
-  if (institutionSlug) {
-    revalidatePath(`/institution/${institutionSlug}`);
-    revalidatePath(`/institution/${institutionSlug}/duty`);
-    revalidatePath(`/institution/${institutionSlug}/attendance`);
-    revalidatePath(`/institution/${institutionSlug}/history`);
-    revalidatePath(`/institution/${institutionSlug}/statistics`);
-    revalidatePath(`/institution/${institutionSlug}/live`);
-    revalidatePath(`/institution/${institutionSlug}/city`);
+  if (cleanSlug) {
+    revalidatePath(`/institution/${cleanSlug}`);
+    revalidatePath(`/institution/${cleanSlug}/duty`);
+    revalidatePath(`/institution/${cleanSlug}/attendance`);
+    revalidatePath(`/institution/${cleanSlug}/history`);
+    revalidatePath(`/institution/${cleanSlug}/statistics`);
+    revalidatePath(`/institution/${cleanSlug}/live`);
+    revalidatePath(`/institution/${cleanSlug}/city`);
   }
   revalidatePath("/", "layout");
 
@@ -140,10 +161,13 @@ export async function correctAttendanceAction(params: {
   });
 
   if (result.success) {
+    FiveMBridge.invalidateCityStatusCache();
+
     revalidatePath(`/institution/${cleanSlug}`);
     revalidatePath(`/institution/${cleanSlug}/attendance`);
     revalidatePath(`/institution/${cleanSlug}/history`);
     revalidatePath(`/institution/${cleanSlug}/live`);
+    revalidatePath(`/institution/${cleanSlug}/city`);
     revalidatePath(`/institution/${cleanSlug}/members`);
     revalidatePath(`/institution/${cleanSlug}/statistics`);
     revalidatePath("/", "layout");

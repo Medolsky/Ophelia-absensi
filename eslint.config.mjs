@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate CommonJS Node subpackage for FiveM RDP server
+    "fivem-bridge/**",
   ]),
 ]);
 

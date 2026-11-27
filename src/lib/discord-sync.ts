@@ -1,6 +1,19 @@
-import { MembershipData, SessionUser, PermissionLevel } from "@/types";
+import { PermissionLevel } from "@/types";
 import { KNOWN_DISCORD_ROLE_IDS } from "./constants";
 import { getDiscordCredentials } from "./discord-credentials";
+
+interface RawDiscordGuildMember {
+  user?: {
+    id: string;
+    username: string;
+    global_name?: string | null;
+    avatar?: string | null;
+    bot?: boolean;
+  };
+  nick?: string | null;
+  avatar?: string | null;
+  roles?: string[];
+}
 
 export interface DiscordMemberInfo {
   id: string;
@@ -338,7 +351,7 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
     const roleMap = await getGuildRoleMap();
 
     // 2. Discover members via fast chunked parallel search
-    const allFound = new Map<string, any>();
+    const allFound = new Map<string, RawDiscordGuildMember>();
     const searchTerms = [
       "a", "e", "i", "o", "u",
       "s", "r", "n", "t", "m",
@@ -375,7 +388,7 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
                 continue;
               }
               if (s.ok) {
-                const list: any[] = await s.json();
+                const list: RawDiscordGuildMember[] = await s.json();
                 for (const m of list) {
                   if (m.user && !m.user.bot) {
                     allFound.set(m.user.id, m);
@@ -396,7 +409,8 @@ export async function fetchDiscordGuildMembers(): Promise<DiscordMemberInfo[]> {
 
     // Convert to DiscordMemberInfo
     const members: DiscordMemberInfo[] = [];
-    for (const [id, m] of allFound) {
+    for (const m of allFound.values()) {
+      if (!m.user) continue;
       const roleIds: string[] = m.roles || [];
       const roleNames: string[] = roleIds.map((rId) => roleMap[rId] || rId);
 

@@ -1,148 +1,274 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { startDutyAction, endDutyAction } from "@/app/actions/duty-actions";
 import { clearClientDutyState } from "@/lib/duty-client";
-import { Play, Square, Clock, AlertCircle, X, Check } from "lucide-react";
+import {
+  Play,
+  Square,
+  Clock,
+  AlertCircle,
+  X,
+  Check,
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+} from "lucide-react";
 import { DutySessionData } from "@/types";
+
+export interface FiveMClientStatus {
+  serverConnected: boolean;
+  lastHeartbeatAt: string | null;
+  playerOnline: boolean;
+  serverId: number | null;
+  playerName: string | null;
+  requireOnlineToStart: boolean;
+}
 
 interface DutyTimerProps {
   institutionSlug: string;
   institutionName: string;
   initialActiveSession: DutySessionData | null;
+  initialAutoClosedSession?: DutySessionData | null;
+  initialFiveMStatus?: FiveMClientStatus | null;
   userDisplayName: string;
+}
+
+function matchesSlug(session: DutySessionData | null | undefined, targetSlug: string): boolean {
+  if (!session) return false;
+  const cleanTarget = targetSlug.replace(/^inst-/, "").toLowerCase();
+  const sSlug = (session.institutionSlug || "").replace(/^inst-/, "").toLowerCase();
+  const sId = (session.institutionId || "").replace(/^inst-/, "").toLowerCase();
+  return sSlug === cleanTarget || sId === cleanTarget;
 }
 
 export function DutyTimer({
   institutionSlug,
   institutionName,
   initialActiveSession,
+  initialAutoClosedSession = null,
+  initialFiveMStatus = null,
   userDisplayName,
 }: DutyTimerProps) {
   const router = useRouter();
 
-  const getStoredActiveSession = (): DutySessionData | null => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored =
-        localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
-        localStorage.getItem("ophelia_current_active_duty");
-      if (stored) {
-        const parsed = JSON.parse(stored) as DutySessionData;
-        if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
-          const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
-          const targetSlug = institutionSlug.replace("inst-", "").toLowerCase();
-          if (cleanSlug === targetSlug) {
-            return parsed;
-          }
-        }
-      }
-    } catch {}
-    return null;
-  };
-
   const [activeSession, setActiveSession] = useState<DutySessionData | null>(
-    () => initialActiveSession || getStoredActiveSession()
+    initialActiveSession
   );
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [nowMs, setNowMs] = useState<number>(() =>
+    initialActiveSession?.startedAt
+      ? new Date(initialActiveSession.startedAt).getTime()
+      : 0
+  );
+  const [fivemStatus, setFiveMStatus] = useState<FiveMClientStatus | null>(
+    initialFiveMStatus
+  );
+  const [autoStopNotice, setAutoStopNotice] = useState<{
+    sessionId: string;
+    endedAt?: string | null;
+    durationSeconds: number;
+    reason: string;
+  } | null>(() => {
+    if (
+      !initialActiveSession &&
+      initialAutoClosedSession &&
+      initialAutoClosedSession.endedAt
+    ) {
+      return {
+        sessionId: initialAutoClosedSession.id,
+        endedAt: initialAutoClosedSession.endedAt,
+        durationSeconds: initialAutoClosedSession.durationSeconds || 0,
+        reason:
+          initialAutoClosedSession.notes ||
+          "Absensi otomatis dihentikan karena keluar kota / keluar server FiveM.",
+      };
+    }
+    return null;
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNotesInput, setShowNotesInput] = useState(false);
   const [notes, setNotes] = useState("");
   const [showEndConfirmModal, setShowEndConfirmModal] = useState(false);
-  const endedSessionIdRef = useRef<string | null>(null);
 
-  // Update active session when prop changes, avoiding reviving an ended session from stale cache
+  const activeSessionRef = useRef<DutySessionData | null>(initialActiveSession);
+  const dismissedNoticeIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (initialActiveSession) {
-      if (endedSessionIdRef.current && initialActiveSession.id === endedSessionIdRef.current) {
-        return;
-      }
-      setActiveSession(initialActiveSession);
-      try {
-        const json = JSON.stringify(initialActiveSession);
-        localStorage.setItem(`ophelia_active_duty_${institutionSlug}`, json);
-        localStorage.setItem("ophelia_current_active_duty", json);
-        document.cookie = `ophelia_active_duty_${institutionSlug}=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
-        document.cookie = `ophelia_active_duty=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
-      } catch {}
-    } else {
-      // Server returned null. DO NOT wipe client session unless the user explicitly ended it!
-      if (endedSessionIdRef.current) {
-        setActiveSession(null);
-        return;
-      }
-      const local = getStoredActiveSession();
-      if (local && local.id !== endedSessionIdRef.current) {
-        setActiveSession(local);
-      } else {
-        setActiveSession(null);
-      }
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
+  // Clear legacy stale localStorage/cookies whenever server says user is OFF DUTY on initial load
+  useEffect(() => {
+    if (!initialActiveSession) {
+      clearClientDutyState(institutionSlug);
     }
   }, [initialActiveSession, institutionSlug]);
 
-  // Synchronize state across other components (e.g. Navbar & other tabs)
+  // Authoritative server sync (detects FiveM Auto-Stop in real-time!)
+  const syncDutyWithServer = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/duty/me?institution=${encodeURIComponent(institutionSlug)}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data?.ok) return;
+
+      if (data.fivem) {
+        setFiveMStatus(data.fivem as FiveMClientStatus);
+      }
+
+      const serverSession: DutySessionData | null =
+        data.activeSession && matchesSlug(data.activeSession, institutionSlug)
+          ? data.activeSession
+          : null;
+
+      const prevSession = activeSessionRef.current;
+
+      if (serverSession) {
+        if (!prevSession || prevSession.id !== serverSession.id) {
+          setActiveSession(serverSession);
+          setAutoStopNotice(null);
+          window.dispatchEvent(
+            new CustomEvent("ophelia_duty_changed", {
+              detail: { status: "ON_DUTY", session: serverSession },
+            })
+          );
+        }
+      } else {
+        // Server says OFF DUTY! If client previously thought it was ON DUTY, FiveM auto-stopped it!
+        if (prevSession) {
+          clearClientDutyState(institutionSlug);
+          setActiveSession(null);
+          setShowEndConfirmModal(false);
+
+          const closed = data.lastAutoClosedSession as DutySessionData | null;
+          if (closed && closed.id !== dismissedNoticeIdRef.current) {
+            setAutoStopNotice({
+              sessionId: closed.id,
+              endedAt: closed.endedAt,
+              durationSeconds: closed.durationSeconds || 0,
+              reason:
+                closed.notes ||
+                "Absensi otomatis dihentikan karena Anda keluar kota / keluar server FiveM.",
+            });
+          } else {
+            setAutoStopNotice({
+              sessionId: prevSession.id,
+              endedAt: new Date().toISOString(),
+              durationSeconds: Math.max(
+                0,
+                Math.floor((Date.now() - new Date(prevSession.startedAt).getTime()) / 1000)
+              ),
+              reason:
+                "Absensi otomatis dihentikan karena Anda keluar kota / keluar server FiveM. Silakan mulai absensi lagi saat sudah masuk kota.",
+            });
+          }
+
+          router.refresh();
+        } else {
+          // Even if already off duty, surface recent auto-closed notice if not dismissed
+          const closed = data.lastAutoClosedSession as DutySessionData | null;
+          if (
+            closed &&
+            closed.endedAt &&
+            closed.id !== dismissedNoticeIdRef.current &&
+            Date.now() - new Date(closed.endedAt).getTime() < 2 * 60 * 60 * 1000
+          ) {
+            setAutoStopNotice((prev) =>
+              prev?.sessionId === closed.id
+                ? prev
+                : {
+                    sessionId: closed.id,
+                    endedAt: closed.endedAt,
+                    durationSeconds: closed.durationSeconds || 0,
+                    reason:
+                      closed.notes ||
+                      "Absensi otomatis dihentikan karena keluar kota / keluar server FiveM.",
+                  }
+            );
+          }
+        }
+      }
+    } catch {
+      // Ignore transient network errors during background polling
+    }
+  }, [institutionSlug, router]);
+
+  // Poll every 5s + sync immediately when user returns to tab
+  useEffect(() => {
+    const initialTimer = setTimeout(() => {
+      syncDutyWithServer();
+    }, 800);
+
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      syncDutyWithServer();
+    }, 5000);
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        syncDutyWithServer();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [syncDutyWithServer]);
+
+  // Listen to explicit cross-component events (e.g. Navbar Quick End Duty)
   useEffect(() => {
     const handleDutyChange = (e: Event) => {
       const customEvent = e as CustomEvent<{
         status: string;
         session?: DutySessionData;
-        institutionSlug?: string;
       }>;
       if (customEvent.detail?.status === "OFF_DUTY") {
-        if (activeSession?.id) {
-          endedSessionIdRef.current = activeSession.id;
-        }
         setActiveSession(null);
-        setElapsedSeconds(0);
-      } else if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
-        const s = customEvent.detail.session;
-        const cleanSlug = s.institutionSlug?.replace("inst-", "").toLowerCase();
-        const targetSlug = institutionSlug.replace("inst-", "").toLowerCase();
-        if (cleanSlug === targetSlug) {
-          endedSessionIdRef.current = null;
-          setActiveSession(s);
-        }
-      }
-    };
-
-    const handleStorageChange = () => {
-      const current = getStoredActiveSession();
-      if (current && current.id !== endedSessionIdRef.current) {
-        setActiveSession(current);
-      } else if (!current && !endedSessionIdRef.current) {
-        setActiveSession(null);
+      } else if (
+        customEvent.detail?.status === "ON_DUTY" &&
+        customEvent.detail?.session &&
+        matchesSlug(customEvent.detail.session, institutionSlug)
+      ) {
+        setActiveSession(customEvent.detail.session);
+        setAutoStopNotice(null);
       }
     };
 
     window.addEventListener("ophelia_duty_changed", handleDutyChange);
-    window.addEventListener("storage", handleStorageChange);
     return () => {
       window.removeEventListener("ophelia_duty_changed", handleDutyChange);
-      window.removeEventListener("storage", handleStorageChange);
     };
-  }, [activeSession, institutionSlug]);
+  }, [institutionSlug]);
 
-  // Realtime Timer based on Server Timestamp
+  // Realtime stopwatch tick driven purely by interval callback
   useEffect(() => {
-    if (!activeSession || !activeSession.startedAt) {
-      setElapsedSeconds(0);
-      return;
-    }
+    if (!activeSession?.startedAt) return;
 
-    const startTime = new Date(activeSession.startedAt).getTime();
-
-    const updateTimer = () => {
-      const now = Date.now();
-      const diff = Math.max(0, Math.floor((now - startTime) / 1000));
-      setElapsedSeconds(diff);
+    const tick = () => setNowMs(Date.now());
+    const immediate = setTimeout(tick, 0);
+    const interval = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(immediate);
+      clearInterval(interval);
     };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
   }, [activeSession]);
+
+  const elapsedSeconds =
+    activeSession?.startedAt && nowMs > 0
+      ? Math.max(0, Math.floor((nowMs - new Date(activeSession.startedAt).getTime()) / 1000))
+      : 0;
 
   const formatTimer = (totalSecs: number) => {
     const hours = Math.floor(totalSecs / 3600);
@@ -154,33 +280,32 @@ export function DutyTimer({
     return `${hh}\u00A0:\u00A0${mm}\u00A0:\u00A0${ss}`;
   };
 
+  const formatDurationShort = (secs: number) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}j ${m}m`;
+    if (m > 0) return `${m}m ${s}d`;
+    return `${s} detik`;
+  };
+
   const handleStartDuty = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await startDutyAction(institutionSlug, notes);
       if (res.success && res.session) {
-        endedSessionIdRef.current = null;
         setActiveSession(res.session);
+        setNowMs(Date.now());
+        setAutoStopNotice(null);
         setShowNotesInput(false);
         setNotes("");
 
-        // Persist to localStorage and cookies for seamless tab restore
-        try {
-          const json = JSON.stringify(res.session);
-          localStorage.setItem(`ophelia_active_duty_${institutionSlug}`, json);
-          localStorage.setItem("ophelia_current_active_duty", json);
-          document.cookie = `ophelia_active_duty_${institutionSlug}=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
-          document.cookie = `ophelia_active_duty=${encodeURIComponent(json)}; path=/; max-age=604800; SameSite=Lax`;
-        } catch {}
-
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("ophelia_duty_changed", {
-              detail: { status: "ON_DUTY", session: res.session },
-            })
-          );
-        }
+        window.dispatchEvent(
+          new CustomEvent("ophelia_duty_changed", {
+            detail: { status: "ON_DUTY", session: res.session },
+          })
+        );
         router.refresh();
       } else {
         setError(res.error || "Gagal memulai duty.");
@@ -195,16 +320,9 @@ export function DutyTimer({
   const handleConfirmEndDuty = async () => {
     setLoading(true);
     setError(null);
-    if (activeSession?.id) {
-      endedSessionIdRef.current = activeSession.id;
-    }
 
-    // Clear client persistence completely
     clearClientDutyState(institutionSlug);
-
-    // Immediate optimistic update
     setActiveSession(null);
-    setElapsedSeconds(0);
     setShowEndConfirmModal(false);
 
     try {
@@ -226,6 +344,11 @@ export function DutyTimer({
   };
 
   const isOnDuty = !!activeSession;
+  const blockedByOfflineCity =
+    !isOnDuty &&
+    fivemStatus?.serverConnected &&
+    fivemStatus.requireOnlineToStart &&
+    !fivemStatus.playerOnline;
 
   return (
     <>
@@ -237,7 +360,7 @@ export function DutyTimer({
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2.5">
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
                   isOnDuty
@@ -252,6 +375,30 @@ export function DutyTimer({
                 />
                 {isOnDuty ? "CURRENTLY ON DUTY" : "OFF DUTY"}
               </span>
+
+              {/* Live FiveM Server & In-City Status Badge */}
+              {fivemStatus && (
+                fivemStatus.serverConnected ? (
+                  fivemStatus.playerOnline ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <Wifi className="h-3 w-3 shrink-0" />
+                      <span>
+                        DI KOTA FIVEM{fivemStatus.serverId ? ` #${fivemStatus.serverId}` : ""}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      <WifiOff className="h-3 w-3 shrink-0" />
+                      <span>DI LUAR KOTA (OFFLINE FIVEM)</span>
+                    </span>
+                  )
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono text-neutral-400 bg-[#181818] border border-[#2a2a2a]">
+                    <WifiOff className="h-3 w-3 shrink-0 text-neutral-500" />
+                    <span>FIVEM BRIDGE STANDBY</span>
+                  </span>
+                )
+              )}
             </div>
 
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white flex flex-wrap items-center gap-2">
@@ -274,9 +421,12 @@ export function DutyTimer({
                       minute: "2-digit",
                     })}
                   </span>
+                  <span className="text-neutral-500">
+                    {" "}• Otomatis berhenti jika Anda keluar kota / keluar server FiveM
+                  </span>
                 </>
               ) : (
-                `Halo ${userDisplayName}, klik tombol di samping untuk mencatat kehadiran dinas Anda.`
+                `Halo ${userDisplayName}, klik tombol START DUTY setelah masuk kota untuk memulai pencatatan dinas.`
               )}
             </p>
           </div>
@@ -288,14 +438,66 @@ export function DutyTimer({
                 {isOnDuty ? "DURASI REALTIME" : "STANDBY TIME"}
               </span>
               <div className="font-mono text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight sm:tracking-wider text-white flex items-center justify-center md:justify-end gap-1.5 sm:gap-2.5 select-none">
-                <Clock className={`h-4 w-4 sm:h-6 sm:w-6 shrink-0 ${isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"}`} />
-                <span className={`whitespace-nowrap tabular-nums font-mono ${isOnDuty ? "text-white text-glow" : "text-neutral-400"}`}>
+                <Clock
+                  className={`h-4 w-4 sm:h-6 sm:w-6 shrink-0 ${
+                    isOnDuty ? "text-[#FF1E2D] animate-pulse" : "text-neutral-600"
+                  }`}
+                />
+                <span
+                  className={`whitespace-nowrap tabular-nums font-mono ${
+                    isOnDuty ? "text-white text-glow" : "text-neutral-400"
+                  }`}
+                >
                   {formatTimer(elapsedSeconds)}
                 </span>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Auto-Stop Alert Banner when FiveM ended the user's previous session */}
+        {autoStopNotice && !isOnDuty && (
+          <div className="mt-4 p-3.5 rounded-xl bg-amber-950/40 border border-amber-700/50 text-amber-200 text-xs flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+              <div className="space-y-0.5 min-w-0">
+                <div className="font-bold text-amber-300">
+                  Absensi Dihentikan Otomatis oleh Server FiveM
+                </div>
+                <p className="text-amber-100/80 leading-relaxed">
+                  {autoStopNotice.reason}
+                  {autoStopNotice.durationSeconds > 0 && (
+                    <span className="font-mono text-amber-300">
+                      {" "}• Durasi tercatat: {formatDurationShort(autoStopNotice.durationSeconds)}
+                    </span>
+                  )}
+                  . Silakan klik <strong>START DUTY</strong> lagi setelah kembali masuk ke kota.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                dismissedNoticeIdRef.current = autoStopNotice.sessionId;
+                setAutoStopNotice(null);
+              }}
+              className="p-1 rounded-lg text-amber-300/70 hover:text-white hover:bg-amber-900/40 transition shrink-0 cursor-pointer"
+              aria-label="Tutup pemberitahuan"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Helpful Info when FiveM server is live & user isn't in city */}
+        {blockedByOfflineCity && !error && (
+          <div className="mt-4 p-3 rounded-xl bg-[#161212] border border-[#3a2222] text-neutral-300 text-xs flex items-center gap-2.5">
+            <WifiOff className="h-4 w-4 shrink-0 text-amber-400" />
+            <span>
+              Server FiveM terhubung, namun akun Discord Anda belum terdeteksi di dalam kota. Masuk ke server FiveM terlebih dahulu untuk memulai absensi.
+            </span>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 p-3 rounded-lg bg-red-950/50 border border-red-800 text-red-200 text-xs flex items-center gap-2">
@@ -350,7 +552,7 @@ export function DutyTimer({
         </div>
       </div>
 
-      {/* In-App Confirmation Modal (No native popup blocker issues) */}
+      {/* In-App Confirmation Modal */}
       {showEndConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#2a2a2a] shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto relative">
@@ -386,7 +588,9 @@ export function DutyTimer({
               </div>
               <div className="flex justify-between text-neutral-400">
                 <span>Durasi Berjalan:</span>
-                <span className="font-mono font-bold text-[#FF1E2D] whitespace-nowrap">{formatTimer(elapsedSeconds)}</span>
+                <span className="font-mono font-bold text-[#FF1E2D] whitespace-nowrap">
+                  {formatTimer(elapsedSeconds)}
+                </span>
               </div>
             </div>
 

@@ -1,7 +1,6 @@
 import { getCurrentUser, verifyInstitutionAccess, getAllowedInstitutions } from "@/lib/auth";
 import { DataService, normalizeInstSlug } from "@/lib/data-service";
 import { formatInstitutionMemberName } from "@/lib/member-tag";
-import { DEFAULT_INSTITUTIONS } from "@/lib/constants";
 import { Navbar } from "@/components/navbar";
 import { Sidebar } from "@/components/sidebar";
 import { redirect } from "next/navigation";

@@ -20,7 +20,7 @@ export async function GET(
     }
     const members = await DataService.getMemberships(slug);
     return NextResponse.json({ success: true, members });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: "Gagal memuat data anggota." },
       { status: 500 }

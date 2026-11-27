@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { DutySessionData, PermissionLevel } from "@/types";
 import { UserAvatar } from "@/components/user-avatar";
 import { Radio, Clock, Search, Pencil } from "lucide-react";
@@ -18,54 +20,10 @@ export function LiveDutyList({
   userPermission,
   currentUserRoles,
 }: LiveDutyListProps) {
-  const getMergedWithLocal = (incoming: DutySessionData[]): DutySessionData[] => {
-    if (typeof window === "undefined") return incoming;
-    try {
-      const lastOffDutyStr = localStorage.getItem("ophelia_last_off_duty_timestamp");
-      const lastOffDuty = lastOffDutyStr ? parseInt(lastOffDutyStr, 10) : 0;
-
-      const stored =
-        localStorage.getItem(`ophelia_active_duty_${institutionSlug}`) ||
-        localStorage.getItem("ophelia_current_active_duty");
-      if (stored) {
-        const parsed = JSON.parse(stored) as DutySessionData;
-        const startedAtTime = parsed?.startedAt ? new Date(parsed.startedAt).getTime() : 0;
-
-        // If session started before last off duty, discard it!
-        if (lastOffDuty && startedAtTime <= lastOffDuty) {
-          localStorage.removeItem(`ophelia_active_duty_${institutionSlug}`);
-          localStorage.removeItem("ophelia_current_active_duty");
-          return incoming.filter(
-            (s) => !lastOffDuty || !s.startedAt || new Date(s.startedAt).getTime() > lastOffDuty
-          );
-        }
-
-        if (parsed && !parsed.endedAt && parsed.status === "ON_DUTY") {
-          const cleanSlug = parsed.institutionSlug?.replace("inst-", "").toLowerCase();
-          const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
-          if (!targetSlug || cleanSlug === targetSlug) {
-            const exists = incoming.some(
-              (s) => s.id === parsed.id || s.userId === parsed.userId
-            );
-            if (!exists) {
-              return [parsed, ...incoming];
-            }
-          }
-        }
-      } else if (lastOffDuty) {
-        return incoming.filter(
-          (s) => !s.startedAt || new Date(s.startedAt).getTime() > lastOffDuty
-        );
-      }
-    } catch {}
-    return incoming;
-  };
-
-  const [sessions, setSessions] = useState<DutySessionData[]>(() =>
-    getMergedWithLocal(initialSessions)
-  );
+  const router = useRouter();
+  const [sessions, setSessions] = useState<DutySessionData[]>(initialSessions);
   const [search, setSearch] = useState("");
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState<number>(0);
   const [selectedSessionToEdit, setSelectedSessionToEdit] = useState<DutySessionData | null>(null);
 
   const hasAdminRole = (currentUserRoles || []).some((r) => {
@@ -78,79 +36,64 @@ export function LiveDutyList({
       norm.includes("pimpinan") ||
       norm.includes("owner") ||
       norm.includes("founder") ||
-      norm.includes("management") ||
-      norm.includes("atasan") ||
-      norm.includes("chief") ||
-      norm.includes("leader")
+      norm.includes("management")
     );
   });
 
   const canEdit = userPermission === "LEADER" || userPermission === "SUPER_ADMIN" || hasAdminRole;
 
-  // Sync with prop updates
-  useEffect(() => {
-    setSessions(getMergedWithLocal(initialSessions));
-  }, [initialSessions]);
+  const fetchLive = useCallback(async () => {
+    if (!institutionSlug) return;
+    try {
+      const res = await fetch(
+        `/api/integrations/status?view=onduty&institution=${encodeURIComponent(institutionSlug)}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.data)) {
+        setSessions(data.data);
+      }
+    } catch {}
+  }, [institutionSlug]);
 
-  // Periodic polling so changes appear live
+  // Periodic polling every 6s so FiveM auto-stops appear live
   useEffect(() => {
     if (!institutionSlug) return;
-    const fetchLive = async () => {
+    const pollInterval = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
-      try {
-        const res = await fetch(`/api/integrations/status?view=onduty&institution=${institutionSlug}`);
-        const data = await res.json();
-        if (Array.isArray(data.data)) {
-          setSessions(getMergedWithLocal(data.data));
-        }
-      } catch {}
-    };
-
-    const pollInterval = setInterval(fetchLive, 8000);
+      fetchLive();
+    }, 6000);
     return () => clearInterval(pollInterval);
-  }, [institutionSlug]);
+  }, [institutionSlug, fetchLive]);
 
-  // Listen to ophelia_duty_changed & storage
+  // Listen to duty changes & refetch authoritative list from server
   useEffect(() => {
-    const handleDutyChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{
-        status: string;
-        session?: DutySessionData;
-        institutionSlug?: string;
-      }>;
-      if (customEvent.detail?.status === "ON_DUTY" && customEvent.detail?.session) {
-        const s = customEvent.detail.session;
-        const cleanSlug = s.institutionSlug?.replace("inst-", "").toLowerCase();
-        const targetSlug = institutionSlug?.replace("inst-", "").toLowerCase();
-        if (!targetSlug || cleanSlug === targetSlug) {
-          setSessions((prev) => [s, ...prev.filter((x) => x.id !== s.id && x.userId !== s.userId)]);
-        }
-      } else if (customEvent.detail?.status === "OFF_DUTY") {
-        setSessions((prev) => prev.filter((x) => x.institutionSlug !== customEvent.detail?.institutionSlug));
-      }
+    const handleDutyChange = () => {
+      fetchLive();
     };
-
-    const handleStorageChange = () => {
-      setSessions((prev) => getMergedWithLocal(prev));
-    };
-
     window.addEventListener("ophelia_duty_changed", handleDutyChange);
-    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", handleDutyChange);
     return () => {
       window.removeEventListener("ophelia_duty_changed", handleDutyChange);
-      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleDutyChange);
     };
-  }, [institutionSlug]);
+  }, [fetchLive]);
 
   // Realtime tick every second
   useEffect(() => {
+    const initTimer = setTimeout(() => setCurrentTime(Date.now()), 0);
     const timer = setInterval(() => {
       setCurrentTime(Date.now());
     }, 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(initTimer);
+      clearInterval(timer);
+    };
   }, []);
 
   const formatElapsed = (startedAt: string) => {
+    if (currentTime <= 0) return "00h\u00A000m\u00A000s";
     const startMs = new Date(startedAt).getTime();
     const elapsedSecs = Math.max(0, Math.floor((currentTime - startMs) / 1000));
     const hours = Math.floor(elapsedSecs / 3600);
@@ -194,7 +137,9 @@ export function LiveDutyList({
         <div className="rounded-2xl bg-[#111111] border border-[#222] p-12 text-center text-neutral-500">
           <Radio className="h-10 w-10 mx-auto text-neutral-600 mb-2" />
           <div className="text-sm font-semibold text-neutral-300">Tidak Ada Petugas Aktif</div>
-          <p className="text-xs text-neutral-500 mt-1">Saat ini belum ada anggota yang sedang bertugas.</p>
+          <p className="text-xs text-neutral-500 mt-1">
+            Saat ini belum ada anggota yang sedang bertugas.
+          </p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -280,13 +225,14 @@ export function LiveDutyList({
           isOpen={!!selectedSessionToEdit}
           onClose={() => setSelectedSessionToEdit(null)}
           onSessionUpdated={(updated) => {
-            if (updated.endedAt || (updated.status as string) === "OFF_DUTY") {
+            if (updated.endedAt || updated.status !== "ON_DUTY") {
               setSessions((prev) => prev.filter((s) => s.id !== updated.id));
             } else {
               setSessions((prev) =>
                 prev.map((s) => (s.id === updated.id ? updated : s))
               );
             }
+            router.refresh();
           }}
         />
       )}

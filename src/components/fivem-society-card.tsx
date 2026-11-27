@@ -1,28 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { FiveMSocietyAccount } from "@/types";
-import { Wallet, ShieldCheck, RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 interface FiveMSocietyCardProps {
   institutionSlug: string;
   initialAccount?: FiveMSocietyAccount | null;
-  accentColor?: string;
 }
 
 export function FiveMSocietyCard({
   institutionSlug,
   initialAccount = null,
-  accentColor = "#E50914",
 }: FiveMSocietyCardProps) {
   const [account, setAccount] = useState<FiveMSocietyAccount | null>(initialAccount);
   const [loading, setLoading] = useState(!initialAccount);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const res = await fetch(`/api/fivem/game-data?type=society-accounts&slug=${institutionSlug}`);
+      const res = await fetch(
+        `/api/fivem/game-data?type=society-accounts&slug=${encodeURIComponent(institutionSlug)}`
+      );
       if (res.ok) {
         const data = await res.json();
         if (data.ok && data.account) {
@@ -35,16 +35,18 @@ export function FiveMSocietyCard({
       setIsRefreshing(false);
       setLoading(false);
     }
-  };
+  }, [institutionSlug]);
 
   useEffect(() => {
-    if (!initialAccount) {
+    if (initialAccount) return;
+    const timer = setTimeout(() => {
       fetchBalance();
-    }
-  }, [institutionSlug, initialAccount]);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialAccount, fetchBalance]);
 
   if (!account && !loading) {
-    return null; // Don't render for institutions without society accounts (like pemerintah)
+    return null;
   }
 
   const formatRupiah = (val: number) => {
@@ -72,7 +74,7 @@ export function FiveMSocietyCard({
           onClick={fetchBalance}
           disabled={isRefreshing}
           title="Segarkan Saldo Kas"
-          className="text-neutral-500 hover:text-white p-1 rounded-lg hover:bg-[#202020] transition disabled:opacity-50"
+          className="text-neutral-500 hover:text-white p-1 rounded-lg hover:bg-[#202020] transition disabled:opacity-50 cursor-pointer"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
         </button>

@@ -2,19 +2,18 @@
 
 import { useState, useMemo } from "react";
 import { MembershipData, DutySessionData } from "@/types";
-import { FileSpreadsheet, Download, Calendar, Filter } from "lucide-react";
+import { Download, Calendar } from "lucide-react";
 
 interface ReportGeneratorProps {
   memberships: MembershipData[];
   sessions?: DutySessionData[];
-  institutionName: string;
+  institutionName?: string;
   institutionSlug: string;
 }
 
 export function ReportGenerator({
   memberships,
   sessions = [],
-  institutionName,
   institutionSlug,
 }: ReportGeneratorProps) {
   const today = new Date();

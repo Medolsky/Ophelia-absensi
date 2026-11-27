@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { DataService } from "@/lib/data-service";
 import { DutyCalendar } from "@/components/duty-calendar";
-import { BarChart3, TrendingUp, Calendar, Zap, Award, Flame } from "lucide-react";
+import { BarChart3, Calendar, Zap, Award, Flame } from "lucide-react";
 
 export default async function StatisticsPage({
   params,
@@ -51,7 +51,6 @@ export default async function StatisticsPage({
   const totalMonthSeconds = sessions.reduce((acc, s) => acc + s.durationSeconds, 0);
   const activeDaysSet = new Set(sessions.map((s) => s.startedAt.slice(0, 10)));
   const activeDays = activeDaysSet.size;
-  const totalSessions = sessions.length;
   const averagePerDaySeconds = activeDays > 0 ? Math.round(totalMonthSeconds / activeDays) : 0;
   const longestSessionSeconds = sessions.reduce(
     (max, s) => Math.max(max, s.durationSeconds),

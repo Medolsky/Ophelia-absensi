@@ -46,8 +46,11 @@ export async function POST(request: NextRequest) {
 
   const publicKey = process.env.DISCORD_PUBLIC_KEY;
 
-  // Signature verification (required by Discord)
-  if (publicKey && signature && timestamp) {
+  // Signature verification (required by Discord whenever DISCORD_PUBLIC_KEY is configured)
+  if (publicKey) {
+    if (!signature || !timestamp) {
+      return Response.json({ error: "Missing signature headers" }, { status: 401 });
+    }
     const isValid = await verifyDiscordSignature(publicKey, signature, timestamp, rawBody);
     if (!isValid) {
       return Response.json({ error: "Invalid signature" }, { status: 401 });

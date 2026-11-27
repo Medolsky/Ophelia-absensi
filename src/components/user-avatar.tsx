@@ -19,16 +19,18 @@ export function UserAvatar({
   const cleanId = userId?.replace("discord-", "");
   const initialSrc = getDiscordAvatarUrl(cleanId, userAvatar);
   const fallbackSrc = getDiscordAvatarUrl(cleanId, null);
-  const [src, setSrc] = useState(initialSrc);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  const effectiveSrc = failedSrc === initialSrc ? fallbackSrc : initialSrc;
 
   return (
     <img
-      src={src}
+      src={effectiveSrc}
       alt={name || "Petugas"}
       className={className}
       onError={() => {
-        if (src !== fallbackSrc) {
-          setSrc(fallbackSrc);
+        if (effectiveSrc !== fallbackSrc) {
+          setFailedSrc(initialSrc);
         }
       }}
     />

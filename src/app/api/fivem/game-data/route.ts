@@ -46,10 +46,11 @@ export async function GET(request: NextRequest) {
       { ok: false, error: `Invalid type parameter: '${type}'` },
       { status: 400 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
     console.error("[FiveM Game Data API Error]:", err);
     return Response.json(
-      { ok: false, error: err.message || "Internal server error" },
+      { ok: false, error: message },
       { status: 500 }
     );
   }
